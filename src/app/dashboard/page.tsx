@@ -53,7 +53,7 @@ export default async function DashboardPage() {
             <div className="text-3xl mb-3">📅</div>
             <h3 className="font-semibold text-lg text-gray-900">My Bookings</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">View your upcoming sessions</p>
-            <span className="text-gray-400 text-sm">Coming soon</span>
+            <Link href="/bookings" className="text-violet-600 font-medium text-sm hover:underline">View →</Link>
           </div>
         </div>
 
