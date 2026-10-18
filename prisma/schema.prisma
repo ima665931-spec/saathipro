@@ -12,9 +12,9 @@ model User {
   name          String?
   email         String    @unique
   emailVerified DateTime?
-  password      String?   // for credentials login
+  password      String?
   image         String?
-  role          String    @default("USER") // USER or SAATHI
+  role          String    @default("USER")
   phone         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -22,6 +22,8 @@ model User {
   accounts      Account[]
   sessions      Session[]
   saathiProfile SaathiProfile?
+  bookingsAsClient  Booking[] @relation("ClientBookings")
+  bookingsAsSaathi  Booking[] @relation("SaathiBookings")
 }
 
 model Account {
@@ -64,7 +66,7 @@ model SaathiProfile {
   userId      String   @unique
   bio         String?
   city        String?
-  services    String?  // JSON string of services
+  services    String?
   hourlyRate  Int?
   isVerified  Boolean  @default(false)
   isActive    Boolean  @default(true)
@@ -72,4 +74,24 @@ model SaathiProfile {
   updatedAt   DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Booking {
+  id            String   @id @default(cuid())
+  clientId      String
+  saathiId      String
+  saathiName    String
+  service       String
+  city          String?
+  date          String
+  time          String
+  durationHours Int      @default(1)
+  amount        Int
+  status        String   @default("PENDING")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  client User @relation("ClientBookings", fields: [clientId], references: [id], onDelete: Cascade)
+  saathi User @relation("SaathiBookings", fields: [saathiId], references: [id], onDelete: Cascade)
 }
