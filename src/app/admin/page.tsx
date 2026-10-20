@@ -15,7 +15,7 @@ type Tab =
   | "upi";
 
 export default function AdminPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("stats");
   const [stats, setStats] = useState<Record<string, number> | null>(null);
@@ -30,7 +30,6 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
 
-  // add UPI form
   const [newUpi, setNewUpi] = useState("");
   const [newName, setNewName] = useState("SaathiPro");
   const [newLimit, setNewLimit] = useState(50);
@@ -154,12 +153,29 @@ export default function AdminPage() {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl text-sm border border-red-100">
-            {error}
-            <p className="mt-2 text-xs">
-              Set <code className="bg-red-100 px-1">ADMIN_EMAILS</code> in
-              Vercel.
+          <div className="mb-6 p-4 bg-red-50 text-red-800 rounded-xl text-sm border border-red-100 space-y-2">
+            <p className="font-medium">{error}</p>
+            <p>
+              Logged in as:{" "}
+              <code className="bg-red-100 px-1">
+                {session?.user?.email || "unknown"}
+              </code>
             </p>
+            <ol className="list-decimal ml-4 text-xs space-y-1">
+              <li>
+                Vercel → saathipro → Settings → Environment Variables
+              </li>
+              <li>
+                <code className="bg-red-100 px-1">ADMIN_EMAILS</code> = exact
+                same email (no spaces, no quotes)
+              </li>
+              <li>Environment: Production (+ Preview if needed)</li>
+              <li>
+                <strong>Redeploy</strong> after saving env (Deployments →
+                ⋮ → Redeploy)
+              </li>
+              <li>Logout + login again, then open /admin</li>
+            </ol>
           </div>
         )}
 
@@ -192,7 +208,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* UPI POOL */}
         {!loading && tab === "upi" && (
           <div className="space-y-6">
             <div className="bg-white border border-border rounded-2xl p-5 shadow-card">
@@ -200,27 +215,25 @@ export default function AdminPage() {
                 Add UPI
               </h2>
               <p className="text-xs text-ink-muted mb-4">
-                Limit hit hone pe system next active UPI pe shift karega.
-                Daily limit 0 = unlimited.
+                Limit full → next UPI. Daily limit 0 = unlimited.
               </p>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   value={newUpi}
                   onChange={(e) => setNewUpi(e.target.value)}
-                  placeholder="name@ybl / name@oksbi"
+                  placeholder="name@ybl"
                   className="flex-1 px-3 py-2 border border-border rounded-xl text-sm"
                 />
                 <input
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Display name"
+                  placeholder="Name"
                   className="sm:w-36 px-3 py-2 border border-border rounded-xl text-sm"
                 />
                 <input
                   type="number"
                   value={newLimit}
                   onChange={(e) => setNewLimit(Number(e.target.value))}
-                  placeholder="Daily limit"
                   className="sm:w-28 px-3 py-2 border border-border rounded-xl text-sm"
                 />
                 <button
@@ -240,10 +253,8 @@ export default function AdminPage() {
                 </button>
               </div>
             </div>
-
             {upiList.map((u) => {
-              const full =
-                u.dailyLimit > 0 && u.usedToday >= u.dailyLimit;
+              const full = u.dailyLimit > 0 && u.usedToday >= u.dailyLimit;
               return (
                 <div
                   key={u.id}
@@ -255,16 +266,9 @@ export default function AdminPage() {
                       <p className="text-sm text-ink-muted">{u.displayName}</p>
                       <p className="text-xs text-ink-muted mt-1">
                         Today: {u.usedToday}
-                        {u.dailyLimit > 0 ? ` / ${u.dailyLimit}` : " (no limit)"}
-                        {full && (
-                          <span className="text-amber-700 font-medium">
-                            {" "}
-                            · LIMIT FULL → next UPI
-                          </span>
-                        )}
-                        {!u.isActive && (
-                          <span className="text-red-600"> · OFF</span>
-                        )}
+                        {u.dailyLimit > 0 ? ` / ${u.dailyLimit}` : ""}
+                        {full && " · LIMIT FULL"}
+                        {!u.isActive && " · OFF"}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -279,26 +283,11 @@ export default function AdminPage() {
                         onClick={() =>
                           act({ action: "reset_upi_count", poolId: u.id })
                         }
-                        label="Reset count"
+                        label="Reset"
                       />
                       <Btn
                         onClick={() => {
-                          const lim = prompt(
-                            "Daily limit (0 = unlimited)",
-                            String(u.dailyLimit)
-                          );
-                          if (lim !== null)
-                            act({
-                              action: "update_upi",
-                              poolId: u.id,
-                              dailyLimit: Number(lim),
-                            });
-                        }}
-                        label="Set limit"
-                      />
-                      <Btn
-                        onClick={() => {
-                          if (confirm("Delete this UPI?"))
+                          if (confirm("Delete?"))
                             act({ action: "delete_upi", poolId: u.id });
                         }}
                         label="Delete"
@@ -309,10 +298,8 @@ export default function AdminPage() {
                 </div>
               );
             })}
-            {upiList.length === 0 && (
-              <p className="text-sm text-ink-muted">
-                No UPIs yet — add at least one so /pay works.
-              </p>
+            {upiList.length === 0 && !error && (
+              <p className="text-sm text-ink-muted">No UPIs yet.</p>
             )}
           </div>
         )}
@@ -327,16 +314,10 @@ export default function AdminPage() {
                 <div className="flex flex-wrap justify-between gap-3">
                   <div>
                     <p className="font-medium text-ink">
-                      {p.user?.name || "—"}{" "}
-                      <span className="text-xs text-ink-muted">{p.status}</span>
+                      {p.user?.name} · {p.status}
                     </p>
                     <p className="text-sm text-ink-muted">{p.user?.email}</p>
                     <p className="text-sm font-mono mt-1">UTR: {p.utr}</p>
-                    {p.upiPool && (
-                      <p className="text-xs text-ink-muted">
-                        Paid to: {p.upiPool.upiId}
-                      </p>
-                    )}
                     {p.screenshot && (
                       <a href={p.screenshot} target="_blank" rel="noreferrer">
                         <img
@@ -367,41 +348,21 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
-            {payments.length === 0 && (
-              <p className="text-ink-muted text-sm">No payments</p>
-            )}
           </div>
         )}
 
         {!loading && tab === "users" && (
           <div className="space-y-4">
-            <div className="flex gap-2">
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search…"
-                className="flex-1 px-4 py-2 border rounded-xl text-sm"
-              />
-              <button
-                type="button"
-                onClick={() => load("users", q)}
-                className="px-4 py-2 bg-ink text-cream rounded-xl text-sm"
-              >
-                Search
-              </button>
-            </div>
             {users.map((u) => (
               <div
                 key={u.id}
-                className="bg-white border rounded-2xl p-4 shadow-card flex flex-wrap justify-between gap-2"
+                className="bg-white border rounded-2xl p-4 flex flex-wrap justify-between gap-2"
               >
                 <div>
-                  <p className="font-medium">
-                    {u.name} · {u.paymentStatus}
-                  </p>
+                  <p className="font-medium">{u.name}</p>
                   <p className="text-sm text-ink-muted">{u.email}</p>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex gap-1.5">
                   <Btn
                     onClick={() =>
                       act({
@@ -411,12 +372,6 @@ export default function AdminPage() {
                     }
                     label={u.isBanned ? "Unban" : "Ban"}
                     danger={!u.isBanned}
-                  />
-                  <Btn
-                    onClick={() =>
-                      act({ action: "set_role", userId: u.id, role: "ADMIN" })
-                    }
-                    label="→ Admin"
                   />
                 </div>
               </div>
@@ -429,7 +384,7 @@ export default function AdminPage() {
             {saathis.map((s) => (
               <div
                 key={s.id}
-                className="bg-white border rounded-2xl p-4 flex justify-between gap-2"
+                className="bg-white border rounded-2xl p-4 flex justify-between"
               >
                 <div>
                   <p className="font-medium">{s.user?.name}</p>
@@ -456,15 +411,13 @@ export default function AdminPage() {
             {bookings.map((b) => (
               <div
                 key={b.id}
-                className="bg-white border rounded-2xl p-4 flex justify-between gap-2"
+                className="bg-white border rounded-2xl p-4 flex justify-between"
               >
                 <div>
                   <p className="font-medium">
                     {b.saathiName} · {b.status}
                   </p>
-                  <p className="text-sm text-ink-muted">
-                    {b.client?.email} · ₹{b.amount}
-                  </p>
+                  <p className="text-sm text-ink-muted">{b.client?.email}</p>
                 </div>
                 <Btn
                   onClick={() =>
@@ -485,9 +438,7 @@ export default function AdminPage() {
                 key={r.id}
                 className="bg-white border rounded-2xl p-4 flex justify-between"
               >
-                <p className="text-sm">
-                  {"★".repeat(r.rating)} {r.comment}
-                </p>
+                <p className="text-sm">{"★".repeat(r.rating)} {r.comment}</p>
                 <Btn
                   onClick={() =>
                     act({ action: "delete_review", reviewId: r.id })
