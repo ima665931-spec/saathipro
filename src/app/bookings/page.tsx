@@ -17,29 +17,65 @@ type Booking = {
   status: string;
   notes: string | null;
   createdAt: string;
+  hasReview?: boolean;
+  isClient?: boolean;
+  review?: { rating: number; comment: string | null } | null;
 };
 
 export default function BookingsPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const load = () => {
+    fetch("/api/bookings")
+      .then((r) => r.json())
+      .then((data) => {
+        setBookings(data.bookings || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  };
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login?callbackUrl=/bookings");
       return;
     }
-    if (status === "authenticated") {
-      fetch("/api/bookings")
-        .then((r) => r.json())
-        .then((data) => {
-          setBookings(data.bookings || []);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
-    }
+    if (status === "authenticated") load();
   }, [status, router]);
+
+  const submitReview = async (bookingId: string) => {
+    setSubmitting(true);
+    setMsg("");
+    try {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId, rating, comment }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMsg(data.error || "Failed");
+        setSubmitting(false);
+        return;
+      }
+      setReviewingId(null);
+      setComment("");
+      setRating(5);
+      load();
+    } catch {
+      setMsg("Network error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (status === "loading" || loading) {
     return (
@@ -84,7 +120,7 @@ export default function BookingsPage() {
               My bookings
             </h1>
             <p className="mt-1 text-ink-muted text-sm">
-              Upcoming and past sessions
+              Upcoming and past sessions — leave a review after
             </p>
           </div>
           <Link
@@ -94,6 +130,12 @@ export default function BookingsPage() {
             Book new
           </Link>
         </div>
+
+        {msg && (
+          <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-xl">
+            {msg}
+          </div>
+        )}
 
         {bookings.length === 0 ? (
           <div className="bg-white rounded-2xl border border-border p-12 text-center shadow-card">
@@ -115,42 +157,92 @@ export default function BookingsPage() {
             {bookings.map((b) => (
               <div
                 key={b.id}
-                className="bg-white rounded-2xl border border-border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-card"
+                className="bg-white rounded-2xl border border-border p-5 shadow-card"
               >
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-display font-semibold text-ink">
-                      {b.saathiName}
-                    </h3>
-                    <span
-                      className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                        b.status === "CONFIRMED"
-                          ? "bg-emerald-50 text-emerald-800"
-                          : b.status === "CANCELLED"
-                          ? "bg-red-50 text-red-700"
-                          : "bg-amber-50 text-amber-800"
-                      }`}
-                    >
-                      {b.status}
-                    </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-display font-semibold text-ink">
+                        {b.saathiName}
+                      </h3>
+                      <span
+                        className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                          b.status === "CONFIRMED"
+                            ? "bg-emerald-50 text-emerald-800"
+                            : b.status === "CANCELLED"
+                            ? "bg-red-50 text-red-700"
+                            : "bg-amber-50 text-amber-800"
+                        }`}
+                      >
+                        {b.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-ink-muted mt-1">
+                      {b.service}
+                      {b.city ? ` · ${b.city}` : ""}
+                    </p>
+                    <p className="text-sm text-ink-muted mt-0.5">
+                      {b.date} · {b.time} · {b.durationHours} hr
+                      {b.durationHours > 1 ? "s" : ""}
+                    </p>
+                    {b.hasReview && b.review && (
+                      <p className="text-sm text-gold mt-1">
+                        Your rating: {"★".repeat(b.review.rating)}
+                        {b.review.comment ? ` — ${b.review.comment}` : ""}
+                      </p>
+                    )}
                   </div>
-                  <p className="text-sm text-ink-muted mt-1">
-                    {b.service}
-                    {b.city ? ` · ${b.city}` : ""}
-                  </p>
-                  <p className="text-sm text-ink-muted mt-0.5">
-                    {b.date} · {b.time} · {b.durationHours} hr
-                    {b.durationHours > 1 ? "s" : ""}
-                  </p>
-                  {b.notes && (
-                    <p className="text-xs text-ink-muted/70 mt-1">Note: {b.notes}</p>
-                  )}
+                  <div className="sm:text-right shrink-0 flex flex-col items-start sm:items-end gap-2">
+                    <p className="font-display text-xl font-semibold text-ink">
+                      ₹{b.amount}
+                    </p>
+                    {b.isClient && !b.hasReview && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setReviewingId(reviewingId === b.id ? null : b.id)
+                        }
+                        className="text-sm font-medium text-ink border border-border px-3 py-1.5 rounded-full hover:bg-cream-dark transition"
+                      >
+                        {reviewingId === b.id ? "Cancel" : "Leave review"}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="sm:text-right shrink-0">
-                  <p className="font-display text-xl font-semibold text-ink">
-                    ₹{b.amount}
-                  </p>
-                </div>
+
+                {reviewingId === b.id && (
+                  <div className="mt-4 pt-4 border-t border-border space-y-3">
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setRating(n)}
+                          className={`text-2xl ${
+                            n <= rating ? "text-gold" : "text-border"
+                          }`}
+                        >
+                          ★
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      rows={2}
+                      placeholder="Optional comment…"
+                      className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink"
+                    />
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => submitReview(b.id)}
+                      className="px-5 py-2 bg-ink text-cream text-sm font-semibold rounded-full hover:bg-accent disabled:opacity-50"
+                    >
+                      {submitting ? "Saving…" : "Submit review"}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
