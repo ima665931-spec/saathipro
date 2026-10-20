@@ -23,6 +23,7 @@ export async function GET(req: Request) {
         banned,
         verified,
         activeBookings,
+        pendingPay,
       ] = await Promise.all([
         prisma.user.count(),
         prisma.saathiProfile.count(),
@@ -35,6 +36,7 @@ export async function GET(req: Request) {
         prisma.user.count({ where: { isBanned: true } }),
         prisma.saathiProfile.count({ where: { isVerified: true } }),
         prisma.booking.count({ where: { status: "CONFIRMED" } }),
+        prisma.payment.count({ where: { status: "PENDING" } }),
       ]);
 
       return NextResponse.json({
@@ -47,6 +49,7 @@ export async function GET(req: Request) {
           banned,
           verified,
           activeBookings,
+          pendingPay,
         },
       });
     }
@@ -70,6 +73,7 @@ export async function GET(req: Request) {
           role: true,
           phone: true,
           isBanned: true,
+          paymentStatus: true,
           createdAt: true,
           saathiProfile: {
             select: { id: true, city: true, isVerified: true, isActive: true },
@@ -131,6 +135,17 @@ export async function GET(req: Request) {
       return NextResponse.json({ reviews });
     }
 
+    if (section === "payments") {
+      const payments = await prisma.payment.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 100,
+        include: {
+          user: { select: { id: true, name: true, email: true, paymentStatus: true } },
+        },
+      });
+      return NextResponse.json({ payments });
+    }
+
     return NextResponse.json({ error: "Unknown section" }, { status: 400 });
   } catch (err) {
     console.error("admin GET:", err);
@@ -146,11 +161,18 @@ export async function PATCH(req: Request) {
 
   try {
     const body = await req.json();
-    const { action, userId, saathiUserId, bookingId, reviewId, role, rate } =
-      body;
+    const {
+      action,
+      userId,
+      saathiUserId,
+      bookingId,
+      reviewId,
+      paymentId,
+      role,
+      rate,
+    } = body;
 
     switch (action) {
-      // —— Users (1–10) ——
       case "ban_user": {
         await prisma.user.update({
           where: { id: userId },
@@ -186,7 +208,6 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ success: true });
       }
 
-      // —— Saathis (11–18) ——
       case "verify_saathi": {
         await prisma.saathiProfile.update({
           where: { userId: saathiUserId },
@@ -243,7 +264,6 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ success: true });
       }
 
-      // —— Bookings (19–22) ——
       case "cancel_booking": {
         await prisma.booking.update({
           where: { id: bookingId },
@@ -270,9 +290,44 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ success: true });
       }
 
-      // —— Reviews (23–24) ——
       case "delete_review": {
         await prisma.review.delete({ where: { id: reviewId } });
+        return NextResponse.json({ success: true });
+      }
+
+      case "approve_payment": {
+        const pay = await prisma.payment.findUnique({
+          where: { id: paymentId },
+        });
+        if (!pay) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+        await prisma.payment.update({
+          where: { id: paymentId },
+          data: { status: "APPROVED" },
+        });
+        await prisma.user.update({
+          where: { id: pay.userId },
+          data: { paymentStatus: "VERIFIED" },
+        });
+        return NextResponse.json({ success: true });
+      }
+
+      case "reject_payment": {
+        const pay = await prisma.payment.findUnique({
+          where: { id: paymentId },
+        });
+        if (!pay) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+        await prisma.payment.update({
+          where: { id: paymentId },
+          data: { status: "REJECTED" },
+        });
+        await prisma.user.update({
+          where: { id: pay.userId },
+          data: { paymentStatus: "REJECTED" },
+        });
         return NextResponse.json({ success: true });
       }
 
