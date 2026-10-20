@@ -31,6 +31,7 @@ export default function BookingsPage() {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
 
   const load = () => {
@@ -77,6 +78,30 @@ export default function BookingsPage() {
     }
   };
 
+  const cancelBooking = async (bookingId: string) => {
+    if (!confirm("Cancel this booking?")) return;
+    setCancellingId(bookingId);
+    setMsg("");
+    try {
+      const res = await fetch("/api/bookings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId, action: "cancel" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMsg(data.error || "Cancel failed");
+        setCancellingId(null);
+        return;
+      }
+      load();
+    } catch {
+      setMsg("Network error");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   if (status === "loading" || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-cream">
@@ -120,7 +145,7 @@ export default function BookingsPage() {
               My bookings
             </h1>
             <p className="mt-1 text-ink-muted text-sm">
-              Upcoming and past sessions — leave a review after
+              Review or cancel sessions here
             </p>
           </div>
           <Link
@@ -196,17 +221,35 @@ export default function BookingsPage() {
                     <p className="font-display text-xl font-semibold text-ink">
                       ₹{b.amount}
                     </p>
-                    {b.isClient && !b.hasReview && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setReviewingId(reviewingId === b.id ? null : b.id)
-                        }
-                        className="text-sm font-medium text-ink border border-border px-3 py-1.5 rounded-full hover:bg-cream-dark transition"
-                      >
-                        {reviewingId === b.id ? "Cancel" : "Leave review"}
-                      </button>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {b.isClient &&
+                        b.status === "CONFIRMED" &&
+                        !b.hasReview && (
+                          <button
+                            type="button"
+                            onClick={() => cancelBooking(b.id)}
+                            disabled={cancellingId === b.id}
+                            className="text-sm font-medium text-red-700 border border-red-200 px-3 py-1.5 rounded-full hover:bg-red-50 transition disabled:opacity-50"
+                          >
+                            {cancellingId === b.id ? "Cancelling…" : "Cancel"}
+                          </button>
+                        )}
+                      {b.isClient &&
+                        b.status === "CONFIRMED" &&
+                        !b.hasReview && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReviewingId(
+                                reviewingId === b.id ? null : b.id
+                              )
+                            }
+                            className="text-sm font-medium text-ink border border-border px-3 py-1.5 rounded-full hover:bg-cream-dark transition"
+                          >
+                            {reviewingId === b.id ? "Close" : "Leave review"}
+                          </button>
+                        )}
+                    </div>
                   </div>
                 </div>
 
