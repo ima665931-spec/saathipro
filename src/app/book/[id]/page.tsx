@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -92,19 +92,41 @@ const DUMMY_SAATHIS: Record<
 };
 
 const TIME_SLOTS = [
-  "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM",
-  "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM", "7:00 PM", "8:00 PM",
+  "10:00 AM",
+  "11:00 AM",
+  "12:00 PM",
+  "1:00 PM",
+  "2:00 PM",
+  "3:00 PM",
+  "4:00 PM",
+  "5:00 PM",
+  "6:00 PM",
+  "7:00 PM",
+  "8:00 PM",
 ];
+
+type SaathiInfo = {
+  id: string;
+  name: string;
+  city: string;
+  services: string[];
+  rate: number;
+  rating: number;
+  bio: string;
+};
 
 export default function BookPage() {
   const params = useParams();
   const id = String(params.id || "");
-  const saathi = DUMMY_SAATHIS[id];
-
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [service, setService] = useState(saathi?.services[0] || "");
+  const [saathi, setSaathi] = useState<SaathiInfo | null>(
+    DUMMY_SAATHIS[id] || null
+  );
+  const [resolved, setResolved] = useState(!!DUMMY_SAATHIS[id]);
+
+  const [service, setService] = useState(DUMMY_SAATHIS[id]?.services[0] || "");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [duration, setDuration] = useState(1);
@@ -112,6 +134,23 @@ export default function BookPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (DUMMY_SAATHIS[id]) return;
+    fetch("/api/saathis")
+      .then((r) => r.json())
+      .then((data) => {
+        const found = (data.saathis || []).find(
+          (s: SaathiInfo) => s.id === id
+        );
+        if (found) {
+          setSaathi(found);
+          setService(found.services?.[0] || "Hanging Out");
+        }
+      })
+      .catch(() => {})
+      .finally(() => setResolved(true));
+  }, [id]);
 
   const total = useMemo(
     () => (saathi ? saathi.rate * duration : 0),
@@ -124,18 +163,11 @@ export default function BookPage() {
     return d.toISOString().split("T")[0];
   }, []);
 
-  if (!saathi) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="text-center">
-          <h1 className="text-xl font-bold text-gray-900">Saathi not found</h1>
-          <Link href="/find" className="mt-4 inline-block text-violet-600 font-medium">
-            ← Back to Find
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const avatar = saathi
+    ? `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        saathi.name
+      )}&background=5b4a3f&color=fff&size=128&font-size=0.4`
+    : "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,7 +177,7 @@ export default function BookPage() {
       router.push(`/login?callbackUrl=/book/${id}`);
       return;
     }
-    if (!date || !time || !service) {
+    if (!saathi || !date || !time || !service) {
       setError("Please fill date, time and service");
       return;
     }
@@ -184,22 +216,44 @@ export default function BookPage() {
     }
   };
 
-  if (status === "loading") {
+  if (status === "loading" || (!resolved && !saathi)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-cream">
+        <div className="text-ink-muted text-sm">Loading…</div>
+      </div>
+    );
+  }
+
+  if (!saathi) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-cream px-4">
+        <div className="text-center">
+          <h1 className="font-display text-xl font-semibold text-ink">
+            Saathi not found
+          </h1>
+          <Link
+            href="/find"
+            className="mt-4 inline-block text-sm font-medium text-ink-muted hover:text-ink"
+          >
+            ← Back to Find
+          </Link>
+        </div>
       </div>
     );
   }
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-10 text-center max-w-md">
-          <div className="text-5xl mb-4">✅</div>
-          <h1 className="text-2xl font-bold text-gray-900">Booking Confirmed!</h1>
-          <p className="mt-2 text-gray-600">
-            Your session with {saathi.name} is booked. Redirecting...
+      <div className="min-h-screen flex items-center justify-center bg-cream px-4">
+        <div className="bg-white rounded-2xl border border-border shadow-soft p-10 text-center max-w-md">
+          <div className="w-12 h-12 rounded-full bg-ink text-cream flex items-center justify-center mx-auto text-lg">
+            ✓
+          </div>
+          <h1 className="mt-4 font-display text-2xl font-semibold text-ink">
+            Booking confirmed
+          </h1>
+          <p className="mt-2 text-ink-muted text-sm">
+            Session with {saathi.name} is booked. Redirecting…
           </p>
         </div>
       </div>
@@ -207,74 +261,100 @@ export default function BookPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
+    <div className="min-h-screen bg-cream">
+      <header className="sticky top-0 z-50 bg-cream/90 backdrop-blur border-b border-border">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-ink flex items-center justify-center text-cream font-display font-semibold text-sm">
                 S
               </div>
-              <span className="text-xl font-bold text-gray-900">SaathiPro</span>
+              <span className="font-display text-lg font-semibold text-ink tracking-tight">
+                SaathiPro
+              </span>
             </Link>
-            <Link href="/find" className="text-sm font-medium text-gray-600 hover:text-violet-600">
-              ← Back to Find
+            <Link
+              href={`/saathi/${id}`}
+              className="text-sm font-medium text-ink-muted hover:text-ink"
+            >
+              ← Profile
             </Link>
           </div>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">Book a Session</h1>
+      <main className="max-w-3xl mx-auto px-4 py-10">
+        <p className="text-xs font-semibold tracking-widest uppercase text-accent-light mb-2">
+          Booking
+        </p>
+        <h1 className="font-display text-3xl font-semibold text-ink mb-8">
+          Book a session
+        </h1>
 
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-6 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold shrink-0">
-            {saathi.name.charAt(0)}
-          </div>
+        <div className="bg-white rounded-2xl border border-border p-5 mb-6 flex items-center gap-4 shadow-card">
+          <img
+            src={avatar}
+            alt={saathi.name}
+            className="w-16 h-16 rounded-xl object-cover shrink-0"
+          />
           <div>
-            <h2 className="font-semibold text-lg text-gray-900">{saathi.name}</h2>
-            <p className="text-sm text-gray-500">
+            <h2 className="font-display font-semibold text-lg text-ink">
+              {saathi.name}
+            </h2>
+            <p className="text-sm text-ink-muted">
               {saathi.city} · ★ {saathi.rating} · ₹{saathi.rate}/hr
             </p>
-            <p className="text-sm text-gray-600 mt-1 line-clamp-1">{saathi.bio}</p>
           </div>
         </div>
 
         {!session && (
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
+          <div className="mb-6 p-4 bg-cream-dark border border-border rounded-xl text-ink text-sm">
             Please{" "}
-            <Link href={`/login?callbackUrl=/book/${id}`} className="font-semibold underline">
-              login
+            <Link
+              href={`/login?callbackUrl=/book/${id}`}
+              className="font-semibold underline"
+            >
+              sign in
             </Link>{" "}
-            to complete your booking.
+            to complete booking.
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white rounded-2xl border border-border shadow-card p-6 space-y-5"
+        >
           {error && (
-            <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
+            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100">
+              {error}
+            </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Service <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-ink mb-1.5">
+              Service
             </label>
             <select
               value={service}
               onChange={(e) => setService(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink"
             >
-              {saathi.services.map((s) => (
-                <option key={s} value={s}>{s}</option>
+              {(saathi.services?.length
+                ? saathi.services
+                : ["Hanging Out"]
+              ).map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
           </div>
 
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Date <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-ink mb-1.5">
+                Date
               </label>
               <input
                 type="date"
@@ -282,29 +362,33 @@ export default function BookPage() {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+                className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                Time <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-ink mb-1.5">
+                Time
               </label>
               <select
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+                className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink"
               >
                 <option value="">Select time</option>
                 {TIME_SLOTS.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Duration</label>
+            <label className="block text-sm font-medium text-ink mb-1.5">
+              Duration
+            </label>
             <div className="flex gap-2">
               {[1, 2, 3, 4].map((h) => (
                 <button
@@ -313,8 +397,8 @@ export default function BookPage() {
                   onClick={() => setDuration(h)}
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
                     duration === h
-                      ? "bg-violet-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-violet-50"
+                      ? "bg-ink text-cream"
+                      : "bg-cream-dark text-ink-muted hover:text-ink border border-border"
                   }`}
                 >
                   {h} hr{h > 1 ? "s" : ""}
@@ -324,27 +408,37 @@ export default function BookPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Notes (optional)</label>
+            <label className="block text-sm font-medium text-ink mb-1.5">
+              Notes (optional)
+            </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              placeholder="Any preferences or special requests..."
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+              placeholder="Preferences or special requests…"
+              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 resize-none text-ink"
             />
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-between pt-4 border-t border-border">
             <div>
-              <p className="text-sm text-gray-500">Total</p>
-              <p className="text-2xl font-bold text-violet-600">₹{total}</p>
+              <p className="text-xs text-ink-muted uppercase tracking-wide">
+                Total
+              </p>
+              <p className="font-display text-2xl font-semibold text-ink">
+                ₹{total}
+              </p>
             </div>
             <button
               type="submit"
               disabled={loading || !session}
-              className="px-8 py-3 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl transition disabled:opacity-50"
+              className="px-8 py-3.5 bg-ink hover:bg-accent text-cream font-semibold rounded-xl transition disabled:opacity-50"
             >
-              {loading ? "Booking..." : session ? "Confirm Booking" : "Login to Book"}
+              {loading
+                ? "Booking…"
+                : session
+                ? "Confirm booking"
+                : "Sign in to book"}
             </button>
           </div>
         </form>
