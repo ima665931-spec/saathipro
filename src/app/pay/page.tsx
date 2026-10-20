@@ -48,6 +48,7 @@ export default function PayPage() {
 
   const [upiId, setUpiId] = useState("");
   const [upiName, setUpiName] = useState("SaathiPro");
+  const [upiPoolId, setUpiPoolId] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState("NONE");
   const [utr, setUtr] = useState("");
   const [shot, setShot] = useState<string | null>(null);
@@ -67,6 +68,7 @@ export default function PayPage() {
         .then((d) => {
           setUpiId(d.upiId || "");
           setUpiName(d.upiName || "SaathiPro");
+          setUpiPoolId(d.upiPoolId || null);
           setPaymentStatus(d.paymentStatus || "NONE");
           if (d.paymentStatus === "VERIFIED") setDone(true);
           if (d.paymentStatus === "PENDING") setDone(true);
@@ -116,7 +118,11 @@ export default function PayPage() {
       const res = await fetch("/api/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ utr: utr.trim(), screenshot: shot }),
+        body: JSON.stringify({
+          utr: utr.trim(),
+          screenshot: shot,
+          upiPoolId,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -162,8 +168,7 @@ export default function PayPage() {
           Pay ₹{FEE}
         </h1>
         <p className="mt-2 text-ink-muted text-sm">
-          One-time fee to unlock booking and full access. Pay via any UPI app,
-          then submit UTR + screenshot for verification.
+          One-time fee. Pay via any UPI app, then submit UTR + screenshot.
         </p>
 
         {paymentStatus === "VERIFIED" && (
@@ -188,8 +193,7 @@ export default function PayPage() {
                 Under review
               </p>
               <p className="text-sm text-amber-800 mt-1">
-                Admin will verify your UTR and screenshot. Usually within a few
-                hours.
+                Admin will verify your UTR and screenshot shortly.
               </p>
               <Link
                 href="/dashboard"
@@ -207,7 +211,7 @@ export default function PayPage() {
               <div className="mt-8 bg-white border border-border rounded-2xl p-6 shadow-card text-center">
                 {!upiId ? (
                   <p className="text-sm text-red-600">
-                    UPI ID not configured. Contact support.
+                    No UPI in pool yet. Admin must add UPI in Admin → UPI Pool.
                   </p>
                 ) : (
                   <>
@@ -232,7 +236,7 @@ export default function PayPage() {
                       Open UPI app
                     </a>
                     <p className="mt-3 text-xs text-ink-muted">
-                      GPay / PhonePe / Paytm / any UPI — scan QR or open link
+                      GPay / PhonePe / Paytm — scan or open link
                     </p>
                   </>
                 )}
@@ -290,7 +294,7 @@ export default function PayPage() {
                 </div>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || !upiId}
                   className="w-full py-3.5 bg-ink text-cream font-semibold rounded-xl hover:bg-accent disabled:opacity-50"
                 >
                   {submitting ? "Submitting…" : "Submit for verification"}
@@ -301,7 +305,7 @@ export default function PayPage() {
 
         {paymentStatus === "REJECTED" && (
           <p className="mt-4 text-sm text-red-600 text-center">
-            Previous payment was rejected. Please pay again and resubmit.
+            Previous payment was rejected. Pay again and resubmit.
           </p>
         )}
       </main>
