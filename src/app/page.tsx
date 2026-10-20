@@ -4,32 +4,32 @@ import { useState } from "react";
 import Link from "next/link";
 
 const services = [
-  { emoji: "🎬", title: "Movie Partner", desc: "Watch together, share laughs", price: "₹4,500" },
-  { emoji: "👴", title: "Elder Care", desc: "Senior assistance & daily support", price: "₹1,000" },
-  { emoji: "🤝", title: "Hanging Out", desc: "Casual social time together", price: "₹1,500" },
-  { emoji: "🎉", title: "Clubbing", desc: "Nightlife & party assistance", price: "₹4,500" },
-  { emoji: "🛍️", title: "Shopping Buddy", desc: "Groceries, errands, or shopping", price: "₹2,000" },
-  { emoji: "🩺", title: "Medical Support", desc: "Hospital & appointment assistance", price: "₹2,000" },
-  { emoji: "✈️", title: "Travel Partner", desc: "Explore and travel together", price: "₹2,000" },
-  { emoji: "☕", title: "Coffee Partner", desc: "Enjoy coffee & conversation", price: "₹1,500" },
+  { title: "Movie Partner", desc: "Watch together, share the moment", price: "From ₹1,500" },
+  { title: "Elder Care", desc: "Senior assistance & daily support", price: "From ₹1,000" },
+  { title: "Hanging Out", desc: "Casual social time, conversation", price: "From ₹1,500" },
+  { title: "Clubbing", desc: "Nightlife companion, professional", price: "From ₹2,000" },
+  { title: "Shopping Buddy", desc: "Errands, markets, retail", price: "From ₹1,400" },
+  { title: "Medical Support", desc: "Hospital & appointment help", price: "From ₹1,500" },
+  { title: "Travel Partner", desc: "Explore cities together", price: "From ₹1,800" },
+  { title: "Coffee Partner", desc: "Conversation over coffee", price: "From ₹1,200" },
 ];
 
 const faqs = [
   {
     q: "What is SaathiPro?",
-    a: "SaathiPro is India's professional social & lifestyle support platform. Connect with verified Saathis for elder care, hangouts, movies, shopping and more — safe, consent-first, strictly professional.",
+    a: "A professional social support platform. Book verified companions for movies, elder care, hangouts, travel and more — consent-first, strictly professional. Not a dating service.",
   },
   {
-    q: "How do I find a Saathi?",
-    a: "Click Find a Saathi, browse by city and service, pick a verified partner, choose date & time, and book your session.",
+    q: "How do I book?",
+    a: "Browse Find a Saathi, open a profile, choose date and duration, confirm. You will see bookings in your dashboard.",
   },
   {
     q: "Is it safe?",
-    a: "Yes. Profiles are verified, interactions are professional only, and support is available 24/7. SaathiPro is NOT a dating service.",
+    a: "Profiles are reviewed, interactions are professional only, and clear boundaries are required. Report any issue from your account.",
   },
   {
-    q: "How much can I earn as a Saathi?",
-    a: "Set your own rates — many Saathis earn ₹1,000 to ₹2,000+ per hour. You keep most of your earnings.",
+    q: "How do Saathis earn?",
+    a: "Set your own hourly rates, choose services, keep the majority of earnings. Flexible hours across India.",
   },
 ];
 
@@ -37,78 +37,91 @@ export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   return (
-    <div className="min-h-screen bg-white">
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
+    <div className="min-h-screen bg-cream">
+      <header className="sticky top-0 z-50 bg-cream/90 backdrop-blur border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-ink flex items-center justify-center text-cream font-display font-semibold text-sm">
                 S
               </div>
-              <span className="text-xl font-bold text-gray-900">SaathiPro</span>
+              <span className="font-display text-lg font-semibold text-ink tracking-tight">
+                SaathiPro
+              </span>
             </Link>
-            <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
-              <a href="#services" className="hover:text-violet-600 transition">Services</a>
-              <a href="#earn" className="hover:text-violet-600 transition">Earn</a>
-              <a href="#faq" className="hover:text-violet-600 transition">FAQ</a>
-              <Link href="/find" className="hover:text-violet-600 transition">Find Saathi</Link>
+            <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-ink-muted">
+              <a href="#services" className="hover:text-ink transition">
+                Services
+              </a>
+              <a href="#earn" className="hover:text-ink transition">
+                Earn
+              </a>
+              <a href="#faq" className="hover:text-ink transition">
+                FAQ
+              </a>
+              <Link href="/find" className="hover:text-ink transition">
+                Find Saathi
+              </Link>
             </nav>
             <div className="flex items-center gap-3">
-              <Link href="/login" className="hidden sm:inline-flex px-4 py-2 text-sm font-medium text-violet-700 hover:text-violet-900 transition">
+              <Link
+                href="/login"
+                className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-ink"
+              >
                 Login
               </Link>
-              <Link href="/register" className="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-full transition shadow-sm">
-                Join Now
+              <Link
+                href="/register"
+                className="px-5 py-2.5 bg-ink hover:bg-accent text-cream text-sm font-semibold rounded-full transition"
+              >
+                Join
               </Link>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 text-white text-center py-2.5 text-sm font-medium">
-        🎉 5 Million+ Family! Up to 60% OFF —{" "}
-        <Link href="/register" className="underline font-semibold">Join Now →</Link>
-      </div>
-
-      <section className="relative overflow-hidden bg-gradient-to-b from-violet-50 via-white to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28">
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-100 text-violet-700 text-sm font-medium mb-6">
-              🏆 India's #1 Social & Lifestyle Support Platform
-            </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-gray-900 leading-tight">
-              SaathiPro in India
-              <span className="block text-violet-600 mt-2">Professional Social Support Services</span>
-            </h1>
-            <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              Safe, verified, professional Saathis across all Indian cities.
-              Movie partners, elder care, hangouts & more.
+      <section className="relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-28 lg:pb-32">
+          <div className="max-w-3xl mx-auto text-center">
+            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-accent-light mb-6">
+              Professional companionship · India
             </p>
-            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-semibold text-ink leading-[1.15] tracking-tight text-balance">
+              Verified Saathis for life's moments
+            </h1>
+            <p className="mt-6 text-lg text-ink-muted max-w-xl mx-auto leading-relaxed">
+              Movies, elder care, hangouts, travel — book trusted professionals
+              with clear boundaries. Safe. Consent-first.
+            </p>
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
                 href="/find"
-                className="w-full sm:w-auto px-8 py-4 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-full text-lg shadow-lg shadow-violet-200 transition text-center"
+                className="w-full sm:w-auto px-8 py-3.5 bg-ink hover:bg-accent text-cream font-semibold rounded-full transition text-center"
               >
-                Find a Saathi →
+                Find a Saathi
               </Link>
               <Link
                 href="/become-saathi"
-                className="w-full sm:w-auto px-8 py-4 bg-white hover:bg-gray-50 text-violet-700 font-semibold rounded-full text-lg border-2 border-violet-200 transition text-center"
+                className="w-full sm:w-auto px-8 py-3.5 bg-white border border-border text-ink font-semibold rounded-full hover:bg-cream-dark transition text-center"
               >
-                Become a Saathi →
+                Become a Saathi
               </Link>
             </div>
 
-            <div className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl mx-auto">
+            <div className="mt-16 grid grid-cols-3 gap-6 max-w-lg mx-auto border-t border-border pt-10">
               {[
-                { value: "5M+", label: "Members" },
-                { value: "500+", label: "Cities" },
-                { value: "#1", label: "India" },
+                { value: "Verified", label: "Profiles" },
+                { value: "Pan-India", label: "Coverage" },
                 { value: "24/7", label: "Support" },
               ].map((stat) => (
-                <div key={stat.label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-                  <div className="text-3xl font-bold text-violet-600">{stat.value}</div>
-                  <div className="text-sm text-gray-500 mt-1">{stat.label}</div>
+                <div key={stat.label} className="text-center">
+                  <div className="font-display text-xl font-semibold text-ink">
+                    {stat.value}
+                  </div>
+                  <div className="text-xs text-ink-muted mt-1 uppercase tracking-wide">
+                    {stat.label}
+                  </div>
                 </div>
               ))}
             </div>
@@ -116,91 +129,105 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="services" className="py-20 lg:py-28">
+      <section id="services" className="py-20 border-t border-border bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-14">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">Our Services</h2>
-            <p className="mt-4 text-lg text-gray-600">Professional support for every need</p>
+          <div className="max-w-xl mb-12">
+            <p className="text-xs font-semibold tracking-widest uppercase text-accent-light mb-3">
+              Services
+            </p>
+            <h2 className="font-display text-3xl sm:text-4xl font-semibold text-ink">
+              Support for every need
+            </h2>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {services.map((s) => (
               <Link
                 key={s.title}
                 href="/find"
-                className="group bg-white rounded-2xl border border-gray-100 p-6 hover:border-violet-200 hover:shadow-lg hover:shadow-violet-50 transition-all duration-300"
+                className="group p-6 rounded-2xl border border-border bg-cream/50 hover:bg-cream hover:shadow-card transition"
               >
-                <div className="text-4xl mb-4">{s.emoji}</div>
-                <h3 className="text-lg font-semibold text-gray-900 group-hover:text-violet-700 transition">
+                <h3 className="font-display font-semibold text-ink group-hover:text-accent transition">
                   {s.title}
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">{s.desc}</p>
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-lg font-bold text-violet-600">{s.price}</span>
-                  <span className="text-sm font-medium text-violet-600 group-hover:underline">
-                    Book →
-                  </span>
-                </div>
+                <p className="mt-2 text-sm text-ink-muted leading-relaxed">{s.desc}</p>
+                <p className="mt-4 text-sm font-medium text-ink">{s.price}</p>
               </Link>
             ))}
           </div>
-          <div className="text-center mt-10">
+          <div className="mt-10">
             <Link
               href="/find"
-              className="inline-block px-8 py-3.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-full transition"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-ink hover:text-accent transition"
             >
-              Browse All Saathis →
+              Browse all Saathis →
             </Link>
           </div>
         </div>
       </section>
 
-      <section id="earn" className="py-20 bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 text-white">
+      <section id="earn" className="py-20 bg-ink text-cream">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold">Earn Upto ₹2,000 Per Hour</h2>
-          <p className="mt-4 text-lg text-violet-100">
-            Set your rates, choose services, help people — flexible hours.
+          <p className="text-xs font-semibold tracking-widest uppercase text-gold mb-4">
+            For professionals
           </p>
-          <div className="mt-10 grid grid-cols-3 gap-6 max-w-lg mx-auto">
+          <h2 className="font-display text-3xl sm:text-4xl font-semibold">
+            Earn on your terms
+          </h2>
+          <p className="mt-4 text-cream/70 text-lg">
+            Set rates, choose services, flexible hours — across India.
+          </p>
+          <div className="mt-10 grid grid-cols-3 gap-6 max-w-md mx-auto">
             <div>
-              <div className="text-3xl font-bold">₹2K/hr</div>
-              <div className="text-sm text-violet-200 mt-1">Max Rate</div>
+              <div className="font-display text-2xl font-semibold">₹2K</div>
+              <div className="text-xs text-cream/50 mt-1 uppercase tracking-wide">
+                / hour up to
+              </div>
             </div>
             <div>
-              <div className="text-3xl font-bold">80%</div>
-              <div className="text-sm text-violet-200 mt-1">You Keep</div>
+              <div className="font-display text-2xl font-semibold">80%</div>
+              <div className="text-xs text-cream/50 mt-1 uppercase tracking-wide">
+                You keep
+              </div>
             </div>
             <div>
-              <div className="text-3xl font-bold">24/7</div>
-              <div className="text-sm text-violet-200 mt-1">Flexible</div>
+              <div className="font-display text-2xl font-semibold">You</div>
+              <div className="text-xs text-cream/50 mt-1 uppercase tracking-wide">
+                Set hours
+              </div>
             </div>
           </div>
           <Link
             href="/become-saathi"
-            className="inline-block mt-10 px-10 py-4 bg-white text-violet-700 font-bold rounded-full text-lg hover:bg-violet-50 transition shadow-lg"
+            className="inline-block mt-10 px-10 py-3.5 bg-cream text-ink font-semibold rounded-full hover:bg-white transition"
           >
-            Start Earning Today →
+            Apply as Saathi
           </Link>
         </div>
       </section>
 
-      <section id="faq" className="py-20 lg:py-28">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">FAQ</h2>
-          </div>
-          <div className="space-y-3">
+      <section id="faq" className="py-20 bg-cream">
+        <div className="max-w-2xl mx-auto px-4">
+          <h2 className="font-display text-3xl font-semibold text-ink text-center mb-10">
+            FAQ
+          </h2>
+          <div className="space-y-2">
             {faqs.map((faq, i) => (
-              <div key={i} className="border border-gray-200 rounded-xl overflow-hidden">
+              <div
+                key={i}
+                className="border border-border rounded-xl overflow-hidden bg-white"
+              >
                 <button
                   type="button"
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between px-5 py-4 text-left font-medium text-gray-900 hover:bg-gray-50"
+                  className="w-full flex items-center justify-between px-5 py-4 text-left font-medium text-ink"
                 >
                   {faq.q}
-                  <span className="text-violet-600 text-xl">{openFaq === i ? "−" : "+"}</span>
+                  <span className="text-ink-muted text-lg ml-4">
+                    {openFaq === i ? "−" : "+"}
+                  </span>
                 </button>
                 {openFaq === i && (
-                  <div className="px-5 pb-4 text-gray-600 text-sm leading-relaxed whitespace-pre-line">
+                  <div className="px-5 pb-4 text-ink-muted text-sm leading-relaxed">
                     {faq.a}
                   </div>
                 )}
@@ -210,38 +237,45 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-16 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-center">
-        <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-3xl font-bold">Ready to get started?</h2>
-          <p className="mt-3 text-violet-100 text-lg">
-            Join millions who trust SaathiPro for professional social support.
+      <section className="py-16 border-t border-border bg-white text-center">
+        <div className="max-w-xl mx-auto px-4">
+          <h2 className="font-display text-2xl font-semibold text-ink">
+            Ready when you are
+          </h2>
+          <p className="mt-2 text-ink-muted">
+            Browse profiles or create your account in minutes.
           </p>
-          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               href="/find"
-              className="px-8 py-4 bg-white text-violet-700 font-bold rounded-full hover:bg-violet-50 transition"
+              className="px-8 py-3.5 bg-ink text-cream font-semibold rounded-full hover:bg-accent transition"
             >
               Find a Saathi
             </Link>
             <Link
-              href="/become-saathi"
-              className="px-8 py-4 bg-violet-500/30 border border-white/40 text-white font-bold rounded-full hover:bg-violet-500/50 transition"
+              href="/register"
+              className="px-8 py-3.5 border border-border text-ink font-semibold rounded-full hover:bg-cream transition"
             >
-              Become a Saathi
+              Create account
             </Link>
           </div>
         </div>
       </section>
 
-      <footer className="bg-gray-900 text-gray-400 py-10">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm">
-          <p className="font-semibold text-white mb-2">SaathiPro</p>
-          <p>© 2026 SaathiPro. Professional social support across India.</p>
+      <footer className="border-t border-border py-10">
+        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-ink-muted">
+          <p className="font-display font-semibold text-ink mb-2">SaathiPro</p>
+          <p>Professional social support across India. Not a dating service.</p>
           <div className="mt-4 flex justify-center gap-6">
-            <Link href="/find" className="hover:text-white">Find</Link>
-            <Link href="/become-saathi" className="hover:text-white">Become Saathi</Link>
-            <Link href="/login" className="hover:text-white">Login</Link>
-            <Link href="/register" className="hover:text-white">Register</Link>
+            <Link href="/find" className="hover:text-ink">
+              Find
+            </Link>
+            <Link href="/become-saathi" className="hover:text-ink">
+              Become Saathi
+            </Link>
+            <Link href="/login" className="hover:text-ink">
+              Login
+            </Link>
           </div>
         </div>
       </footer>
