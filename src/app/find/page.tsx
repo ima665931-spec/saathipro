@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 
 const SERVICES = [
@@ -39,7 +39,7 @@ const DUMMY_SAATHIS = [
     rating: 4.9,
     reviews: 128,
     bio: "Friendly and professional. Love movies and deep conversations.",
-    image: null,
+    image: null as string | null,
     verified: true,
   },
   {
@@ -128,13 +128,37 @@ const DUMMY_SAATHIS = [
   },
 ];
 
+type Saathi = (typeof DUMMY_SAATHIS)[0];
+
+function avatarUrl(name: string, image: string | null) {
+  if (image) return image;
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    name
+  )}&background=5b4a3f&color=fff&size=128&font-size=0.4`;
+}
+
 export default function FindPage() {
   const [selectedService, setSelectedService] = useState("All");
   const [selectedCity, setSelectedCity] = useState("All Cities");
   const [search, setSearch] = useState("");
+  const [list, setList] = useState<Saathi[]>(DUMMY_SAATHIS);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/saathis")
+      .then((r) => r.json())
+      .then((data) => {
+        const fromDb: Saathi[] = data.saathis || [];
+        if (fromDb.length > 0) {
+          setList([...fromDb, ...DUMMY_SAATHIS]);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
-    return DUMMY_SAATHIS.filter((s) => {
+    return list.filter((s) => {
       const matchService =
         selectedService === "All" || s.services.includes(selectedService);
       const matchCity =
@@ -148,54 +172,80 @@ export default function FindPage() {
         );
       return matchService && matchCity && matchSearch;
     });
-  }, [selectedService, selectedCity, search]);
+  }, [list, selectedService, selectedCity, search]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
+    <div className="min-h-screen bg-cream">
+      <header className="sticky top-0 z-50 bg-cream/90 backdrop-blur border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-ink flex items-center justify-center text-cream font-display font-semibold text-sm">
                 S
               </div>
-              <span className="text-xl font-bold text-gray-900">SaathiPro</span>
+              <span className="font-display text-lg font-semibold text-ink tracking-tight">
+                SaathiPro
+              </span>
             </Link>
-            <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
-              <Link href="/" className="hover:text-violet-600 transition">Home</Link>
-              <Link href="/find" className="text-violet-600 font-semibold">Find Saathi</Link>
-              <Link href="/dashboard" className="hover:text-violet-600 transition">Dashboard</Link>
+            <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-ink-muted">
+              <Link href="/" className="hover:text-ink transition">
+                Home
+              </Link>
+              <Link href="/find" className="text-ink font-semibold">
+                Find Saathi
+              </Link>
+              <Link href="/dashboard" className="hover:text-ink transition">
+                Dashboard
+              </Link>
             </nav>
             <div className="flex items-center gap-3">
-              <Link href="/login" className="text-sm font-medium text-violet-700 hover:text-violet-900">Login</Link>
-              <Link href="/register" className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-full transition">Join Now</Link>
+              <Link
+                href="/login"
+                className="text-sm font-medium text-ink-muted hover:text-ink"
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                className="px-4 py-2 bg-ink hover:bg-accent text-cream text-sm font-semibold rounded-full transition"
+              >
+                Join
+              </Link>
             </div>
           </div>
         </div>
       </header>
 
-      <section className="bg-gradient-to-b from-violet-50 to-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Find a Saathi</h1>
-          <p className="mt-2 text-gray-600 text-lg">Browse verified professional companions near you</p>
+      <section className="border-b border-border bg-cream-dark/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <p className="text-xs font-semibold tracking-widest uppercase text-accent-light mb-3">
+            Browse companions
+          </p>
+          <h1 className="font-display text-4xl sm:text-5xl font-semibold text-ink tracking-tight">
+            Find a Saathi
+          </h1>
+          <p className="mt-3 text-ink-muted text-lg max-w-xl">
+            Verified professionals for movies, care, hangouts and more — across
+            India.
+          </p>
 
-          <div className="mt-8 flex flex-col lg:flex-row gap-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Search by name, service..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full px-5 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-gray-900"
-              />
-            </div>
+          <div className="mt-8 flex flex-col lg:flex-row gap-3">
+            <input
+              type="text"
+              placeholder="Search name or service…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 px-5 py-3.5 rounded-xl border border-border bg-white focus:outline-none focus:ring-2 focus:ring-accent/30 text-ink"
+            />
             <select
               value={selectedCity}
               onChange={(e) => setSelectedCity(e.target.value)}
-              className="px-5 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white text-gray-900 min-w-[160px]"
+              className="px-5 py-3.5 rounded-xl border border-border bg-white focus:outline-none focus:ring-2 focus:ring-accent/30 text-ink min-w-[160px]"
             >
               {CITIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
+                <option key={c} value={c}>
+                  {c}
+                </option>
               ))}
             </select>
           </div>
@@ -204,11 +254,12 @@ export default function FindPage() {
             {SERVICES.map((svc) => (
               <button
                 key={svc}
+                type="button"
                 onClick={() => setSelectedService(svc)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition ${
                   selectedService === svc
-                    ? "bg-violet-600 text-white"
-                    : "bg-white text-gray-700 border border-gray-200 hover:border-violet-300 hover:text-violet-700"
+                    ? "bg-ink text-cream"
+                    : "bg-white text-ink-muted border border-border hover:border-ink/30 hover:text-ink"
                 }`}
               >
                 {svc}
@@ -219,102 +270,142 @@ export default function FindPage() {
       </section>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-gray-600">
-            <span className="font-semibold text-gray-900">{filtered.length}</span> Saathis found
-          </p>
-        </div>
+        <p className="text-sm text-ink-muted mb-6">
+          {loading ? (
+            "Loading…"
+          ) : (
+            <>
+              <span className="font-semibold text-ink">{filtered.length}</span>{" "}
+              available
+            </>
+          )}
+        </p>
 
-        {filtered.length === 0 ? (
+        {filtered.length === 0 && !loading ? (
           <div className="text-center py-20">
-            <div className="text-5xl mb-4">🔍</div>
-            <h3 className="text-xl font-semibold text-gray-900">No Saathis found</h3>
-            <p className="text-gray-500 mt-2">Try changing filters or search terms</p>
+            <h3 className="font-display text-xl font-semibold text-ink">
+              No matches
+            </h3>
+            <p className="text-ink-muted mt-2">Try different filters</p>
             <button
+              type="button"
               onClick={() => {
                 setSelectedService("All");
                 setSelectedCity("All Cities");
                 setSearch("");
               }}
-              className="mt-6 px-6 py-2.5 bg-violet-600 text-white rounded-full font-medium hover:bg-violet-700 transition"
+              className="mt-6 px-6 py-2.5 bg-ink text-cream rounded-full font-medium hover:bg-accent transition"
             >
-              Clear Filters
+              Clear filters
             </button>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filtered.map((saathi) => (
-              <div
+              <article
                 key={saathi.id}
-                className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:border-violet-100 transition-all duration-300"
+                className="bg-white rounded-2xl border border-border overflow-hidden shadow-card hover:shadow-soft transition-shadow duration-300 flex flex-col"
               >
-                <div className="h-36 bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center relative">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-                    {saathi.name.charAt(0)}
+                <Link href={`/saathi/${saathi.id}`} className="block">
+                  <div className="aspect-[4/3] bg-cream-dark relative overflow-hidden">
+                    <img
+                      src={avatarUrl(saathi.name, saathi.image)}
+                      alt={saathi.name}
+                      className="w-full h-full object-cover"
+                    />
+                    {saathi.verified && (
+                      <span className="absolute top-3 right-3 bg-white/95 text-ink text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm">
+                        Verified
+                      </span>
+                    )}
                   </div>
-                  {saathi.verified && (
-                    <span className="absolute top-3 right-3 bg-white text-violet-700 text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1">
-                      ✓ Verified
-                    </span>
-                  )}
-                </div>
+                </Link>
 
-                <div className="p-5">
+                <div className="p-5 flex flex-col flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <h3 className="font-semibold text-lg text-gray-900">{saathi.name}</h3>
-                      <p className="text-sm text-gray-500">{saathi.city}</p>
+                      <Link href={`/saathi/${saathi.id}`}>
+                        <h3 className="font-display font-semibold text-lg text-ink hover:text-accent transition">
+                          {saathi.name}
+                        </h3>
+                      </Link>
+                      <p className="text-sm text-ink-muted">{saathi.city}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="flex items-center gap-1 text-amber-500 text-sm font-medium">★ {saathi.rating}</div>
-                      <p className="text-xs text-gray-400">{saathi.reviews} reviews</p>
+                      <div className="text-sm font-medium text-gold">
+                        ★ {saathi.rating}
+                      </div>
+                      <p className="text-xs text-ink-muted">
+                        {saathi.reviews > 0
+                          ? `${saathi.reviews} reviews`
+                          : "New"}
+                      </p>
                     </div>
                   </div>
 
-                  <p className="mt-3 text-sm text-gray-600 line-clamp-2">{saathi.bio}</p>
+                  <p className="mt-3 text-sm text-ink-muted line-clamp-2 flex-1">
+                    {saathi.bio}
+                  </p>
 
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {saathi.services.slice(0, 3).map((svc) => (
-                      <span key={svc} className="text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">{svc}</span>
+                    {saathi.services.slice(0, 2).map((svc) => (
+                      <span
+                        key={svc}
+                        className="text-[11px] bg-cream-dark text-ink-muted px-2 py-0.5 rounded-full"
+                      >
+                        {svc}
+                      </span>
                     ))}
                   </div>
 
-                  <div className="mt-5 flex items-center justify-between">
+                  <div className="mt-5 flex items-center justify-between pt-4 border-t border-border">
                     <div>
-                      <span className="text-lg font-bold text-violet-600">₹{saathi.rate}</span>
-                      <span className="text-sm text-gray-400">/hr</span>
+                      <span className="font-display text-xl font-semibold text-ink">
+                        ₹{saathi.rate}
+                      </span>
+                      <span className="text-sm text-ink-muted">/hr</span>
                     </div>
-                    <Link
-                      href={`/book/${saathi.id}`}
-                      className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-full transition"
-                    >
-                      Book Now
-                    </Link>
+                    <div className="flex gap-2">
+                      <Link
+                        href={`/saathi/${saathi.id}`}
+                        className="px-3 py-2 text-sm font-medium text-ink-muted border border-border rounded-full hover:bg-cream-dark transition"
+                      >
+                        Profile
+                      </Link>
+                      <Link
+                        href={`/book/${saathi.id}`}
+                        className="px-4 py-2 bg-ink hover:bg-accent text-cream text-sm font-semibold rounded-full transition"
+                      >
+                        Book
+                      </Link>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}
       </section>
 
-      <section className="bg-violet-600 text-white py-12">
-        <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-2xl font-bold">Want to become a Saathi?</h2>
-          <p className="mt-2 text-violet-100">Earn up to ₹2,000/hour helping others. Flexible hours.</p>
+      <section className="border-t border-border bg-ink text-cream py-14">
+        <div className="max-w-2xl mx-auto px-4 text-center">
+          <h2 className="font-display text-2xl font-semibold">
+            Become a Saathi
+          </h2>
+          <p className="mt-2 text-cream/70">
+            Flexible hours. Set your own rates. Professional platform.
+          </p>
           <Link
-            href="/register"
-            className="inline-block mt-6 px-8 py-3 bg-white text-violet-700 font-bold rounded-full hover:bg-violet-50 transition"
+            href="/become-saathi"
+            className="inline-block mt-6 px-8 py-3 bg-cream text-ink font-semibold rounded-full hover:bg-white transition"
           >
-            Become a Saathi →
+            Apply now
           </Link>
         </div>
       </section>
 
-      <footer className="bg-gray-900 text-gray-400 py-8">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm">
-          © 2026 SaathiPro. All rights reserved.
-        </div>
+      <footer className="py-8 text-center text-sm text-ink-muted">
+        © 2026 SaathiPro
       </footer>
     </div>
   );
