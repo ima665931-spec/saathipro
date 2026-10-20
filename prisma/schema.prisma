@@ -16,6 +16,7 @@ model User {
   image         String?
   role          String    @default("USER")
   phone         String?
+  isBanned      Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
