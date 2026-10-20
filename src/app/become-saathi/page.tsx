@@ -111,20 +111,24 @@ export default function BecomeSaathiPage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-cream">
+        <div className="text-ink-muted text-sm">Loading…</div>
       </div>
     );
   }
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-10 text-center max-w-md">
-          <div className="text-5xl mb-4">🎉</div>
-          <h1 className="text-2xl font-bold text-gray-900">You're in!</h1>
-          <p className="mt-2 text-gray-600">
-            Your Saathi profile has been submitted. Redirecting to dashboard...
+      <div className="min-h-screen flex items-center justify-center bg-cream px-4">
+        <div className="bg-white rounded-2xl border border-border shadow-soft p-10 text-center max-w-md">
+          <div className="w-12 h-12 rounded-full bg-ink text-cream flex items-center justify-center mx-auto text-lg">
+            ✓
+          </div>
+          <h1 className="mt-4 font-display text-2xl font-semibold text-ink">
+            You're in
+          </h1>
+          <p className="mt-2 text-ink-muted text-sm">
+            Profile submitted. Redirecting to dashboard…
           </p>
         </div>
       </div>
@@ -132,27 +136,38 @@ export default function BecomeSaathiPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
+    <div className="min-h-screen bg-cream">
+      <header className="sticky top-0 z-50 bg-cream/90 backdrop-blur border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-ink flex items-center justify-center text-cream font-display font-semibold text-sm">
                 S
               </div>
-              <span className="text-xl font-bold text-gray-900">SaathiPro</span>
+              <span className="font-display text-lg font-semibold text-ink tracking-tight">
+                SaathiPro
+              </span>
             </Link>
             <div className="flex items-center gap-3">
-              <Link href="/find" className="text-sm font-medium text-gray-600 hover:text-violet-600">
-                Find Saathi
+              <Link
+                href="/find"
+                className="text-sm font-medium text-ink-muted hover:text-ink"
+              >
+                Find
               </Link>
               {session ? (
-                <Link href="/dashboard" className="px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-full hover:bg-violet-700 transition">
+                <Link
+                  href="/dashboard"
+                  className="px-4 py-2 bg-ink text-cream text-sm font-semibold rounded-full hover:bg-accent transition"
+                >
                   Dashboard
                 </Link>
               ) : (
-                <Link href="/login?callbackUrl=/become-saathi" className="px-4 py-2 bg-violet-600 text-white text-sm font-semibold rounded-full hover:bg-violet-700 transition">
-                  Login to Apply
+                <Link
+                  href="/login?callbackUrl=/become-saathi"
+                  className="px-4 py-2 bg-ink text-cream text-sm font-semibold rounded-full hover:bg-accent transition"
+                >
+                  Sign in to apply
                 </Link>
               )}
             </div>
@@ -161,59 +176,76 @@ export default function BecomeSaathiPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-10">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Become a Saathi</h1>
-          <p className="mt-2 text-gray-600">
-            Earn up to ₹2,000/hour. Flexible hours. Help people across India.
+        <div className="mb-10">
+          <p className="text-xs font-semibold tracking-widest uppercase text-accent-light mb-2">
+            For professionals
+          </p>
+          <h1 className="font-display text-3xl sm:text-4xl font-semibold text-ink">
+            Become a Saathi
+          </h1>
+          <p className="mt-2 text-ink-muted">
+            Set your rates. Choose services. Work on your schedule.
           </p>
         </div>
 
         {!session && (
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
-            You need to{" "}
-            <Link href="/login?callbackUrl=/become-saathi" className="font-semibold underline">
-              login / register
+          <div className="mb-6 p-4 bg-cream-dark border border-border rounded-xl text-ink text-sm">
+            Please{" "}
+            <Link
+              href="/login?callbackUrl=/become-saathi"
+              className="font-semibold underline"
+            >
+              sign in or register
             </Link>{" "}
-            first to submit your Saathi application.
+            to submit your application.
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8 space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white rounded-2xl border border-border shadow-card p-6 sm:p-8 space-y-6"
+        >
           {error && (
-            <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
+            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100">
+              {error}
+            </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              City <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-ink mb-1.5">
+              City
             </label>
             <select
               value={city}
               onChange={(e) => setCity(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink"
             >
-              <option value="">Select your city</option>
+              <option value="">Select city</option>
               {CITIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
+                <option key={c} value={c}>
+                  {c}
+                </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone (optional)</label>
+            <label className="block text-sm font-medium text-ink mb-1.5">
+              Phone (optional)
+            </label>
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+91 98765 43210"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Services you offer <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-ink mb-2">
+              Services you offer
             </label>
             <div className="flex flex-wrap gap-2">
               {ALL_SERVICES.map((svc) => (
@@ -223,20 +255,22 @@ export default function BecomeSaathiPage() {
                   onClick={() => toggleService(svc)}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
                     services.includes(svc)
-                      ? "bg-violet-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-violet-50 hover:text-violet-700"
+                      ? "bg-ink text-cream"
+                      : "bg-cream-dark text-ink-muted border border-border hover:text-ink"
                   }`}
                 >
                   {svc}
                 </button>
               ))}
             </div>
-            <p className="mt-1.5 text-xs text-gray-400">{services.length} selected</p>
+            <p className="mt-1.5 text-xs text-ink-muted">
+              {services.length} selected
+            </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Hourly rate (₹) <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-ink mb-1.5">
+              Hourly rate (₹)
             </label>
             <input
               type="number"
@@ -246,36 +280,45 @@ export default function BecomeSaathiPage() {
               value={hourlyRate}
               onChange={(e) => setHourlyRate(Number(e.target.value))}
               required
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink"
             />
-            <p className="mt-1 text-xs text-gray-400">Suggested: ₹1,000 – ₹2,000 / hour</p>
+            <p className="mt-1 text-xs text-ink-muted">
+              Suggested: ₹1,000 – ₹2,000 / hour
+            </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              About you <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-ink mb-1.5">
+              About you
             </label>
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={4}
               required
-              placeholder="Tell clients about yourself, your experience, and what makes you a great Saathi..."
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+              placeholder="Experience, style, and what clients can expect…"
+              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 resize-none text-ink"
             />
-            <p className="mt-1 text-xs text-gray-400">{bio.length}/20 min characters</p>
+            <p className="mt-1 text-xs text-ink-muted">
+              {bio.length}/20 min characters
+            </p>
           </div>
 
           <button
             type="submit"
             disabled={loading || !session}
-            className="w-full py-3.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3.5 bg-ink hover:bg-accent text-cream font-semibold rounded-xl transition disabled:opacity-50"
           >
-            {loading ? "Submitting..." : session ? "Submit Application" : "Login to Submit"}
+            {loading
+              ? "Submitting…"
+              : session
+              ? "Submit application"
+              : "Sign in to submit"}
           </button>
 
-          <p className="text-center text-xs text-gray-400">
-            By submitting you agree to SaathiPro's professional conduct guidelines.
+          <p className="text-center text-xs text-ink-muted">
+            By submitting you agree to professional conduct guidelines. Not a
+            dating service.
           </p>
         </form>
       </main>
