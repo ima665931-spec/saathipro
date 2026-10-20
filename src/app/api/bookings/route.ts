@@ -122,3 +122,59 @@ export async function GET() {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
+/** Cancel a booking (client only, if not already cancelled) */
+export async function PATCH(req: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { bookingId, action } = body;
+
+    if (!bookingId || action !== "cancel") {
+      return NextResponse.json(
+        { error: "bookingId and action=cancel required" },
+        { status: 400 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+    });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    if (booking.clientId !== user.id) {
+      return NextResponse.json(
+        { error: "Only the client can cancel this booking" },
+        { status: 403 }
+      );
+    }
+
+    if (booking.status === "CANCELLED") {
+      return NextResponse.json({ error: "Already cancelled" }, { status: 400 });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: "CANCELLED" },
+    });
+
+    return NextResponse.json({ success: true, booking: updated });
+  } catch (err) {
+    console.error("booking cancel error:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
