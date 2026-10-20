@@ -32,6 +32,14 @@ function isQualityProfile(opts: {
   return true;
 }
 
+function pickImage(image: string | null): string | null {
+  if (!image) return null;
+  // Prefer uploaded data URLs or https (skip odd OAuth cartoon defaults optionally)
+  if (image.startsWith("data:image/")) return image;
+  if (image.startsWith("https://")) return image;
+  return null;
+}
+
 export async function GET() {
   try {
     const profiles = await prisma.saathiProfile.findMany({
@@ -82,7 +90,7 @@ export async function GET() {
           rating: avg,
           reviews: count,
           bio: bio || "Professional companion.",
-          image: p.isVerified && p.user.image ? p.user.image : null,
+          image: pickImage(p.user.image),
           verified: p.isVerified,
           fromDb: true,
         };
