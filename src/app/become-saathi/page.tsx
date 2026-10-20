@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -37,15 +37,55 @@ const CITIES = [
   "Indore",
 ];
 
+/** Resize image client-side to keep payload small */
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 600;
+        let w = img.width;
+        let h = img.height;
+        if (w > max || h > max) {
+          if (w > h) {
+            h = Math.round((h * max) / w);
+            w = max;
+          } else {
+            w = Math.round((w * max) / h);
+            h = max;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas not supported"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
+      };
+      img.onerror = () => reject(new Error("Invalid image"));
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(new Error("Read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function BecomeSaathiPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const [bio, setBio] = useState("");
   const [city, setCity] = useState("");
   const [hourlyRate, setHourlyRate] = useState(1500);
   const [services, setServices] = useState<string[]>([]);
   const [phone, setPhone] = useState("");
+  const [photo, setPhoto] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -54,6 +94,26 @@ export default function BecomeSaathiPage() {
     setServices((prev) =>
       prev.includes(svc) ? prev.filter((s) => s !== svc) : [...prev, svc]
     );
+  };
+
+  const onPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be under 5MB");
+      return;
+    }
+    try {
+      const data = await compressImage(file);
+      setPhoto(data);
+      setError("");
+    } catch {
+      setError("Could not process image");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,6 +149,7 @@ export default function BecomeSaathiPage() {
           hourlyRate: Number(hourlyRate),
           services,
           phone: phone.trim() || null,
+          photo: photo || undefined,
         }),
       });
 
@@ -184,7 +245,7 @@ export default function BecomeSaathiPage() {
             Become a Saathi
           </h1>
           <p className="mt-2 text-ink-muted">
-            Set your rates. Choose services. Work on your schedule.
+            Set your rates. Add a clear photo. Work on your schedule.
           </p>
         </div>
 
@@ -210,6 +271,56 @@ export default function BecomeSaathiPage() {
               {error}
             </div>
           )}
+
+          {/* Photo */}
+          <div>
+            <label className="block text-sm font-medium text-ink mb-2">
+              Profile photo
+            </label>
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 rounded-2xl bg-cream-dark border border-border overflow-hidden flex items-center justify-center shrink-0">
+                {photo ? (
+                  <img
+                    src={photo}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-ink-muted text-xs text-center px-1">
+                    No photo
+                  </span>
+                )}
+              </div>
+              <div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={onPhotoChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="px-4 py-2 text-sm font-medium border border-border rounded-full hover:bg-cream-dark transition text-ink"
+                >
+                  {photo ? "Change photo" : "Upload photo"}
+                </button>
+                {photo && (
+                  <button
+                    type="button"
+                    onClick={() => setPhoto(null)}
+                    className="ml-2 text-sm text-ink-muted hover:text-ink"
+                  >
+                    Remove
+                  </button>
+                )}
+                <p className="mt-1.5 text-xs text-ink-muted">
+                  Clear face photo works best. Max 5MB — auto compressed.
+                </p>
+              </div>
+            </div>
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-ink mb-1.5">
