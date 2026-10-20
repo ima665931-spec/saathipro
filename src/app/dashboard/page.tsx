@@ -34,7 +34,6 @@ export default async function DashboardPage() {
   const profile = dbUser.saathiProfile;
   const clientBookings = dbUser.bookingsAsClient || [];
   const saathiBookings = dbUser.bookingsAsSaathi || [];
-  const totalBookings = clientBookings.length; // recent 5 shown; count from length of fetch is limited - get counts separately
 
   const [clientCount, saathiCount] = await Promise.all([
     prisma.booking.count({ where: { clientId: dbUser.id } }),
@@ -50,32 +49,43 @@ export default async function DashboardPage() {
         .slice(0, 5)
     : clientBookings;
 
+  let servicesList: string[] = [];
+  if (profile?.services) {
+    try {
+      servicesList = JSON.parse(profile.services);
+    } catch {
+      servicesList = [];
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-100">
+    <div className="min-h-screen bg-cream">
+      <header className="bg-cream/90 backdrop-blur border-b border-border sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white font-bold text-lg">
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-ink flex items-center justify-center text-cream font-display font-semibold text-sm">
                 S
               </div>
-              <span className="text-xl font-bold text-gray-900">SaathiPro</span>
+              <span className="font-display text-lg font-semibold text-ink tracking-tight">
+                SaathiPro
+              </span>
             </Link>
             <div className="flex items-center gap-3">
               <Link
                 href="/find"
-                className="hidden sm:inline text-sm font-medium text-gray-600 hover:text-violet-600"
+                className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-ink"
               >
-                Find Saathi
+                Find
               </Link>
               <Link
                 href="/bookings"
-                className="hidden sm:inline text-sm font-medium text-gray-600 hover:text-violet-600"
+                className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-ink"
               >
                 Bookings
               </Link>
-              <span className="text-sm text-gray-600 hidden md:inline">
-                Hi, {dbUser.name || dbUser.email}
+              <span className="text-sm text-ink-muted hidden md:inline">
+                {dbUser.name || dbUser.email}
               </span>
               <form
                 action={async () => {
@@ -85,7 +95,7 @@ export default async function DashboardPage() {
               >
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-violet-600 transition"
+                  className="px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink transition"
                 >
                   Logout
                 </button>
@@ -96,172 +106,195 @@ export default async function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600 mt-1">
-              Welcome back{dbUser.name ? `, ${dbUser.name.split(" ")[0]}` : ""}
+            <p className="text-xs font-semibold tracking-widest uppercase text-accent-light mb-2">
+              Account
+            </p>
+            <h1 className="font-display text-3xl font-semibold text-ink">
+              Dashboard
+            </h1>
+            <p className="text-ink-muted mt-1 text-sm">
+              Welcome back
+              {dbUser.name ? `, ${dbUser.name.split(" ")[0]}` : ""}
             </p>
           </div>
           <span
-            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
               isSaathi
-                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                : "bg-violet-50 text-violet-700 border border-violet-200"
+                ? "bg-ink text-cream"
+                : "bg-cream-dark text-ink border border-border"
             }`}
           >
-            {isSaathi ? "✓ Saathi" : "Member"}
+            {isSaathi ? "Saathi" : "Member"}
           </span>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <p className="text-sm text-gray-500">My Bookings</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{clientCount}</p>
+          <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
+            <p className="text-xs uppercase tracking-wide text-ink-muted">
+              My bookings
+            </p>
+            <p className="font-display text-2xl font-semibold text-ink mt-1">
+              {clientCount}
+            </p>
           </div>
           {isSaathi && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <p className="text-sm text-gray-500">Received Bookings</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{saathiCount}</p>
-            </div>
-          )}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <p className="text-sm text-gray-500">Role</p>
-            <p className="text-2xl font-bold text-violet-600 mt-1">{role}</p>
-          </div>
-          {isSaathi && profile && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <p className="text-sm text-gray-500">Hourly Rate</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                ₹{profile.hourlyRate || "—"}
+            <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
+              <p className="text-xs uppercase tracking-wide text-ink-muted">
+                Received
+              </p>
+              <p className="font-display text-2xl font-semibold text-ink mt-1">
+                {saathiCount}
               </p>
             </div>
           )}
-          {!isSaathi && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <p className="text-sm text-gray-500">Status</p>
-              <p className="text-lg font-semibold text-gray-700 mt-1">Active</p>
+          <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
+            <p className="text-xs uppercase tracking-wide text-ink-muted">Role</p>
+            <p className="font-display text-xl font-semibold text-ink mt-1">
+              {role}
+            </p>
+          </div>
+          {isSaathi && profile ? (
+            <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
+              <p className="text-xs uppercase tracking-wide text-ink-muted">
+                Rate
+              </p>
+              <p className="font-display text-2xl font-semibold text-ink mt-1">
+                ₹{profile.hourlyRate || "—"}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
+              <p className="text-xs uppercase tracking-wide text-ink-muted">
+                Status
+              </p>
+              <p className="font-display text-xl font-semibold text-ink mt-1">
+                Active
+              </p>
             </div>
           )}
         </div>
 
-        {/* Quick actions */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
           <Link
             href="/find"
-            className="bg-white rounded-2xl border border-gray-100 p-6 hover:border-violet-200 hover:shadow-md transition group"
+            className="bg-white rounded-2xl border border-border p-6 hover:shadow-soft transition group shadow-card"
           >
-            <div className="text-3xl mb-3">🔍</div>
-            <h3 className="font-semibold text-lg text-gray-900 group-hover:text-violet-700">
+            <h3 className="font-display font-semibold text-ink group-hover:text-accent transition">
               Find a Saathi
             </h3>
-            <p className="text-sm text-gray-500 mt-1">Browse partners near you</p>
+            <p className="text-sm text-ink-muted mt-1">Browse professionals</p>
           </Link>
 
           <Link
             href="/bookings"
-            className="bg-white rounded-2xl border border-gray-100 p-6 hover:border-violet-200 hover:shadow-md transition group"
+            className="bg-white rounded-2xl border border-border p-6 hover:shadow-soft transition group shadow-card"
           >
-            <div className="text-3xl mb-3">📅</div>
-            <h3 className="font-semibold text-lg text-gray-900 group-hover:text-violet-700">
-              My Bookings
+            <h3 className="font-display font-semibold text-ink group-hover:text-accent transition">
+              My bookings
             </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              {clientCount} booking{clientCount !== 1 ? "s" : ""} total
+            <p className="text-sm text-ink-muted mt-1">
+              {clientCount} total
             </p>
           </Link>
 
           {isSaathi ? (
             <Link
               href="/become-saathi"
-              className="bg-white rounded-2xl border border-gray-100 p-6 hover:border-violet-200 hover:shadow-md transition group"
+              className="bg-white rounded-2xl border border-border p-6 hover:shadow-soft transition group shadow-card"
             >
-              <div className="text-3xl mb-3">✏️</div>
-              <h3 className="font-semibold text-lg text-gray-900 group-hover:text-violet-700">
-                Edit Saathi Profile
+              <h3 className="font-display font-semibold text-ink group-hover:text-accent transition">
+                Edit profile
               </h3>
-              <p className="text-sm text-gray-500 mt-1">
-                {profile?.city || "Update city, rate, services"}
+              <p className="text-sm text-ink-muted mt-1">
+                {profile?.city || "Update details"}
               </p>
             </Link>
           ) : (
             <Link
               href="/become-saathi"
-              className="bg-gradient-to-br from-violet-600 to-indigo-600 rounded-2xl p-6 text-white hover:shadow-lg transition"
+              className="bg-ink rounded-2xl p-6 text-cream hover:bg-accent transition"
             >
-              <div className="text-3xl mb-3">🤝</div>
-              <h3 className="font-semibold text-lg">Become a Saathi</h3>
-              <p className="text-sm text-violet-100 mt-1">
-                Earn up to ₹2,000/hour
-              </p>
+              <h3 className="font-display font-semibold">Become a Saathi</h3>
+              <p className="text-sm text-cream/70 mt-1">Earn on your terms</p>
             </Link>
           )}
         </div>
 
-        {/* Profile card */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
+        <div className="bg-white rounded-2xl border border-border p-6 mb-8 shadow-card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-lg text-gray-900">Your Profile</h3>
+            <h3 className="font-display text-lg font-semibold text-ink">
+              Your profile
+            </h3>
             {!isSaathi && (
               <Link
                 href="/become-saathi"
-                className="text-sm font-medium text-violet-600 hover:underline"
+                className="text-sm font-medium text-ink-muted hover:text-ink"
               >
-                Upgrade to Saathi →
+                Upgrade →
               </Link>
             )}
           </div>
           <div className="grid sm:grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="text-gray-500">Name</span>
-              <p className="font-medium text-gray-900 mt-0.5">
-                {dbUser.name || "—"}
-              </p>
+              <span className="text-ink-muted text-xs uppercase tracking-wide">
+                Name
+              </span>
+              <p className="font-medium text-ink mt-0.5">{dbUser.name || "—"}</p>
             </div>
             <div>
-              <span className="text-gray-500">Email</span>
-              <p className="font-medium text-gray-900 mt-0.5">{dbUser.email}</p>
+              <span className="text-ink-muted text-xs uppercase tracking-wide">
+                Email
+              </span>
+              <p className="font-medium text-ink mt-0.5">{dbUser.email}</p>
             </div>
             <div>
-              <span className="text-gray-500">Phone</span>
-              <p className="font-medium text-gray-900 mt-0.5">
-                {dbUser.phone || "—"}
-              </p>
+              <span className="text-ink-muted text-xs uppercase tracking-wide">
+                Phone
+              </span>
+              <p className="font-medium text-ink mt-0.5">{dbUser.phone || "—"}</p>
             </div>
             <div>
-              <span className="text-gray-500">Role</span>
-              <p className="font-medium text-gray-900 mt-0.5">{role}</p>
+              <span className="text-ink-muted text-xs uppercase tracking-wide">
+                Role
+              </span>
+              <p className="font-medium text-ink mt-0.5">{role}</p>
             </div>
             {isSaathi && profile && (
               <>
                 <div>
-                  <span className="text-gray-500">City</span>
-                  <p className="font-medium text-gray-900 mt-0.5">
+                  <span className="text-ink-muted text-xs uppercase tracking-wide">
+                    City
+                  </span>
+                  <p className="font-medium text-ink mt-0.5">
                     {profile.city || "—"}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Verified</span>
-                  <p className="font-medium text-gray-900 mt-0.5">
-                    {profile.isVerified ? "Yes ✓" : "Pending"}
+                  <span className="text-ink-muted text-xs uppercase tracking-wide">
+                    Verified
+                  </span>
+                  <p className="font-medium text-ink mt-0.5">
+                    {profile.isVerified ? "Yes" : "Pending"}
                   </p>
                 </div>
                 <div className="sm:col-span-2">
-                  <span className="text-gray-500">Bio</span>
-                  <p className="font-medium text-gray-900 mt-0.5">
-                    {profile.bio || "—"}
-                  </p>
+                  <span className="text-ink-muted text-xs uppercase tracking-wide">
+                    Bio
+                  </span>
+                  <p className="font-medium text-ink mt-0.5">{profile.bio || "—"}</p>
                 </div>
-                {profile.services && (
+                {servicesList.length > 0 && (
                   <div className="sm:col-span-2">
-                    <span className="text-gray-500">Services</span>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {JSON.parse(profile.services).map((s: string) => (
+                    <span className="text-ink-muted text-xs uppercase tracking-wide">
+                      Services
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {servicesList.map((s) => (
                         <span
                           key={s}
-                          className="text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full"
+                          className="text-xs bg-cream-dark text-ink-muted px-2 py-0.5 rounded-full border border-border"
                         >
                           {s}
                         </span>
@@ -274,25 +307,25 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent bookings */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl border border-border p-6 shadow-card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-lg text-gray-900">Recent Bookings</h3>
+            <h3 className="font-display text-lg font-semibold text-ink">
+              Recent bookings
+            </h3>
             <Link
               href="/bookings"
-              className="text-sm font-medium text-violet-600 hover:underline"
+              className="text-sm font-medium text-ink-muted hover:text-ink"
             >
               View all →
             </Link>
           </div>
 
           {recentBookings.length === 0 ? (
-            <div className="text-center py-10 text-gray-500">
-              <div className="text-4xl mb-2">📅</div>
+            <div className="text-center py-10 text-ink-muted text-sm">
               <p>No bookings yet</p>
               <Link
                 href="/find"
-                className="inline-block mt-4 text-violet-600 font-medium text-sm hover:underline"
+                className="inline-block mt-4 text-ink font-medium hover:underline"
               >
                 Book your first session →
               </Link>
@@ -302,27 +335,27 @@ export default async function DashboardPage() {
               {recentBookings.map((b) => (
                 <div
                   key={b.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-gray-50 last:border-0"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-border last:border-0"
                 >
                   <div>
-                    <p className="font-medium text-gray-900">{b.saathiName}</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="font-medium text-ink">{b.saathiName}</p>
+                    <p className="text-sm text-ink-muted">
                       {b.service} · {b.date} · {b.time}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span
-                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
                         b.status === "CONFIRMED"
-                          ? "bg-green-50 text-green-700"
+                          ? "bg-emerald-50 text-emerald-800"
                           : b.status === "CANCELLED"
-                          ? "bg-red-50 text-red-600"
-                          : "bg-amber-50 text-amber-700"
+                          ? "bg-red-50 text-red-700"
+                          : "bg-amber-50 text-amber-800"
                       }`}
                     >
                       {b.status}
                     </span>
-                    <span className="font-semibold text-violet-600">
+                    <span className="font-display font-semibold text-ink">
                       ₹{b.amount}
                     </span>
                   </div>
