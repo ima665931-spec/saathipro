@@ -63,7 +63,6 @@ export async function POST(req: Request) {
       },
     });
 
-    // Fire-and-forget confirmation email (does not block booking)
     sendBookingConfirmationEmail({
       to: client.email,
       clientName: client.name,
@@ -106,9 +105,18 @@ export async function GET() {
         OR: [{ clientId: user.id }, { saathiId: user.id }],
       },
       orderBy: { createdAt: "desc" },
+      include: {
+        review: true,
+      },
     });
 
-    return NextResponse.json({ bookings });
+    return NextResponse.json({
+      bookings: bookings.map((b) => ({
+        ...b,
+        hasReview: !!b.review,
+        isClient: b.clientId === user.id,
+      })),
+    });
   } catch (err) {
     console.error("bookings list error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
