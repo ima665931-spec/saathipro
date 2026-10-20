@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { sendBookingConfirmationEmail } from "@/lib/email";
 
 export async function POST(req: Request) {
   try {
@@ -61,6 +62,19 @@ export async function POST(req: Request) {
         notes: notes || null,
       },
     });
+
+    // Fire-and-forget confirmation email (does not block booking)
+    sendBookingConfirmationEmail({
+      to: client.email,
+      clientName: client.name,
+      saathiName,
+      service,
+      date,
+      time,
+      durationHours: Number(durationHours) || 1,
+      amount: Number(amount),
+      city: city || null,
+    }).catch((err) => console.error("[email] async error:", err));
 
     return NextResponse.json({ success: true, booking });
   } catch (err) {
