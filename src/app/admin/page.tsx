@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-type Tab = "stats" | "users" | "saathis" | "bookings" | "reviews";
+type Tab = "stats" | "users" | "saathis" | "bookings" | "reviews" | "payments";
 
 export default function AdminPage() {
   const { status } = useSession();
@@ -16,37 +16,36 @@ export default function AdminPage() {
   const [saathis, setSaathis] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
 
-  const load = useCallback(
-    async (section: Tab, search = "") => {
-      setLoading(true);
-      setError("");
-      try {
-        const url = `/api/admin?section=${section}${search ? `&q=${encodeURIComponent(search)}` : ""}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.error || "Access denied");
-          setLoading(false);
-          return;
-        }
-        if (section === "stats") setStats(data.stats);
-        if (section === "users") setUsers(data.users || []);
-        if (section === "saathis") setSaathis(data.saathis || []);
-        if (section === "bookings") setBookings(data.bookings || []);
-        if (section === "reviews") setReviews(data.reviews || []);
-      } catch {
-        setError("Network error");
-      } finally {
+  const load = useCallback(async (section: Tab, search = "") => {
+    setLoading(true);
+    setError("");
+    try {
+      const url = `/api/admin?section=${section}${search ? `&q=${encodeURIComponent(search)}` : ""}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Access denied");
         setLoading(false);
+        return;
       }
-    },
-    []
-  );
+      if (section === "stats") setStats(data.stats);
+      if (section === "users") setUsers(data.users || []);
+      if (section === "saathis") setSaathis(data.saathis || []);
+      if (section === "bookings") setBookings(data.bookings || []);
+      if (section === "reviews") setReviews(data.reviews || []);
+      if (section === "payments") setPayments(data.payments || []);
+    } catch {
+      setError("Network error");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -87,6 +86,7 @@ export default function AdminPage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "stats", label: "Overview" },
+    { id: "payments", label: "Payments" },
     { id: "users", label: "Users" },
     { id: "saathis", label: "Saathis" },
     { id: "bookings", label: "Bookings" },
@@ -143,11 +143,8 @@ export default function AdminPage() {
           </div>
         )}
 
-        {loading && (
-          <p className="text-ink-muted text-sm py-10">Loading…</p>
-        )}
+        {loading && <p className="text-ink-muted text-sm py-10">Loading…</p>}
 
-        {/* STATS */}
         {!loading && tab === "stats" && stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
@@ -155,9 +152,10 @@ export default function AdminPage() {
               ["Saathis", stats.saathis],
               ["Bookings", stats.bookings],
               ["Reviews", stats.reviews],
-              ["Revenue (₹)", stats.revenue],
+              ["Booking revenue (₹)", stats.revenue],
               ["Active bookings", stats.activeBookings],
               ["Verified Saathis", stats.verified],
+              ["Pending payments", stats.pendingPay],
               ["Banned", stats.banned],
             ].map(([label, val]) => (
               <div
@@ -175,7 +173,83 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* USERS */}
+        {/* PAYMENTS */}
+        {!loading && tab === "payments" && (
+          <div className="space-y-4">
+            <p className="text-sm text-ink-muted">
+              ₹499 registration — check UTR in your UPI app, then Approve or
+              Reject.
+            </p>
+            {payments.map((p) => (
+              <div
+                key={p.id}
+                className="bg-white border border-border rounded-2xl p-4 shadow-card"
+              >
+                <div className="flex flex-wrap justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-ink">
+                      {p.user?.name || "—"}{" "}
+                      <span
+                        className={`text-xs font-normal ${
+                          p.status === "PENDING"
+                            ? "text-amber-700"
+                            : p.status === "APPROVED"
+                            ? "text-emerald-700"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {p.status}
+                      </span>
+                    </p>
+                    <p className="text-sm text-ink-muted">{p.user?.email}</p>
+                    <p className="text-sm text-ink mt-1">
+                      UTR: <span className="font-mono">{p.utr || "—"}</span> ·
+                      ₹{p.amount}
+                    </p>
+                    <p className="text-xs text-ink-muted">
+                      {new Date(p.createdAt).toLocaleString("en-IN")}
+                    </p>
+                    {p.screenshot && (
+                      <a
+                        href={p.screenshot}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block mt-2"
+                      >
+                        <img
+                          src={p.screenshot}
+                          alt="Screenshot"
+                          className="max-h-32 rounded-lg border border-border"
+                        />
+                      </a>
+                    )}
+                  </div>
+                  {p.status === "PENDING" && (
+                    <div className="flex flex-col gap-1.5">
+                      <Btn
+                        onClick={() =>
+                          act({ action: "approve_payment", paymentId: p.id })
+                        }
+                        label="Approve ✓"
+                      />
+                      <Btn
+                        onClick={() =>
+                          act({ action: "reject_payment", paymentId: p.id })
+                        }
+                        label="Reject"
+                        danger
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {payments.length === 0 && (
+              <p className="text-ink-muted text-sm">No payment submissions</p>
+            )}
+          </div>
+        )}
+
         {!loading && tab === "users" && (
           <div className="space-y-4">
             <div className="flex gap-2">
@@ -204,12 +278,15 @@ export default function AdminPage() {
                       {u.name || "—"}{" "}
                       {u.isBanned && (
                         <span className="text-xs text-red-600">BANNED</span>
-                      )}
+                      )}{" "}
+                      <span className="text-xs text-ink-muted">
+                        pay:{u.paymentStatus || "NONE"}
+                      </span>
                     </p>
                     <p className="text-sm text-ink-muted">{u.email}</p>
                     <p className="text-xs text-ink-muted mt-1">
-                      Role: {u.role} · Bookings: {u._count?.bookingsAsClient || 0}{" "}
-                      · As Saathi: {u._count?.bookingsAsSaathi || 0}
+                      Role: {u.role} · Bookings:{" "}
+                      {u._count?.bookingsAsClient || 0}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -235,10 +312,7 @@ export default function AdminPage() {
                     />
                     <Btn
                       onClick={() =>
-                        act({
-                          action: "promote_to_saathi",
-                          userId: u.id,
-                        })
+                        act({ action: "promote_to_saathi", userId: u.id })
                       }
                       label="→ Saathi"
                     />
@@ -263,7 +337,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* SAATHIS */}
         {!loading && tab === "saathis" && (
           <div className="space-y-4">
             {saathis.map((s) => (
@@ -277,84 +350,44 @@ export default function AdminPage() {
                       {s.user?.name || "—"}{" "}
                       {s.isVerified && (
                         <span className="text-xs text-emerald-700">Verified</span>
-                      )}{" "}
-                      {!s.isActive && (
-                        <span className="text-xs text-amber-700">Hidden</span>
                       )}
                     </p>
                     <p className="text-sm text-ink-muted">{s.user?.email}</p>
                     <p className="text-xs text-ink-muted mt-1">
-                      {s.city} · ₹{s.hourlyRate}/hr ·{" "}
-                      {s.bio?.slice(0, 80)}
+                      {s.city} · ₹{s.hourlyRate}/hr
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {!s.isVerified ? (
-                      <Btn
-                        onClick={() =>
-                          act({
-                            action: "verify_saathi",
-                            saathiUserId: s.userId,
-                          })
-                        }
-                        label="Verify"
-                      />
-                    ) : (
-                      <Btn
-                        onClick={() =>
-                          act({
-                            action: "unverify_saathi",
-                            saathiUserId: s.userId,
-                          })
-                        }
-                        label="Unverify"
-                      />
-                    )}
-                    {s.isActive ? (
-                      <Btn
-                        onClick={() =>
-                          act({
-                            action: "deactivate_saathi",
-                            saathiUserId: s.userId,
-                          })
-                        }
-                        label="Hide from Find"
-                        danger
-                      />
-                    ) : (
-                      <Btn
-                        onClick={() =>
-                          act({
-                            action: "activate_saathi",
-                            saathiUserId: s.userId,
-                          })
-                        }
-                        label="Show on Find"
-                      />
-                    )}
                     <Btn
-                      onClick={() => {
-                        const rate = prompt("New hourly rate (₹)", String(s.hourlyRate || 1500));
-                        if (rate)
-                          act({
-                            action: "set_saathi_rate",
-                            saathiUserId: s.userId,
-                            rate: Number(rate),
-                          });
-                      }}
-                      label="Set rate"
+                      onClick={() =>
+                        act({
+                          action: s.isVerified
+                            ? "unverify_saathi"
+                            : "verify_saathi",
+                          saathiUserId: s.userId,
+                        })
+                      }
+                      label={s.isVerified ? "Unverify" : "Verify"}
+                    />
+                    <Btn
+                      onClick={() =>
+                        act({
+                          action: s.isActive
+                            ? "deactivate_saathi"
+                            : "activate_saathi",
+                          saathiUserId: s.userId,
+                        })
+                      }
+                      label={s.isActive ? "Hide" : "Show"}
+                      danger={s.isActive}
                     />
                   </div>
                 </div>
               </div>
             ))}
-            {saathis.length === 0 && (
-              <p className="text-ink-muted text-sm">No Saathi profiles yet</p>
-            )}
           </div>
         )}
 
-        {/* BOOKINGS */}
         {!loading && tab === "bookings" && (
           <div className="space-y-4">
             {bookings.map((b) => (
@@ -365,14 +398,10 @@ export default function AdminPage() {
                 <div className="flex flex-wrap justify-between gap-2">
                   <div>
                     <p className="font-medium text-ink">
-                      {b.saathiName} · {b.service}{" "}
-                      <span className="text-xs font-normal text-ink-muted">
-                        {b.status}
-                      </span>
+                      {b.saathiName} · {b.service} · {b.status}
                     </p>
                     <p className="text-sm text-ink-muted">
-                      Client: {b.client?.name || b.client?.email} · {b.date}{" "}
-                      {b.time} · ₹{b.amount}
+                      {b.client?.email} · {b.date} {b.time} · ₹{b.amount}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -395,42 +424,27 @@ export default function AdminPage() {
                       label="Cancel"
                       danger
                     />
-                    <Btn
-                      onClick={() => {
-                        if (confirm("Delete booking?"))
-                          act({ action: "delete_booking", bookingId: b.id });
-                      }}
-                      label="Delete"
-                      danger
-                    />
                   </div>
                 </div>
               </div>
             ))}
-            {bookings.length === 0 && (
-              <p className="text-ink-muted text-sm">No bookings</p>
-            )}
           </div>
         )}
 
-        {/* REVIEWS */}
         {!loading && tab === "reviews" && (
           <div className="space-y-4">
             {reviews.map((r) => (
               <div
                 key={r.id}
-                className="bg-white border border-border rounded-2xl p-4 shadow-card flex flex-wrap justify-between gap-2"
+                className="bg-white border border-border rounded-2xl p-4 shadow-card flex justify-between gap-2"
               >
                 <div>
                   <p className="text-gold text-sm">{"★".repeat(r.rating)}</p>
-                  <p className="text-sm text-ink mt-1">{r.comment || "—"}</p>
-                  <p className="text-xs text-ink-muted mt-1">
-                    {r.client?.name} → {r.saathi?.name || r.saathi?.email}
-                  </p>
+                  <p className="text-sm text-ink">{r.comment || "—"}</p>
                 </div>
                 <Btn
                   onClick={() => {
-                    if (confirm("Delete review?"))
+                    if (confirm("Delete?"))
                       act({ action: "delete_review", reviewId: r.id });
                   }}
                   label="Delete"
@@ -438,9 +452,6 @@ export default function AdminPage() {
                 />
               </div>
             ))}
-            {reviews.length === 0 && (
-              <p className="text-ink-muted text-sm">No reviews yet</p>
-            )}
           </div>
         )}
 
