@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
+const MAX_PHOTO_CHARS = 450_000; // ~350KB base64
+
 export async function POST(req: Request) {
   try {
     const session = await auth();
@@ -11,13 +13,43 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { bio, city, hourlyRate, services, phone } = body;
+    const { bio, city, hourlyRate, services, phone, photo } = body;
 
-    if (!bio || !city || !hourlyRate || !Array.isArray(services) || services.length === 0) {
+    if (
+      !bio ||
+      !city ||
+      !hourlyRate ||
+      !Array.isArray(services) ||
+      services.length === 0
+    ) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
+    }
+
+    if (typeof bio === "string" && bio.trim().length < 20) {
+      return NextResponse.json(
+        { error: "Bio must be at least 20 characters" },
+        { status: 400 }
+      );
+    }
+
+    let photoData: string | undefined;
+    if (photo && typeof photo === "string") {
+      if (!photo.startsWith("data:image/")) {
+        return NextResponse.json(
+          { error: "Invalid photo format" },
+          { status: 400 }
+        );
+      }
+      if (photo.length > MAX_PHOTO_CHARS) {
+        return NextResponse.json(
+          { error: "Photo too large. Use under 300KB." },
+          { status: 400 }
+        );
+      }
+      photoData = photo;
     }
 
     const user = await prisma.user.findUnique({
@@ -33,6 +65,7 @@ export async function POST(req: Request) {
       data: {
         role: "SAATHI",
         phone: phone || user.phone,
+        ...(photoData ? { image: photoData } : {}),
       },
     });
 
