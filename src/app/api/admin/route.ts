@@ -24,6 +24,7 @@ export async function GET(req: Request) {
         verified,
         activeBookings,
         pendingPay,
+        upiCount,
       ] = await Promise.all([
         prisma.user.count(),
         prisma.saathiProfile.count(),
@@ -37,6 +38,7 @@ export async function GET(req: Request) {
         prisma.saathiProfile.count({ where: { isVerified: true } }),
         prisma.booking.count({ where: { status: "CONFIRMED" } }),
         prisma.payment.count({ where: { status: "PENDING" } }),
+        prisma.upiPool.count({ where: { isActive: true } }),
       ]);
 
       return NextResponse.json({
@@ -50,6 +52,7 @@ export async function GET(req: Request) {
           verified,
           activeBookings,
           pendingPay,
+          upiCount,
         },
       });
     }
@@ -140,10 +143,25 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "desc" },
         take: 100,
         include: {
-          user: { select: { id: true, name: true, email: true, paymentStatus: true } },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              paymentStatus: true,
+            },
+          },
+          upiPool: { select: { upiId: true, displayName: true } },
         },
       });
       return NextResponse.json({ payments });
+    }
+
+    if (section === "upi") {
+      const list = await prisma.upiPool.findMany({
+        orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+      });
+      return NextResponse.json({ upiList: list });
     }
 
     return NextResponse.json({ error: "Unknown section" }, { status: 400 });
@@ -170,6 +188,12 @@ export async function PATCH(req: Request) {
       paymentId,
       role,
       rate,
+      upiId,
+      displayName,
+      dailyLimit,
+      priority,
+      poolId,
+      isActive,
     } = body;
 
     switch (action) {
@@ -331,11 +355,89 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ success: true });
       }
 
+      // —— UPI pool ——
+      case "add_upi": {
+        if (!upiId || typeof upiId !== "string" || !upiId.includes("@")) {
+          return NextResponse.json(
+            { error: "Valid UPI ID required (e.g. name@ybl)" },
+            { status: 400 }
+          );
+        }
+        const created = await prisma.upiPool.create({
+          data: {
+            upiId: upiId.trim().toLowerCase(),
+            displayName: displayName?.trim() || "SaathiPro",
+            dailyLimit: Number(dailyLimit) >= 0 ? Number(dailyLimit) : 50,
+            priority: Number(priority) || 0,
+            isActive: true,
+          },
+        });
+        return NextResponse.json({ success: true, upi: created });
+      }
+
+      case "update_upi": {
+        if (!poolId) {
+          return NextResponse.json({ error: "poolId required" }, { status: 400 });
+        }
+        await prisma.upiPool.update({
+          where: { id: poolId },
+          data: {
+            ...(displayName !== undefined && { displayName }),
+            ...(dailyLimit !== undefined && {
+              dailyLimit: Number(dailyLimit),
+            }),
+            ...(priority !== undefined && { priority: Number(priority) }),
+            ...(typeof isActive === "boolean" && { isActive }),
+          },
+        });
+        return NextResponse.json({ success: true });
+      }
+
+      case "toggle_upi": {
+        if (!poolId) {
+          return NextResponse.json({ error: "poolId required" }, { status: 400 });
+        }
+        const cur = await prisma.upiPool.findUnique({ where: { id: poolId } });
+        if (!cur) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+        await prisma.upiPool.update({
+          where: { id: poolId },
+          data: { isActive: !cur.isActive },
+        });
+        return NextResponse.json({ success: true });
+      }
+
+      case "reset_upi_count": {
+        if (!poolId) {
+          return NextResponse.json({ error: "poolId required" }, { status: 400 });
+        }
+        await prisma.upiPool.update({
+          where: { id: poolId },
+          data: { usedToday: 0, lastResetAt: new Date() },
+        });
+        return NextResponse.json({ success: true });
+      }
+
+      case "delete_upi": {
+        if (!poolId) {
+          return NextResponse.json({ error: "poolId required" }, { status: 400 });
+        }
+        await prisma.upiPool.delete({ where: { id: poolId } });
+        return NextResponse.json({ success: true });
+      }
+
       default:
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error("admin PATCH:", err);
+    if (err?.code === "P2002") {
+      return NextResponse.json(
+        { error: "This UPI already exists" },
+        { status: 400 }
+      );
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
