@@ -17,6 +17,8 @@ model User {
   role          String    @default("USER")
   phone         String?
   isBanned      Boolean   @default(false)
+  /// NONE | PENDING | VERIFIED | REJECTED — registration fee status
+  paymentStatus String    @default("NONE")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -27,6 +29,7 @@ model User {
   bookingsAsSaathi  Booking[] @relation("SaathiBookings")
   reviewsGiven      Review[]  @relation("ReviewsGiven")
   reviewsReceived   Review[]  @relation("ReviewsReceived")
+  payments          Payment[]
 }
 
 model Account {
@@ -112,4 +115,19 @@ model Review {
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   client  User    @relation("ReviewsGiven", fields: [clientId], references: [id], onDelete: Cascade)
   saathi  User    @relation("ReviewsReceived", fields: [saathiId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  userId     String
+  amount     Int      @default(499)
+  type       String   @default("REGISTRATION")
+  utr        String?
+  screenshot String?
+  status     String   @default("PENDING")
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
