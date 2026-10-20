@@ -24,6 +24,8 @@ model User {
   saathiProfile SaathiProfile?
   bookingsAsClient  Booking[] @relation("ClientBookings")
   bookingsAsSaathi  Booking[] @relation("SaathiBookings")
+  reviewsGiven      Review[]  @relation("ReviewsGiven")
+  reviewsReceived   Review[]  @relation("ReviewsReceived")
 }
 
 model Account {
@@ -94,4 +96,19 @@ model Booking {
 
   client User @relation("ClientBookings", fields: [clientId], references: [id], onDelete: Cascade)
   saathi User @relation("SaathiBookings", fields: [saathiId], references: [id], onDelete: Cascade)
+  review Review?
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  bookingId String   @unique
+  clientId  String
+  saathiId  String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  client  User    @relation("ReviewsGiven", fields: [clientId], references: [id], onDelete: Cascade)
+  saathi  User    @relation("ReviewsReceived", fields: [saathiId], references: [id], onDelete: Cascade)
 }
