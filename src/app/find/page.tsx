@@ -131,9 +131,9 @@ const DUMMY_SAATHIS = [
 type Saathi = (typeof DUMMY_SAATHIS)[0];
 
 function avatarUrl(name: string, image: string | null) {
-  // Always use consistent letter avatars for a clean professional look
-  // (skip random OAuth avatars)
-  void image;
+  if (image && (image.startsWith("data:image/") || image.startsWith("https://"))) {
+    return image;
+  }
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(
     name
   )}&background=5b4a3f&color=fff&size=256&font-size=0.4&bold=true`;
@@ -158,7 +158,6 @@ export default function FindPage() {
             Array.isArray(s.services) &&
             s.services.length > 0
         );
-        // Curated demos first, then real quality profiles
         const dummyIds = new Set(DUMMY_SAATHIS.map((d) => d.id));
         const extra = fromDb.filter((s) => !dummyIds.has(s.id));
         setList([...DUMMY_SAATHIS, ...extra]);
