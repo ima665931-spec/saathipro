@@ -24,7 +24,6 @@ function isQualityProfile(opts: {
   if (name.length < 2) return false;
   if (BAD_NAMES.has(name.toLowerCase())) return false;
   if (bio.length < 20) return false;
-  // reject keyboard spam / all caps garbage
   if (/^[A-Z0-9\s]{15,}$/.test(bio) && bio === bio.toUpperCase()) return false;
   if ((bio.match(/[aeiouаеёиоуыэюя]/gi) || []).length < 3) return false;
   if (!opts.services.length) return false;
@@ -44,6 +43,9 @@ export async function GET() {
             name: true,
             image: true,
             email: true,
+            reviewsReceived: {
+              select: { rating: true },
+            },
           },
         },
       },
@@ -62,6 +64,14 @@ export async function GET() {
         const name = p.user.name || "";
         const bio = p.bio || "";
         const rate = p.hourlyRate || 1500;
+        const revs = p.user.reviewsReceived || [];
+        const count = revs.length;
+        const avg =
+          count > 0
+            ? Math.round(
+                (revs.reduce((s, r) => s + r.rating, 0) / count) * 10
+              ) / 10
+            : 4.8;
 
         return {
           id: p.userId,
@@ -69,10 +79,9 @@ export async function GET() {
           city: p.city || "India",
           services,
           rate,
-          rating: 4.8,
-          reviews: 0,
+          rating: avg,
+          reviews: count,
           bio: bio || "Professional companion.",
-          // Prefer generated avatar unless verified — avoids random Google/OAuth avatars looking off
           image: p.isVerified && p.user.image ? p.user.image : null,
           verified: p.isVerified,
           fromDb: true,
