@@ -131,10 +131,12 @@ const DUMMY_SAATHIS = [
 type Saathi = (typeof DUMMY_SAATHIS)[0];
 
 function avatarUrl(name: string, image: string | null) {
-  if (image) return image;
+  // Always use consistent letter avatars for a clean professional look
+  // (skip random OAuth avatars)
+  void image;
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(
     name
-  )}&background=5b4a3f&color=fff&size=128&font-size=0.4`;
+  )}&background=5b4a3f&color=fff&size=256&font-size=0.4&bold=true`;
 }
 
 export default function FindPage() {
@@ -148,10 +150,18 @@ export default function FindPage() {
     fetch("/api/saathis")
       .then((r) => r.json())
       .then((data) => {
-        const fromDb: Saathi[] = data.saathis || [];
-        if (fromDb.length > 0) {
-          setList([...fromDb, ...DUMMY_SAATHIS]);
-        }
+        const fromDb: Saathi[] = (data.saathis || []).filter(
+          (s: Saathi) =>
+            s.name &&
+            s.bio &&
+            s.bio.length >= 20 &&
+            Array.isArray(s.services) &&
+            s.services.length > 0
+        );
+        // Curated demos first, then real quality profiles
+        const dummyIds = new Set(DUMMY_SAATHIS.map((d) => d.id));
+        const extra = fromDb.filter((s) => !dummyIds.has(s.id));
+        setList([...DUMMY_SAATHIS, ...extra]);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -307,7 +317,7 @@ export default function FindPage() {
                 className="bg-white rounded-2xl border border-border overflow-hidden shadow-card hover:shadow-soft transition-shadow duration-300 flex flex-col"
               >
                 <Link href={`/saathi/${saathi.id}`} className="block">
-                  <div className="aspect-[4/3] bg-cream-dark relative overflow-hidden">
+                  <div className="aspect-[4/3] bg-cream-dark relative overflow-hidden flex items-center justify-center">
                     <img
                       src={avatarUrl(saathi.name, saathi.image)}
                       alt={saathi.name}
