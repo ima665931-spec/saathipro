@@ -1,6 +1,38 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+const BAD_NAMES = new Set([
+  "name",
+  "имя",
+  "test",
+  "user",
+  "saathi",
+  "admin",
+  "null",
+  "undefined",
+]);
+
+function isQualityProfile(opts: {
+  name: string;
+  bio: string;
+  services: string[];
+  rate: number;
+}) {
+  const name = opts.name.trim();
+  const bio = opts.bio.trim();
+
+  if (name.length < 2) return false;
+  if (BAD_NAMES.has(name.toLowerCase())) return false;
+  if (bio.length < 20) return false;
+  // reject keyboard spam / all caps garbage
+  if (/^[A-Z0-9\s]{15,}$/.test(bio) && bio === bio.toUpperCase()) return false;
+  if ((bio.match(/[aeiouаеёиоуыэюя]/gi) || []).length < 3) return false;
+  if (!opts.services.length) return false;
+  if (opts.rate < 500 || opts.rate > 10000) return false;
+
+  return true;
+}
+
 export async function GET() {
   try {
     const profiles = await prisma.saathiProfile.findMany({
@@ -18,32 +50,49 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    const saathis = profiles.map((p) => {
-      let services: string[] = [];
-      try {
-        services = p.services ? JSON.parse(p.services) : [];
-      } catch {
-        services = p.services ? [p.services] : [];
-      }
+    const saathis = profiles
+      .map((p) => {
+        let services: string[] = [];
+        try {
+          services = p.services ? JSON.parse(p.services) : [];
+        } catch {
+          services = p.services ? [p.services] : [];
+        }
 
-      return {
-        id: p.userId,
-        name: p.user.name || "Saathi",
-        city: p.city || "India",
-        services,
-        rate: p.hourlyRate || 1500,
-        rating: 4.8,
-        reviews: 0,
-        bio: p.bio || "Professional companion.",
-        image: p.user.image || null,
-        verified: p.isVerified,
-        fromDb: true,
-      };
-    });
+        const name = p.user.name || "";
+        const bio = p.bio || "";
+        const rate = p.hourlyRate || 1500;
+
+        return {
+          id: p.userId,
+          name: name || "Saathi",
+          city: p.city || "India",
+          services,
+          rate,
+          rating: 4.8,
+          reviews: 0,
+          bio: bio || "Professional companion.",
+          // Prefer generated avatar unless verified — avoids random Google/OAuth avatars looking off
+          image: p.isVerified && p.user.image ? p.user.image : null,
+          verified: p.isVerified,
+          fromDb: true,
+        };
+      })
+      .filter((s) =>
+        isQualityProfile({
+          name: s.name,
+          bio: s.bio,
+          services: s.services,
+          rate: s.rate,
+        })
+      );
 
     return NextResponse.json({ saathis });
   } catch (err) {
     console.error("saathis list error:", err);
-    return NextResponse.json({ saathis: [], error: "Failed to load" }, { status: 500 });
+    return NextResponse.json(
+      { saathis: [], error: "Failed to load" },
+      { status: 500 }
+    );
   }
 }
