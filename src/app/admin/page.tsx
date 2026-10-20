@@ -5,7 +5,14 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-type Tab = "stats" | "users" | "saathis" | "bookings" | "reviews" | "payments";
+type Tab =
+  | "stats"
+  | "users"
+  | "saathis"
+  | "bookings"
+  | "reviews"
+  | "payments"
+  | "upi";
 
 export default function AdminPage() {
   const { status } = useSession();
@@ -17,10 +24,16 @@ export default function AdminPage() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [upiList, setUpiList] = useState<any[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
+
+  // add UPI form
+  const [newUpi, setNewUpi] = useState("");
+  const [newName, setNewName] = useState("SaathiPro");
+  const [newLimit, setNewLimit] = useState(50);
 
   const load = useCallback(async (section: Tab, search = "") => {
     setLoading(true);
@@ -40,6 +53,7 @@ export default function AdminPage() {
       if (section === "bookings") setBookings(data.bookings || []);
       if (section === "reviews") setReviews(data.reviews || []);
       if (section === "payments") setPayments(data.payments || []);
+      if (section === "upi") setUpiList(data.upiList || []);
     } catch {
       setError("Network error");
     } finally {
@@ -68,6 +82,11 @@ export default function AdminPage() {
         alert(data.error || "Failed");
       } else {
         await load(tab, q);
+        if (body.action === "add_upi") {
+          setNewUpi("");
+          setNewName("SaathiPro");
+          setNewLimit(50);
+        }
       }
     } catch {
       alert("Network error");
@@ -86,6 +105,7 @@ export default function AdminPage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "stats", label: "Overview" },
+    { id: "upi", label: "UPI Pool" },
     { id: "payments", label: "Payments" },
     { id: "users", label: "Users" },
     { id: "saathis", label: "Saathis" },
@@ -138,7 +158,7 @@ export default function AdminPage() {
             {error}
             <p className="mt-2 text-xs">
               Set <code className="bg-red-100 px-1">ADMIN_EMAILS</code> in
-              Vercel to your login email, or role = ADMIN.
+              Vercel.
             </p>
           </div>
         )}
@@ -149,13 +169,12 @@ export default function AdminPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               ["Users", stats.users],
-              ["Saathis", stats.saathis],
-              ["Bookings", stats.bookings],
-              ["Reviews", stats.reviews],
-              ["Booking revenue (₹)", stats.revenue],
-              ["Active bookings", stats.activeBookings],
-              ["Verified Saathis", stats.verified],
+              ["Active UPIs", stats.upiCount],
               ["Pending payments", stats.pendingPay],
+              ["Bookings", stats.bookings],
+              ["Saathis", stats.saathis],
+              ["Reviews", stats.reviews],
+              ["Booking ₹", stats.revenue],
               ["Banned", stats.banned],
             ].map(([label, val]) => (
               <div
@@ -173,53 +192,157 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* PAYMENTS */}
+        {/* UPI POOL */}
+        {!loading && tab === "upi" && (
+          <div className="space-y-6">
+            <div className="bg-white border border-border rounded-2xl p-5 shadow-card">
+              <h2 className="font-display font-semibold text-ink mb-3">
+                Add UPI
+              </h2>
+              <p className="text-xs text-ink-muted mb-4">
+                Limit hit hone pe system next active UPI pe shift karega.
+                Daily limit 0 = unlimited.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  value={newUpi}
+                  onChange={(e) => setNewUpi(e.target.value)}
+                  placeholder="name@ybl / name@oksbi"
+                  className="flex-1 px-3 py-2 border border-border rounded-xl text-sm"
+                />
+                <input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Display name"
+                  className="sm:w-36 px-3 py-2 border border-border rounded-xl text-sm"
+                />
+                <input
+                  type="number"
+                  value={newLimit}
+                  onChange={(e) => setNewLimit(Number(e.target.value))}
+                  placeholder="Daily limit"
+                  className="sm:w-28 px-3 py-2 border border-border rounded-xl text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    act({
+                      action: "add_upi",
+                      upiId: newUpi,
+                      displayName: newName,
+                      dailyLimit: newLimit,
+                      priority: upiList.length,
+                    })
+                  }
+                  className="px-4 py-2 bg-ink text-cream rounded-xl text-sm font-medium"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
+            {upiList.map((u) => {
+              const full =
+                u.dailyLimit > 0 && u.usedToday >= u.dailyLimit;
+              return (
+                <div
+                  key={u.id}
+                  className="bg-white border border-border rounded-2xl p-4 shadow-card"
+                >
+                  <div className="flex flex-wrap justify-between gap-3">
+                    <div>
+                      <p className="font-mono font-medium text-ink">{u.upiId}</p>
+                      <p className="text-sm text-ink-muted">{u.displayName}</p>
+                      <p className="text-xs text-ink-muted mt-1">
+                        Today: {u.usedToday}
+                        {u.dailyLimit > 0 ? ` / ${u.dailyLimit}` : " (no limit)"}
+                        {full && (
+                          <span className="text-amber-700 font-medium">
+                            {" "}
+                            · LIMIT FULL → next UPI
+                          </span>
+                        )}
+                        {!u.isActive && (
+                          <span className="text-red-600"> · OFF</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Btn
+                        onClick={() =>
+                          act({ action: "toggle_upi", poolId: u.id })
+                        }
+                        label={u.isActive ? "Disable" : "Enable"}
+                        danger={u.isActive}
+                      />
+                      <Btn
+                        onClick={() =>
+                          act({ action: "reset_upi_count", poolId: u.id })
+                        }
+                        label="Reset count"
+                      />
+                      <Btn
+                        onClick={() => {
+                          const lim = prompt(
+                            "Daily limit (0 = unlimited)",
+                            String(u.dailyLimit)
+                          );
+                          if (lim !== null)
+                            act({
+                              action: "update_upi",
+                              poolId: u.id,
+                              dailyLimit: Number(lim),
+                            });
+                        }}
+                        label="Set limit"
+                      />
+                      <Btn
+                        onClick={() => {
+                          if (confirm("Delete this UPI?"))
+                            act({ action: "delete_upi", poolId: u.id });
+                        }}
+                        label="Delete"
+                        danger
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {upiList.length === 0 && (
+              <p className="text-sm text-ink-muted">
+                No UPIs yet — add at least one so /pay works.
+              </p>
+            )}
+          </div>
+        )}
+
         {!loading && tab === "payments" && (
           <div className="space-y-4">
-            <p className="text-sm text-ink-muted">
-              ₹499 registration — check UTR in your UPI app, then Approve or
-              Reject.
-            </p>
             {payments.map((p) => (
               <div
                 key={p.id}
                 className="bg-white border border-border rounded-2xl p-4 shadow-card"
               >
                 <div className="flex flex-wrap justify-between gap-3">
-                  <div className="min-w-0 flex-1">
+                  <div>
                     <p className="font-medium text-ink">
                       {p.user?.name || "—"}{" "}
-                      <span
-                        className={`text-xs font-normal ${
-                          p.status === "PENDING"
-                            ? "text-amber-700"
-                            : p.status === "APPROVED"
-                            ? "text-emerald-700"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {p.status}
-                      </span>
+                      <span className="text-xs text-ink-muted">{p.status}</span>
                     </p>
                     <p className="text-sm text-ink-muted">{p.user?.email}</p>
-                    <p className="text-sm text-ink mt-1">
-                      UTR: <span className="font-mono">{p.utr || "—"}</span> ·
-                      ₹{p.amount}
-                    </p>
-                    <p className="text-xs text-ink-muted">
-                      {new Date(p.createdAt).toLocaleString("en-IN")}
-                    </p>
+                    <p className="text-sm font-mono mt-1">UTR: {p.utr}</p>
+                    {p.upiPool && (
+                      <p className="text-xs text-ink-muted">
+                        Paid to: {p.upiPool.upiId}
+                      </p>
+                    )}
                     {p.screenshot && (
-                      <a
-                        href={p.screenshot}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-block mt-2"
-                      >
+                      <a href={p.screenshot} target="_blank" rel="noreferrer">
                         <img
                           src={p.screenshot}
-                          alt="Screenshot"
-                          className="max-h-32 rounded-lg border border-border"
+                          alt="shot"
+                          className="mt-2 max-h-28 rounded-lg border"
                         />
                       </a>
                     )}
@@ -230,7 +353,7 @@ export default function AdminPage() {
                         onClick={() =>
                           act({ action: "approve_payment", paymentId: p.id })
                         }
-                        label="Approve ✓"
+                        label="Approve"
                       />
                       <Btn
                         onClick={() =>
@@ -245,7 +368,7 @@ export default function AdminPage() {
               </div>
             ))}
             {payments.length === 0 && (
-              <p className="text-ink-muted text-sm">No payment submissions</p>
+              <p className="text-ink-muted text-sm">No payments</p>
             )}
           </div>
         )}
@@ -256,13 +379,13 @@ export default function AdminPage() {
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Search name or email…"
-                className="flex-1 px-4 py-2 border border-border rounded-xl bg-white text-sm"
+                placeholder="Search…"
+                className="flex-1 px-4 py-2 border rounded-xl text-sm"
               />
               <button
                 type="button"
                 onClick={() => load("users", q)}
-                className="px-4 py-2 bg-ink text-cream rounded-xl text-sm font-medium"
+                className="px-4 py-2 bg-ink text-cream rounded-xl text-sm"
               >
                 Search
               </button>
@@ -270,67 +393,31 @@ export default function AdminPage() {
             {users.map((u) => (
               <div
                 key={u.id}
-                className="bg-white border border-border rounded-2xl p-4 shadow-card"
+                className="bg-white border rounded-2xl p-4 shadow-card flex flex-wrap justify-between gap-2"
               >
-                <div className="flex flex-wrap justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-ink">
-                      {u.name || "—"}{" "}
-                      {u.isBanned && (
-                        <span className="text-xs text-red-600">BANNED</span>
-                      )}{" "}
-                      <span className="text-xs text-ink-muted">
-                        pay:{u.paymentStatus || "NONE"}
-                      </span>
-                    </p>
-                    <p className="text-sm text-ink-muted">{u.email}</p>
-                    <p className="text-xs text-ink-muted mt-1">
-                      Role: {u.role} · Bookings:{" "}
-                      {u._count?.bookingsAsClient || 0}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {!u.isBanned ? (
-                      <Btn
-                        onClick={() => act({ action: "ban_user", userId: u.id })}
-                        label="Ban"
-                        danger
-                      />
-                    ) : (
-                      <Btn
-                        onClick={() =>
-                          act({ action: "unban_user", userId: u.id })
-                        }
-                        label="Unban"
-                      />
-                    )}
-                    <Btn
-                      onClick={() =>
-                        act({ action: "set_role", userId: u.id, role: "USER" })
-                      }
-                      label="→ User"
-                    />
-                    <Btn
-                      onClick={() =>
-                        act({ action: "promote_to_saathi", userId: u.id })
-                      }
-                      label="→ Saathi"
-                    />
-                    <Btn
-                      onClick={() =>
-                        act({ action: "set_role", userId: u.id, role: "ADMIN" })
-                      }
-                      label="→ Admin"
-                    />
-                    <Btn
-                      onClick={() => {
-                        if (confirm("Delete user permanently?"))
-                          act({ action: "delete_user", userId: u.id });
-                      }}
-                      label="Delete"
-                      danger
-                    />
-                  </div>
+                <div>
+                  <p className="font-medium">
+                    {u.name} · {u.paymentStatus}
+                  </p>
+                  <p className="text-sm text-ink-muted">{u.email}</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <Btn
+                    onClick={() =>
+                      act({
+                        action: u.isBanned ? "unban_user" : "ban_user",
+                        userId: u.id,
+                      })
+                    }
+                    label={u.isBanned ? "Unban" : "Ban"}
+                    danger={!u.isBanned}
+                  />
+                  <Btn
+                    onClick={() =>
+                      act({ action: "set_role", userId: u.id, role: "ADMIN" })
+                    }
+                    label="→ Admin"
+                  />
                 </div>
               </div>
             ))}
@@ -342,47 +429,23 @@ export default function AdminPage() {
             {saathis.map((s) => (
               <div
                 key={s.id}
-                className="bg-white border border-border rounded-2xl p-4 shadow-card"
+                className="bg-white border rounded-2xl p-4 flex justify-between gap-2"
               >
-                <div className="flex flex-wrap justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-ink">
-                      {s.user?.name || "—"}{" "}
-                      {s.isVerified && (
-                        <span className="text-xs text-emerald-700">Verified</span>
-                      )}
-                    </p>
-                    <p className="text-sm text-ink-muted">{s.user?.email}</p>
-                    <p className="text-xs text-ink-muted mt-1">
-                      {s.city} · ₹{s.hourlyRate}/hr
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Btn
-                      onClick={() =>
-                        act({
-                          action: s.isVerified
-                            ? "unverify_saathi"
-                            : "verify_saathi",
-                          saathiUserId: s.userId,
-                        })
-                      }
-                      label={s.isVerified ? "Unverify" : "Verify"}
-                    />
-                    <Btn
-                      onClick={() =>
-                        act({
-                          action: s.isActive
-                            ? "deactivate_saathi"
-                            : "activate_saathi",
-                          saathiUserId: s.userId,
-                        })
-                      }
-                      label={s.isActive ? "Hide" : "Show"}
-                      danger={s.isActive}
-                    />
-                  </div>
+                <div>
+                  <p className="font-medium">{s.user?.name}</p>
+                  <p className="text-sm text-ink-muted">{s.user?.email}</p>
                 </div>
+                <Btn
+                  onClick={() =>
+                    act({
+                      action: s.isVerified
+                        ? "unverify_saathi"
+                        : "verify_saathi",
+                      saathiUserId: s.userId,
+                    })
+                  }
+                  label={s.isVerified ? "Unverify" : "Verify"}
+                />
               </div>
             ))}
           </div>
@@ -393,39 +456,23 @@ export default function AdminPage() {
             {bookings.map((b) => (
               <div
                 key={b.id}
-                className="bg-white border border-border rounded-2xl p-4 shadow-card"
+                className="bg-white border rounded-2xl p-4 flex justify-between gap-2"
               >
-                <div className="flex flex-wrap justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-ink">
-                      {b.saathiName} · {b.service} · {b.status}
-                    </p>
-                    <p className="text-sm text-ink-muted">
-                      {b.client?.email} · {b.date} {b.time} · ₹{b.amount}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Btn
-                      onClick={() =>
-                        act({ action: "confirm_booking", bookingId: b.id })
-                      }
-                      label="Confirm"
-                    />
-                    <Btn
-                      onClick={() =>
-                        act({ action: "complete_booking", bookingId: b.id })
-                      }
-                      label="Complete"
-                    />
-                    <Btn
-                      onClick={() =>
-                        act({ action: "cancel_booking", bookingId: b.id })
-                      }
-                      label="Cancel"
-                      danger
-                    />
-                  </div>
+                <div>
+                  <p className="font-medium">
+                    {b.saathiName} · {b.status}
+                  </p>
+                  <p className="text-sm text-ink-muted">
+                    {b.client?.email} · ₹{b.amount}
+                  </p>
                 </div>
+                <Btn
+                  onClick={() =>
+                    act({ action: "cancel_booking", bookingId: b.id })
+                  }
+                  label="Cancel"
+                  danger
+                />
               </div>
             ))}
           </div>
@@ -436,17 +483,15 @@ export default function AdminPage() {
             {reviews.map((r) => (
               <div
                 key={r.id}
-                className="bg-white border border-border rounded-2xl p-4 shadow-card flex justify-between gap-2"
+                className="bg-white border rounded-2xl p-4 flex justify-between"
               >
-                <div>
-                  <p className="text-gold text-sm">{"★".repeat(r.rating)}</p>
-                  <p className="text-sm text-ink">{r.comment || "—"}</p>
-                </div>
+                <p className="text-sm">
+                  {"★".repeat(r.rating)} {r.comment}
+                </p>
                 <Btn
-                  onClick={() => {
-                    if (confirm("Delete?"))
-                      act({ action: "delete_review", reviewId: r.id });
-                  }}
+                  onClick={() =>
+                    act({ action: "delete_review", reviewId: r.id })
+                  }
                   label="Delete"
                   danger
                 />
