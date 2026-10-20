@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { pickUpi, bumpUpiUsage } from "@/lib/upi-pool";
 
 const FEE = 499;
 const MAX_SHOT = 500_000;
@@ -23,15 +24,14 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const upiId = process.env.NEXT_PUBLIC_UPI_ID || process.env.UPI_ID || "";
-    const upiName =
-      process.env.NEXT_PUBLIC_UPI_NAME || process.env.UPI_NAME || "SaathiPro";
+    const picked = await pickUpi();
 
     return NextResponse.json({
       paymentStatus: user.paymentStatus,
       amount: FEE,
-      upiId,
-      upiName,
+      upiId: picked?.upiId || "",
+      upiName: picked?.displayName || "SaathiPro",
+      upiPoolId: picked?.id || null,
       payments: user.payments.map((p) => ({
         id: p.id,
         amount: p.amount,
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { utr, screenshot } = body;
+    const { utr, screenshot, upiPoolId } = body;
 
     if (!utr || typeof utr !== "string" || utr.trim().length < 6) {
       return NextResponse.json(
@@ -103,6 +103,7 @@ export async function POST(req: Request) {
         utr: utr.trim(),
         screenshot,
         status: "PENDING",
+        upiPoolId: upiPoolId || null,
       },
     });
 
@@ -110,6 +111,8 @@ export async function POST(req: Request) {
       where: { id: user.id },
       data: { paymentStatus: "PENDING" },
     });
+
+    await bumpUpiUsage(upiPoolId);
 
     return NextResponse.json({ success: true, paymentId: payment.id });
   } catch (err) {
