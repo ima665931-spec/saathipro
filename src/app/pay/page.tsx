@@ -49,6 +49,7 @@ export default function PayPage() {
   const [upiId, setUpiId] = useState("");
   const [upiName, setUpiName] = useState("SaathiPro");
   const [upiPoolId, setUpiPoolId] = useState<string | null>(null);
+  const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState("NONE");
   const [utr, setUtr] = useState("");
   const [shot, setShot] = useState<string | null>(null);
@@ -56,6 +57,7 @@ export default function PayPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -69,9 +71,11 @@ export default function PayPage() {
           setUpiId(d.upiId || "");
           setUpiName(d.upiName || "SaathiPro");
           setUpiPoolId(d.upiPoolId || null);
+          setAssignmentId(d.assignmentId || null);
           setPaymentStatus(d.paymentStatus || "NONE");
           if (d.paymentStatus === "VERIFIED") setDone(true);
           if (d.paymentStatus === "PENDING") setDone(true);
+          if (d.error) setError(d.error);
         })
         .finally(() => setLoading(false));
     }
@@ -81,14 +85,27 @@ export default function PayPage() {
     upiId
       ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(
           upiName
-        )}&am=${FEE}&cu=INR&tn=${encodeURIComponent("SaathiPro Registration")}`
+        )}&am=${FEE}&cu=INR&tn=${encodeURIComponent(
+          "SaathiPro Registration Fee"
+        )}`
       : "";
 
   const qrUrl = upiLink
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
         upiLink
       )}`
     : "";
+
+  const copyUpi = async () => {
+    if (!upiId) return;
+    try {
+      await navigator.clipboard.writeText(upiId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -122,6 +139,7 @@ export default function PayPage() {
           utr: utr.trim(),
           screenshot: shot,
           upiPoolId,
+          assignmentId,
         }),
       });
       const data = await res.json();
@@ -162,21 +180,22 @@ export default function PayPage() {
 
       <main className="max-w-lg mx-auto px-4 py-10">
         <p className="text-xs font-semibold tracking-widest uppercase text-accent-light mb-2">
-          Registration fee
+          Step 1 of registration
         </p>
         <h1 className="font-display text-3xl font-semibold text-ink">
           Pay ₹{FEE}
         </h1>
         <p className="mt-2 text-ink-muted text-sm">
-          One-time fee. Pay via any UPI app, then submit UTR + screenshot.
+          One-time registration fee. Amount is fixed at ₹{FEE}. Scan QR or open
+          your UPI app, pay, then submit proof.
         </p>
 
         {paymentStatus === "VERIFIED" && (
           <div className="mt-8 p-6 bg-emerald-50 border border-emerald-100 rounded-2xl text-center">
             <p className="font-display text-lg font-semibold text-emerald-900">
-              Payment verified
+              Payment verified ✓
             </p>
-            <p className="text-sm text-emerald-800 mt-1">You have full access.</p>
+            <p className="text-sm text-emerald-800 mt-1">Full access unlocked.</p>
             <Link
               href="/find"
               className="inline-block mt-4 px-6 py-2.5 bg-ink text-cream rounded-full text-sm font-semibold"
@@ -193,7 +212,8 @@ export default function PayPage() {
                 Under review
               </p>
               <p className="text-sm text-amber-800 mt-1">
-                Admin will verify your UTR and screenshot shortly.
+                Admin is checking your UTR + screenshot. Usually within a few
+                hours.
               </p>
               <Link
                 href="/dashboard"
@@ -208,35 +228,67 @@ export default function PayPage() {
           paymentStatus !== "PENDING" &&
           !done && (
             <>
-              <div className="mt-8 bg-white border border-border rounded-2xl p-6 shadow-card text-center">
+              <div className="mt-6 flex gap-2 text-xs text-ink-muted">
+                <span className="px-2.5 py-1 rounded-full bg-ink text-cream font-medium">
+                  1. Pay
+                </span>
+                <span className="px-2.5 py-1 rounded-full bg-white border border-border">
+                  2. Upload proof
+                </span>
+                <span className="px-2.5 py-1 rounded-full bg-white border border-border">
+                  3. Admin verify
+                </span>
+              </div>
+
+              <div className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card text-center">
                 {!upiId ? (
                   <p className="text-sm text-red-600">
-                    No UPI in pool yet. Admin must add UPI in Admin → UPI Pool.
+                    {error ||
+                      "No UPI available. Admin must add IDs in Admin → UPI Pool."}
                   </p>
                 ) : (
                   <>
+                    <p className="text-xs uppercase tracking-wide text-ink-muted mb-3">
+                      Pay exactly ₹{FEE} to this UPI
+                    </p>
                     {qrUrl && (
                       <img
                         src={qrUrl}
-                        alt="UPI QR"
-                        className="mx-auto rounded-xl border border-border"
-                        width={220}
-                        height={220}
+                        alt="UPI QR for ₹499"
+                        className="mx-auto rounded-xl border border-border bg-white"
+                        width={240}
+                        height={240}
                       />
                     )}
-                    <p className="mt-4 font-medium text-ink">{upiId}</p>
-                    <p className="text-xs text-ink-muted">{upiName}</p>
-                    <p className="mt-2 font-display text-2xl font-semibold text-ink">
+                    <p className="mt-4 font-mono text-sm font-semibold text-ink break-all">
+                      {upiId}
+                    </p>
+                    <p className="text-xs text-ink-muted mt-0.5">{upiName}</p>
+                    <p className="mt-3 font-display text-3xl font-semibold text-ink">
                       ₹{FEE}
                     </p>
-                    <a
-                      href={upiLink}
-                      className="inline-block mt-4 px-6 py-2.5 bg-ink text-cream text-sm font-semibold rounded-full hover:bg-accent"
-                    >
-                      Open UPI app
-                    </a>
+                    <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+                      <a
+                        href={upiLink}
+                        className="inline-block px-6 py-2.5 bg-ink text-cream text-sm font-semibold rounded-full hover:bg-accent"
+                      >
+                        Open UPI app
+                      </a>
+                      <button
+                        type="button"
+                        onClick={copyUpi}
+                        className="inline-block px-6 py-2.5 border border-border text-sm font-medium rounded-full hover:bg-cream-dark"
+                      >
+                        {copied ? "Copied!" : "Copy UPI ID"}
+                      </button>
+                    </div>
                     <p className="mt-3 text-xs text-ink-muted">
-                      GPay / PhonePe / Paytm — scan or open link
+                      GPay · PhonePe · Paytm · any UPI — amount pre-filled ₹
+                      {FEE}
+                    </p>
+                    <p className="mt-2 text-[11px] text-ink-muted">
+                      Same UPI stays locked for you for a few hours (refresh
+                      safe).
                     </p>
                   </>
                 )}
@@ -247,7 +299,7 @@ export default function PayPage() {
                 className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card space-y-4"
               >
                 <h2 className="font-display font-semibold text-ink">
-                  After payment
+                  2. After you pay
                 </h2>
                 {error && (
                   <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl">
@@ -261,7 +313,7 @@ export default function PayPage() {
                   <input
                     value={utr}
                     onChange={(e) => setUtr(e.target.value)}
-                    placeholder="e.g. 123456789012"
+                    placeholder="From UPI success screen"
                     className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 text-ink text-sm"
                     required
                   />
@@ -305,7 +357,8 @@ export default function PayPage() {
 
         {paymentStatus === "REJECTED" && (
           <p className="mt-4 text-sm text-red-600 text-center">
-            Previous payment was rejected. Pay again and resubmit.
+            Previous payment rejected. Pay again with the UPI above and
+            resubmit.
           </p>
         )}
       </main>
