@@ -125,6 +125,7 @@ export default function BookPage() {
     DUMMY_SAATHIS[id] || null
   );
   const [resolved, setResolved] = useState(!!DUMMY_SAATHIS[id]);
+  const [payStatus, setPayStatus] = useState<string | null>(null);
 
   const [service, setService] = useState(DUMMY_SAATHIS[id]?.services[0] || "");
   const [date, setDate] = useState("");
@@ -152,6 +153,14 @@ export default function BookPage() {
       .finally(() => setResolved(true));
   }, [id]);
 
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    fetch("/api/payments")
+      .then((r) => r.json())
+      .then((d) => setPayStatus(d.paymentStatus || "NONE"))
+      .catch(() => setPayStatus("NONE"));
+  }, [status]);
+
   const total = useMemo(
     () => (saathi ? saathi.rate * duration : 0),
     [saathi, duration]
@@ -162,6 +171,11 @@ export default function BookPage() {
     d.setDate(d.getDate() + 1);
     return d.toISOString().split("T")[0];
   }, []);
+
+  const needsPay =
+    status === "authenticated" &&
+    payStatus !== null &&
+    payStatus !== "VERIFIED";
 
   const avatar = saathi
     ? `https://ui-avatars.com/api/?name=${encodeURIComponent(
@@ -175,6 +189,10 @@ export default function BookPage() {
 
     if (!session?.user) {
       router.push(`/login?callbackUrl=/book/${id}`);
+      return;
+    }
+    if (needsPay) {
+      router.push("/pay");
       return;
     }
     if (!saathi || !date || !time || !service) {
@@ -202,6 +220,10 @@ export default function BookPage() {
 
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 402 || data.code === "PAYMENT_REQUIRED" || data.code === "PENDING") {
+          router.push("/pay");
+          return;
+        }
         setError(data.error || "Booking failed");
         setLoading(false);
         return;
@@ -320,6 +342,27 @@ export default function BookPage() {
           </div>
         )}
 
+        {needsPay && (
+          <div className="mb-6 p-5 bg-amber-50 border border-amber-100 rounded-2xl">
+            <p className="font-display font-semibold text-amber-950">
+              {payStatus === "PENDING"
+                ? "Payment under review"
+                : "Registration fee required"}
+            </p>
+            <p className="text-sm text-amber-900 mt-1">
+              {payStatus === "PENDING"
+                ? "Admin is verifying your ₹499 payment. Booking unlocks after approval."
+                : "Pay ₹499 once to unlock booking on SaathiPro."}
+            </p>
+            <Link
+              href="/pay"
+              className="inline-block mt-3 px-5 py-2.5 bg-ink text-cream text-sm font-semibold rounded-full"
+            >
+              {payStatus === "PENDING" ? "View payment status" : "Pay ₹499 now"}
+            </Link>
+          </div>
+        )}
+
         <form
           onSubmit={handleSubmit}
           className="bg-white rounded-2xl border border-border shadow-card p-6 space-y-5"
@@ -327,6 +370,11 @@ export default function BookPage() {
           {error && (
             <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100">
               {error}
+              {(error.includes("499") || error.includes("Payment")) && (
+                <Link href="/pay" className="block mt-2 font-semibold underline">
+                  Go to payment →
+                </Link>
+              )}
             </div>
           )}
 
@@ -338,7 +386,8 @@ export default function BookPage() {
               value={service}
               onChange={(e) => setService(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink"
+              disabled={needsPay}
+              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink disabled:opacity-50"
             >
               {(saathi.services?.length
                 ? saathi.services
@@ -362,7 +411,8 @@ export default function BookPage() {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink"
+                disabled={needsPay}
+                className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink disabled:opacity-50"
               />
             </div>
             <div>
@@ -373,7 +423,8 @@ export default function BookPage() {
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink"
+                disabled={needsPay}
+                className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink disabled:opacity-50"
               >
                 <option value="">Select time</option>
                 {TIME_SLOTS.map((t) => (
@@ -395,11 +446,12 @@ export default function BookPage() {
                   key={h}
                   type="button"
                   onClick={() => setDuration(h)}
+                  disabled={needsPay}
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
                     duration === h
                       ? "bg-ink text-cream"
                       : "bg-cream-dark text-ink-muted hover:text-ink border border-border"
-                  }`}
+                  } disabled:opacity-50`}
                 >
                   {h} hr{h > 1 ? "s" : ""}
                 </button>
@@ -415,8 +467,9 @@ export default function BookPage() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
+              disabled={needsPay}
               placeholder="Preferences or special requests…"
-              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 resize-none text-ink"
+              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 resize-none text-ink disabled:opacity-50"
             />
           </div>
 
@@ -429,17 +482,26 @@ export default function BookPage() {
                 ₹{total}
               </p>
             </div>
-            <button
-              type="submit"
-              disabled={loading || !session}
-              className="px-8 py-3.5 bg-ink hover:bg-accent text-cream font-semibold rounded-xl transition disabled:opacity-50"
-            >
-              {loading
-                ? "Booking…"
-                : session
-                ? "Confirm booking"
-                : "Sign in to book"}
-            </button>
+            {needsPay ? (
+              <Link
+                href="/pay"
+                className="px-8 py-3.5 bg-ink hover:bg-accent text-cream font-semibold rounded-xl transition"
+              >
+                Pay ₹499 to book
+              </Link>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading || !session}
+                className="px-8 py-3.5 bg-ink hover:bg-accent text-cream font-semibold rounded-xl transition disabled:opacity-50"
+              >
+                {loading
+                  ? "Booking…"
+                  : session
+                  ? "Confirm booking"
+                  : "Sign in to book"}
+              </button>
+            )}
           </div>
         </form>
       </main>
