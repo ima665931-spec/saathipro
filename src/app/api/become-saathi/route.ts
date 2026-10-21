@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { assertCleanBio } from "@/lib/content-filter";
 
 const MAX_PHOTO_CHARS = 450_000;
 
@@ -28,11 +29,9 @@ export async function POST(req: Request) {
       );
     }
 
-    if (typeof bio === "string" && bio.trim().length < 20) {
-      return NextResponse.json(
-        { error: "Bio must be at least 20 characters" },
-        { status: 400 }
-      );
+    const bioErr = assertCleanBio(String(bio));
+    if (bioErr) {
+      return NextResponse.json({ error: bioErr }, { status: 400 });
     }
 
     let photoData: string | undefined;
@@ -63,11 +62,10 @@ export async function POST(req: Request) {
     const paid =
       user.paymentStatus === "VERIFIED" || user.role === "ADMIN";
 
-    // Paid → live on Find. Unpaid → draft (isActive false) until ₹499 verified.
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        role: paid ? "SAATHI" : user.role === "ADMIN" ? "ADMIN" : "SAATHI",
+        role: user.role === "ADMIN" ? "ADMIN" : "SAATHI",
         phone: phone || user.phone,
         ...(photoData ? { image: photoData } : {}),
       },
@@ -77,7 +75,7 @@ export async function POST(req: Request) {
       where: { userId: user.id },
       create: {
         userId: user.id,
-        bio,
+        bio: String(bio).trim(),
         city,
         hourlyRate: Number(hourlyRate),
         services: JSON.stringify(services),
@@ -85,11 +83,10 @@ export async function POST(req: Request) {
         isActive: paid,
       },
       update: {
-        bio,
+        bio: String(bio).trim(),
         city,
         hourlyRate: Number(hourlyRate),
         services: JSON.stringify(services),
-        // Don't force active off if already paid and live
         ...(paid ? { isActive: true } : {}),
       },
     });
