@@ -1,18 +1,21 @@
 import { prisma } from "@/lib/prisma";
 
 /**
- * Returns null if user can book / use paid features.
- * Returns error message if gated.
+ * ₹499 is a Saathi listing / onboarding fee — NOT required to book as a client.
+ * Use this before activating a Saathi profile publicly.
  */
-export async function requirePaidAccess(email: string): Promise<{
-  ok: true;
-  user: { id: string; email: string; role: string; paymentStatus: string };
-} | {
-  ok: false;
-  status: number;
-  error: string;
-  code: "UNAUTHORIZED" | "NOT_FOUND" | "PAYMENT_REQUIRED" | "PENDING" | "BANNED";
-}> {
+export async function requireSaathiPayment(email: string): Promise<
+  | {
+      ok: true;
+      user: { id: string; email: string; role: string; paymentStatus: string };
+    }
+  | {
+      ok: false;
+      status: number;
+      error: string;
+      code: "UNAUTHORIZED" | "NOT_FOUND" | "PAYMENT_REQUIRED" | "PENDING" | "BANNED";
+    }
+> {
   const user = await prisma.user.findFirst({
     where: { email: { equals: email, mode: "insensitive" } },
   });
@@ -30,7 +33,6 @@ export async function requirePaidAccess(email: string): Promise<{
     };
   }
 
-  // Admins always pass
   if (user.role === "ADMIN") {
     return {
       ok: true,
@@ -59,7 +61,7 @@ export async function requirePaidAccess(email: string): Promise<{
     return {
       ok: false,
       status: 402,
-      error: "Payment under review. You can book after admin approval.",
+      error: "Saathi fee under review. Listing goes live after admin approval.",
       code: "PENDING",
     };
   }
@@ -67,7 +69,7 @@ export async function requirePaidAccess(email: string): Promise<{
   return {
     ok: false,
     status: 402,
-    error: "Registration fee ₹499 required. Complete payment to book.",
+    error: "Pay ₹499 Saathi listing fee to go live on Find.",
     code: "PAYMENT_REQUIRED",
   };
 }
