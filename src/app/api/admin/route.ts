@@ -25,6 +25,7 @@ export async function GET(req: Request) {
         activeBookings,
         pendingPay,
         upiCount,
+        upiTotal,
       ] = await Promise.all([
         prisma.user.count(),
         prisma.saathiProfile.count(),
@@ -39,6 +40,7 @@ export async function GET(req: Request) {
         prisma.booking.count({ where: { status: "CONFIRMED" } }),
         prisma.payment.count({ where: { status: "PENDING" } }),
         prisma.upiPool.count({ where: { isActive: true } }),
+        prisma.upiPool.count(),
       ]);
 
       return NextResponse.json({
@@ -53,6 +55,7 @@ export async function GET(req: Request) {
           activeBookings,
           pendingPay,
           upiCount,
+          upiTotal,
         },
       });
     }
@@ -140,6 +143,7 @@ export async function GET(req: Request) {
 
     if (section === "payments") {
       const payments = await prisma.payment.findMany({
+        where: { status: { not: "ASSIGNED" } },
         orderBy: { createdAt: "desc" },
         take: 100,
         include: {
@@ -159,9 +163,10 @@ export async function GET(req: Request) {
 
     if (section === "upi") {
       const list = await prisma.upiPool.findMany({
-        orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+        orderBy: [{ isActive: "desc" }, { usedToday: "desc" }, { createdAt: "desc" }],
+        take: 500,
       });
-      return NextResponse.json({ upiList: list });
+      return NextResponse.json({ upiList: list, total: list.length });
     }
 
     return NextResponse.json({ error: "Unknown section" }, { status: 400 });
@@ -189,6 +194,7 @@ export async function PATCH(req: Request) {
       role,
       rate,
       upiId,
+      upiBulk,
       displayName,
       dailyLimit,
       priority,
@@ -355,7 +361,6 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ success: true });
       }
 
-      // —— UPI pool ——
       case "add_upi": {
         if (!upiId || typeof upiId !== "string" || !upiId.includes("@")) {
           return NextResponse.json(
@@ -363,16 +368,67 @@ export async function PATCH(req: Request) {
             { status: 400 }
           );
         }
+        const lim =
+          Number(dailyLimit) >= 0 && !Number.isNaN(Number(dailyLimit))
+            ? Number(dailyLimit)
+            : 50;
         const created = await prisma.upiPool.create({
           data: {
             upiId: upiId.trim().toLowerCase(),
             displayName: displayName?.trim() || "SaathiPro",
-            dailyLimit: Number(dailyLimit) >= 0 ? Number(dailyLimit) : 50,
+            dailyLimit: lim,
             priority: Number(priority) || 0,
             isActive: true,
           },
         });
         return NextResponse.json({ success: true, upi: created });
+      }
+
+      case "bulk_add_upi": {
+        const raw = String(upiBulk || upiId || "");
+        const lines = raw
+          .split(/[\n,;]+/)
+          .map((s) => s.trim().toLowerCase())
+          .filter((s) => s.includes("@"));
+
+        if (lines.length === 0) {
+          return NextResponse.json(
+            { error: "Paste UPI IDs (one per line)" },
+            { status: 400 }
+          );
+        }
+
+        const lim =
+          Number(dailyLimit) >= 0 && !Number.isNaN(Number(dailyLimit))
+            ? Number(dailyLimit)
+            : 50;
+        const name = displayName?.trim() || "SaathiPro";
+
+        let added = 0;
+        let skipped = 0;
+
+        for (const id of lines) {
+          try {
+            await prisma.upiPool.create({
+              data: {
+                upiId: id,
+                displayName: name,
+                dailyLimit: lim,
+                isActive: true,
+              },
+            });
+            added++;
+          } catch {
+            skipped++;
+          }
+        }
+
+        return NextResponse.json({
+          success: true,
+          added,
+          skipped,
+          message: `Added ${added}, skipped ${skipped} (duplicates/invalid)`,
+        });
       }
 
       case "update_upi": {
@@ -430,9 +486,10 @@ export async function PATCH(req: Request) {
       default:
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("admin PATCH:", err);
-    if (err?.code === "P2002") {
+    const code = (err as { code?: string })?.code;
+    if (code === "P2002") {
       return NextResponse.json(
         { error: "This UPI already exists" },
         { status: 400 }
