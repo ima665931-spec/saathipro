@@ -10,8 +10,8 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const dbUser = await prisma.user.findUnique({
-    where: { email: session.user.email },
+  const dbUser = await prisma.user.findFirst({
+    where: { email: { equals: session.user.email, mode: "insensitive" } },
     include: {
       saathiProfile: true,
       bookingsAsClient: {
@@ -31,9 +31,12 @@ export default async function DashboardPage() {
 
   const role = dbUser.role || "USER";
   const isSaathi = role === "SAATHI";
+  const isAdmin = role === "ADMIN";
   const profile = dbUser.saathiProfile;
   const clientBookings = dbUser.bookingsAsClient || [];
   const saathiBookings = dbUser.bookingsAsSaathi || [];
+  const pay = dbUser.paymentStatus || "NONE";
+  const needsPay = !isAdmin && pay !== "VERIFIED";
 
   const [clientCount, saathiCount] = await Promise.all([
     prisma.booking.count({ where: { clientId: dbUser.id } }),
@@ -84,6 +87,12 @@ export default async function DashboardPage() {
               >
                 Bookings
               </Link>
+              <Link
+                href="/pay"
+                className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-ink"
+              >
+                Pay
+              </Link>
               <span className="text-sm text-ink-muted hidden md:inline">
                 {dbUser.name || dbUser.email}
               </span>
@@ -106,7 +115,7 @@ export default async function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <p className="text-xs font-semibold tracking-widest uppercase text-accent-light mb-2">
               Account
@@ -130,6 +139,35 @@ export default async function DashboardPage() {
           </span>
         </div>
 
+        {needsPay && (
+          <div className="mb-8 p-5 rounded-2xl border border-amber-100 bg-amber-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="font-display font-semibold text-amber-950">
+                {pay === "PENDING"
+                  ? "Payment under review"
+                  : "Complete registration — ₹499"}
+              </p>
+              <p className="text-sm text-amber-900 mt-1">
+                {pay === "PENDING"
+                  ? "Admin is verifying your payment. Booking unlocks after approval."
+                  : "Pay once to unlock booking. Find remains open to browse."}
+              </p>
+            </div>
+            <Link
+              href="/pay"
+              className="shrink-0 px-5 py-2.5 bg-ink text-cream text-sm font-semibold rounded-full text-center"
+            >
+              {pay === "PENDING" ? "View status" : "Pay ₹499"}
+            </Link>
+          </div>
+        )}
+
+        {pay === "VERIFIED" && (
+          <div className="mb-8 p-4 rounded-2xl border border-emerald-100 bg-emerald-50 text-sm text-emerald-900">
+            Registration paid · booking unlocked
+          </div>
+        )}
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
             <p className="text-xs uppercase tracking-wide text-ink-muted">
@@ -150,9 +188,11 @@ export default async function DashboardPage() {
             </div>
           )}
           <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
-            <p className="text-xs uppercase tracking-wide text-ink-muted">Role</p>
-            <p className="font-display text-xl font-semibold text-ink mt-1">
-              {role}
+            <p className="text-xs uppercase tracking-wide text-ink-muted">
+              Payment
+            </p>
+            <p className="font-display text-lg font-semibold text-ink mt-1">
+              {isAdmin ? "Admin" : pay}
             </p>
           </div>
           {isSaathi && profile ? (
@@ -166,11 +206,9 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
-              <p className="text-xs uppercase tracking-wide text-ink-muted">
-                Status
-              </p>
+              <p className="text-xs uppercase tracking-wide text-ink-muted">Role</p>
               <p className="font-display text-xl font-semibold text-ink mt-1">
-                Active
+                {role}
               </p>
             </div>
           )}
@@ -194,9 +232,7 @@ export default async function DashboardPage() {
             <h3 className="font-display font-semibold text-ink group-hover:text-accent transition">
               My bookings
             </h3>
-            <p className="text-sm text-ink-muted mt-1">
-              {clientCount} total
-            </p>
+            <p className="text-sm text-ink-muted mt-1">{clientCount} total</p>
           </Link>
 
           {isSaathi ? (
@@ -227,14 +263,6 @@ export default async function DashboardPage() {
             <h3 className="font-display text-lg font-semibold text-ink">
               Your profile
             </h3>
-            {!isSaathi && (
-              <Link
-                href="/become-saathi"
-                className="text-sm font-medium text-ink-muted hover:text-ink"
-              >
-                Upgrade →
-              </Link>
-            )}
           </div>
           <div className="grid sm:grid-cols-2 gap-4 text-sm">
             <div>
@@ -251,9 +279,9 @@ export default async function DashboardPage() {
             </div>
             <div>
               <span className="text-ink-muted text-xs uppercase tracking-wide">
-                Phone
+                Payment
               </span>
-              <p className="font-medium text-ink mt-0.5">{dbUser.phone || "—"}</p>
+              <p className="font-medium text-ink mt-0.5">{pay}</p>
             </div>
             <div>
               <span className="text-ink-muted text-xs uppercase tracking-wide">
@@ -269,14 +297,6 @@ export default async function DashboardPage() {
                   </span>
                   <p className="font-medium text-ink mt-0.5">
                     {profile.city || "—"}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-ink-muted text-xs uppercase tracking-wide">
-                    Verified
-                  </span>
-                  <p className="font-medium text-ink mt-0.5">
-                    {profile.isVerified ? "Yes" : "Pending"}
                   </p>
                 </div>
                 <div className="sm:col-span-2">
@@ -324,10 +344,10 @@ export default async function DashboardPage() {
             <div className="text-center py-10 text-ink-muted text-sm">
               <p>No bookings yet</p>
               <Link
-                href="/find"
+                href={needsPay ? "/pay" : "/find"}
                 className="inline-block mt-4 text-ink font-medium hover:underline"
               >
-                Book your first session →
+                {needsPay ? "Pay ₹499 to unlock booking →" : "Book your first session →"}
               </Link>
             </div>
           ) : (
