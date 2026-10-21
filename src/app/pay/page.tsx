@@ -81,7 +81,6 @@ export default function PayPage() {
     }
   }, [status, router]);
 
-  // Poll while pending so admin approve shows success without refresh
   useEffect(() => {
     if (paymentStatus !== "PENDING") return;
     const t = setInterval(() => {
@@ -102,9 +101,7 @@ export default function PayPage() {
     upiId
       ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(
           upiName
-        )}&am=${FEE}&cu=INR&tn=${encodeURIComponent(
-          "SaathiPro Registration Fee"
-        )}`
+        )}&am=${FEE}&cu=INR&tn=${encodeURIComponent("SaathiPro Listing Fee")}`
       : "";
 
   const qrUrl = upiLink
@@ -202,18 +199,18 @@ export default function PayPage() {
               ✓
             </div>
             <h1 className="mt-6 font-display text-3xl font-semibold text-ink">
-              You're in
+              You're live
             </h1>
             <p className="mt-2 text-ink-muted text-sm max-w-sm mx-auto">
-              Payment successful. Registration complete — booking is unlocked.
-              Welcome to SaathiPro.
+              ₹{FEE} listing fee verified. Your Saathi profile can appear on
+              Find. Clients book free — you earn on sessions.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
               <Link
-                href="/find"
+                href="/become-saathi"
                 className="px-8 py-3.5 bg-ink text-cream rounded-full text-sm font-semibold hover:bg-accent"
               >
-                Find a Saathi
+                Edit profile
               </Link>
               <Link
                 href="/dashboard"
@@ -226,14 +223,15 @@ export default function PayPage() {
         ) : (
           <>
             <p className="text-xs font-semibold tracking-widest uppercase text-accent-light mb-2">
-              Step 1 of registration
+              Saathi listing fee
             </p>
             <h1 className="font-display text-3xl font-semibold text-ink">
               Pay ₹{FEE}
             </h1>
             <p className="mt-2 text-ink-muted text-sm">
-              One-time registration fee. Amount is fixed at ₹{FEE}. Scan QR or
-              open your UPI app, pay, then submit proof.
+              One-time fee to list as a Saathi on Find. Clients never pay this —
+              only professionals who want to earn. Scan QR or open UPI, pay
+              exactly ₹{FEE}, then submit proof.
             </p>
 
             {(paymentStatus === "PENDING" || done) && (
@@ -242,8 +240,8 @@ export default function PayPage() {
                   Under review
                 </p>
                 <p className="text-sm text-amber-800 mt-1">
-                  Admin is checking your UTR + screenshot. This page updates
-                  automatically when approved.
+                  Admin is checking UTR + screenshot. Listing goes live after
+                  approval.
                 </p>
                 <Link
                   href="/dashboard"
