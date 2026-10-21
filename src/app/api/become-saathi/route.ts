@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-const MAX_PHOTO_CHARS = 450_000; // ~350KB base64
+const MAX_PHOTO_CHARS = 450_000;
 
 export async function POST(req: Request) {
   try {
@@ -52,18 +52,22 @@ export async function POST(req: Request) {
       photoData = photo;
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: session.user.email, mode: "insensitive" } },
     });
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    const paid =
+      user.paymentStatus === "VERIFIED" || user.role === "ADMIN";
+
+    // Paid → live on Find. Unpaid → draft (isActive false) until ₹499 verified.
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        role: "SAATHI",
+        role: paid ? "SAATHI" : user.role === "ADMIN" ? "ADMIN" : "SAATHI",
         phone: phone || user.phone,
         ...(photoData ? { image: photoData } : {}),
       },
@@ -78,17 +82,27 @@ export async function POST(req: Request) {
         hourlyRate: Number(hourlyRate),
         services: JSON.stringify(services),
         isVerified: false,
-        isActive: true,
+        isActive: paid,
       },
       update: {
         bio,
         city,
         hourlyRate: Number(hourlyRate),
         services: JSON.stringify(services),
+        // Don't force active off if already paid and live
+        ...(paid ? { isActive: true } : {}),
       },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      live: paid,
+      needsPayment: !paid,
+      paymentStatus: user.paymentStatus,
+      message: paid
+        ? "Profile live on Find Saathi."
+        : "Profile saved. Pay ₹499 listing fee to go live on Find.",
+    });
   } catch (err) {
     console.error("become-saathi error:", err);
     return NextResponse.json(
