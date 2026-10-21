@@ -6,38 +6,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const ALL_SERVICES = [
-  "Movie Partner",
-  "Hanging Out",
-  "Elder Care",
-  "Clubbing",
-  "Shopping Buddy",
-  "Coffee Partner",
-  "Travel Partner",
-  "Event Partner",
-  "Medical Support",
-  "City Tour Partner",
-  "Concert Partner",
-  "Cafe & Food Partner",
-  "Professional Networking Partner",
-  "Domestic Help",
+  "Movie Partner", "Hanging Out", "Elder Care", "Clubbing", "Shopping Buddy",
+  "Coffee Partner", "Travel Partner", "Event Partner", "Medical Support",
+  "City Tour Partner", "Concert Partner", "Cafe & Food Partner",
+  "Professional Networking Partner", "Domestic Help",
 ];
 
 const CITIES = [
-  "Delhi",
-  "Mumbai",
-  "Bangalore",
-  "Pune",
-  "Hyderabad",
-  "Chennai",
-  "Kolkata",
-  "Ahmedabad",
-  "Jaipur",
-  "Chandigarh",
-  "Lucknow",
-  "Indore",
+  "Delhi", "Mumbai", "Bangalore", "Pune", "Hyderabad", "Chennai",
+  "Kolkata", "Ahmedabad", "Jaipur", "Chandigarh", "Lucknow", "Indore",
 ];
 
-/** Resize image client-side to keep payload small */
 function compressImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -89,6 +68,7 @@ export default function BecomeSaathiPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [needsPay, setNeedsPay] = useState(false);
 
   const toggleService = (svc: string) => {
     setServices((prev) =>
@@ -161,8 +141,12 @@ export default function BecomeSaathiPage() {
         return;
       }
 
+      setNeedsPay(!!data.needsPayment);
       setSuccess(true);
-      setTimeout(() => router.push("/dashboard"), 2000);
+      setTimeout(
+        () => router.push(data.needsPayment ? "/pay" : "/dashboard"),
+        1800
+      );
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -186,10 +170,12 @@ export default function BecomeSaathiPage() {
             ✓
           </div>
           <h1 className="mt-4 font-display text-2xl font-semibold text-ink">
-            You're in
+            Profile saved
           </h1>
           <p className="mt-2 text-ink-muted text-sm">
-            Profile submitted. Redirecting to dashboard…
+            {needsPay
+              ? "Next: pay ₹499 listing fee to go live on Find Saathi…"
+              : "You're live. Redirecting to dashboard…"}
           </p>
         </div>
       </div>
@@ -210,10 +196,7 @@ export default function BecomeSaathiPage() {
               </span>
             </Link>
             <div className="flex items-center gap-3">
-              <Link
-                href="/find"
-                className="text-sm font-medium text-ink-muted hover:text-ink"
-              >
+              <Link href="/find" className="text-sm font-medium text-ink-muted hover:text-ink">
                 Find
               </Link>
               {session ? (
@@ -245,191 +228,86 @@ export default function BecomeSaathiPage() {
             Become a Saathi
           </h1>
           <p className="mt-2 text-ink-muted">
-            Set your rates. Add a clear photo. Work on your schedule.
+            Set rates, add a photo. One-time ₹499 listing fee to appear on Find.
           </p>
         </div>
 
         {!session && (
           <div className="mb-6 p-4 bg-cream-dark border border-border rounded-xl text-ink text-sm">
             Please{" "}
-            <Link
-              href="/login?callbackUrl=/become-saathi"
-              className="font-semibold underline"
-            >
+            <Link href="/login?callbackUrl=/become-saathi" className="font-semibold underline">
               sign in or register
             </Link>{" "}
             to submit your application.
           </div>
         )}
 
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white rounded-2xl border border-border shadow-card p-6 sm:p-8 space-y-6"
-        >
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-border shadow-card p-6 sm:p-8 space-y-6">
           {error && (
-            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100">
-              {error}
-            </div>
+            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100">{error}</div>
           )}
 
-          {/* Photo */}
           <div>
-            <label className="block text-sm font-medium text-ink mb-2">
-              Profile photo
-            </label>
+            <label className="block text-sm font-medium text-ink mb-2">Profile photo</label>
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 rounded-2xl bg-cream-dark border border-border overflow-hidden flex items-center justify-center shrink-0">
                 {photo ? (
-                  <img
-                    src={photo}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={photo} alt="Preview" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-ink-muted text-xs text-center px-1">
-                    No photo
-                  </span>
+                  <span className="text-ink-muted text-xs">No photo</span>
                 )}
               </div>
               <div>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={onPhotoChange}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  className="px-4 py-2 text-sm font-medium border border-border rounded-full hover:bg-cream-dark transition text-ink"
-                >
+                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onPhotoChange} />
+                <button type="button" onClick={() => fileRef.current?.click()} className="px-4 py-2 text-sm font-medium border border-border rounded-full hover:bg-cream-dark transition text-ink">
                   {photo ? "Change photo" : "Upload photo"}
                 </button>
-                {photo && (
-                  <button
-                    type="button"
-                    onClick={() => setPhoto(null)}
-                    className="ml-2 text-sm text-ink-muted hover:text-ink"
-                  >
-                    Remove
-                  </button>
-                )}
-                <p className="mt-1.5 text-xs text-ink-muted">
-                  Clear face photo works best. Max 5MB — auto compressed.
-                </p>
               </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink mb-1.5">
-              City
-            </label>
-            <select
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              required
-              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink"
-            >
+            <label className="block text-sm font-medium text-ink mb-1.5">City</label>
+            <select value={city} onChange={(e) => setCity(e.target.value)} required className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 text-ink">
               <option value="">Select city</option>
               {CITIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink mb-1.5">
-              Phone (optional)
-            </label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+91 98765 43210"
-              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink"
-            />
+            <label className="block text-sm font-medium text-ink mb-1.5">Phone (optional)</label>
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 text-ink" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink mb-2">
-              Services you offer
-            </label>
+            <label className="block text-sm font-medium text-ink mb-2">Services</label>
             <div className="flex flex-wrap gap-2">
               {ALL_SERVICES.map((svc) => (
-                <button
-                  key={svc}
-                  type="button"
-                  onClick={() => toggleService(svc)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition ${
-                    services.includes(svc)
-                      ? "bg-ink text-cream"
-                      : "bg-cream-dark text-ink-muted border border-border hover:text-ink"
-                  }`}
-                >
-                  {svc}
-                </button>
+                <button key={svc} type="button" onClick={() => toggleService(svc)} className={`px-3 py-1.5 rounded-full text-sm font-medium ${
+                  services.includes(svc) ? "bg-ink text-cream" : "bg-cream-dark text-ink-muted border border-border"
+                }`}>{svc}</button>
               ))}
             </div>
-            <p className="mt-1.5 text-xs text-ink-muted">
-              {services.length} selected
-            </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink mb-1.5">
-              Hourly rate (₹)
-            </label>
-            <input
-              type="number"
-              min={500}
-              max={5000}
-              step={100}
-              value={hourlyRate}
-              onChange={(e) => setHourlyRate(Number(e.target.value))}
-              required
-              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 text-ink"
-            />
-            <p className="mt-1 text-xs text-ink-muted">
-              Suggested: ₹1,000 – ₹2,000 / hour
-            </p>
+            <label className="block text-sm font-medium text-ink mb-1.5">Hourly rate (₹)</label>
+            <input type="number" min={500} max={5000} step={100} value={hourlyRate} onChange={(e) => setHourlyRate(Number(e.target.value))} required className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 text-ink" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink mb-1.5">
-              About you
-            </label>
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              rows={4}
-              required
-              placeholder="Experience, style, and what clients can expect…"
-              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 focus:outline-none focus:ring-2 focus:ring-accent/20 resize-none text-ink"
-            />
-            <p className="mt-1 text-xs text-ink-muted">
-              {bio.length}/20 min characters
-            </p>
+            <label className="block text-sm font-medium text-ink mb-1.5">About you</label>
+            <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={4} required placeholder="Experience, style…" className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 resize-none text-ink" />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading || !session}
-            className="w-full py-3.5 bg-ink hover:bg-accent text-cream font-semibold rounded-xl transition disabled:opacity-50"
-          >
-            {loading
-              ? "Submitting…"
-              : session
-              ? "Submit application"
-              : "Sign in to submit"}
+          <button type="submit" disabled={loading || !session} className="w-full py-3.5 bg-ink hover:bg-accent text-cream font-semibold rounded-xl disabled:opacity-50">
+            {loading ? "Submitting…" : session ? "Submit · then pay ₹499 to go live" : "Sign in to submit"}
           </button>
 
           <p className="text-center text-xs text-ink-muted">
-            By submitting you agree to professional conduct guidelines. Not a
-            dating service.
+            Clients book free. ₹499 is only the Saathi listing fee — not a dating service.
           </p>
         </form>
       </main>
