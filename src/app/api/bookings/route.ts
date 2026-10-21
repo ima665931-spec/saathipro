@@ -2,12 +2,21 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { sendBookingConfirmationEmail } from "@/lib/email";
+import { requirePaidAccess } from "@/lib/payment-gate";
 
 export async function POST(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const gate = await requirePaidAccess(session.user.email);
+    if (!gate.ok) {
+      return NextResponse.json(
+        { error: gate.error, code: gate.code, redirect: "/pay" },
+        { status: gate.status }
+      );
     }
 
     const body = await req.json();
@@ -30,13 +39,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const client = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!client) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    const client = gate.user;
 
     let saathiUserId = saathiId;
     const realSaathi = await prisma.user.findUnique({
@@ -65,7 +68,7 @@ export async function POST(req: Request) {
 
     sendBookingConfirmationEmail({
       to: client.email,
-      clientName: client.name,
+      clientName: session.user.name || null,
       saathiName,
       service,
       date,
@@ -92,8 +95,8 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: session.user.email, mode: "insensitive" } },
     });
 
     if (!user) {
@@ -116,6 +119,7 @@ export async function GET() {
         hasReview: !!b.review,
         isClient: b.clientId === user.id,
       })),
+      paymentStatus: user.paymentStatus,
     });
   } catch (err) {
     console.error("bookings list error:", err);
@@ -123,7 +127,6 @@ export async function GET() {
   }
 }
 
-/** Cancel a booking (client only, if not already cancelled) */
 export async function PATCH(req: Request) {
   try {
     const session = await auth();
@@ -141,8 +144,8 @@ export async function PATCH(req: Request) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: session.user.email, mode: "insensitive" } },
     });
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
