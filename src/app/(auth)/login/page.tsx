@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -9,10 +9,21 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const urlError = searchParams.get("error");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (urlError === "banned" || urlError === "AccessDenied") {
+      setError("This account has been suspended. Contact support.");
+    } else if (urlError === "Configuration") {
+      setError("Auth configuration error. Try email login or contact support.");
+    } else if (urlError) {
+      setError("Sign-in failed. Please try again.");
+    }
+  }, [urlError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +38,11 @@ function LoginForm() {
       });
 
       if (res?.error) {
-        setError("Invalid email or password");
+        if (res.error === "BANNED" || res.error.includes("BANNED")) {
+          setError("This account has been suspended. Contact support.");
+        } else {
+          setError("Invalid email or password");
+        }
       } else {
         router.push(callbackUrl);
         router.refresh();
