@@ -1,40 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-const BAD_NAMES = new Set([
-  "name",
-  "имя",
-  "test",
-  "user",
-  "saathi",
-  "admin",
-  "null",
-  "undefined",
-]);
-
-function isQualityProfile(opts: {
-  name: string;
-  bio: string;
-  services: string[];
-  rate: number;
-}) {
-  const name = opts.name.trim();
-  const bio = opts.bio.trim();
-
-  if (name.length < 2) return false;
-  if (BAD_NAMES.has(name.toLowerCase())) return false;
-  if (bio.length < 20) return false;
-  if (/^[A-Z0-9\s]{15,}$/.test(bio) && bio === bio.toUpperCase()) return false;
-  if ((bio.match(/[aeiouаеёиоуыэюя]/gi) || []).length < 3) return false;
-  if (!opts.services.length) return false;
-  if (opts.rate < 500 || opts.rate > 10000) return false;
-
-  return true;
-}
+import { isQualityProfile } from "@/lib/content-filter";
 
 function pickImage(image: string | null): string | null {
   if (!image) return null;
-  // Prefer uploaded data URLs or https (skip odd OAuth cartoon defaults optionally)
   if (image.startsWith("data:image/")) return image;
   if (image.startsWith("https://")) return image;
   return null;
@@ -51,6 +20,7 @@ export async function GET() {
             name: true,
             image: true,
             email: true,
+            isBanned: true,
             reviewsReceived: {
               select: { rating: true },
             },
@@ -61,6 +31,7 @@ export async function GET() {
     });
 
     const saathis = profiles
+      .filter((p) => !p.user.isBanned)
       .map((p) => {
         let services: string[] = [];
         try {
