@@ -40,9 +40,9 @@ export default function RegisterPage() {
       });
 
       if (loginRes?.error) {
-        setError("Account created. Please sign in, then complete ₹499 payment.");
+        setError("Account created. Please sign in.");
       } else {
-        router.push("/pay");
+        router.push("/dashboard");
         router.refresh();
       }
     } catch {
@@ -53,7 +53,7 @@ export default function RegisterPage() {
   };
 
   const handleGoogle = () => {
-    signIn("google", { callbackUrl: "/pay" });
+    signIn("google", { callbackUrl: "/dashboard" });
   };
 
   return (
@@ -72,7 +72,7 @@ export default function RegisterPage() {
             Create account
           </h1>
           <p className="mt-2 text-ink-muted text-sm">
-            Join SaathiPro · then pay ₹499 once to unlock booking
+            Join free · book anytime. ₹499 only if you become a Saathi.
           </p>
         </div>
 
