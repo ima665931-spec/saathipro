@@ -40,9 +40,9 @@ export default function RegisterPage() {
       });
 
       if (loginRes?.error) {
-        setError("Account created. Please sign in.");
+        setError("Account created. Please sign in, then complete ₹499 payment.");
       } else {
-        router.push("/dashboard");
+        router.push("/pay");
         router.refresh();
       }
     } catch {
@@ -53,7 +53,7 @@ export default function RegisterPage() {
   };
 
   const handleGoogle = () => {
-    signIn("google", { callbackUrl: "/dashboard" });
+    signIn("google", { callbackUrl: "/pay" });
   };
 
   return (
@@ -71,7 +71,9 @@ export default function RegisterPage() {
           <h1 className="mt-8 font-display text-3xl font-semibold text-ink">
             Create account
           </h1>
-          <p className="mt-2 text-ink-muted text-sm">Join SaathiPro</p>
+          <p className="mt-2 text-ink-muted text-sm">
+            Join SaathiPro · then pay ₹499 once to unlock booking
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl border border-border shadow-card p-8">
