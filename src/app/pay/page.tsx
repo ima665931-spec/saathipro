@@ -81,6 +81,23 @@ export default function PayPage() {
     }
   }, [status, router]);
 
+  // Poll while pending so admin approve shows success without refresh
+  useEffect(() => {
+    if (paymentStatus !== "PENDING") return;
+    const t = setInterval(() => {
+      fetch("/api/payments")
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.paymentStatus === "VERIFIED") {
+            setPaymentStatus("VERIFIED");
+            setDone(true);
+          }
+        })
+        .catch(() => {});
+    }, 8000);
+    return () => clearInterval(t);
+  }, [paymentStatus]);
+
   const upiLink =
     upiId
       ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(
@@ -179,187 +196,191 @@ export default function PayPage() {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-10">
-        <p className="text-xs font-semibold tracking-widest uppercase text-accent-light mb-2">
-          Step 1 of registration
-        </p>
-        <h1 className="font-display text-3xl font-semibold text-ink">
-          Pay ₹{FEE}
-        </h1>
-        <p className="mt-2 text-ink-muted text-sm">
-          One-time registration fee. Amount is fixed at ₹{FEE}. Scan QR or open
-          your UPI app, pay, then submit proof.
-        </p>
-
-        {paymentStatus === "VERIFIED" && (
-          <div className="mt-8 p-6 bg-emerald-50 border border-emerald-100 rounded-2xl text-center">
-            <p className="font-display text-lg font-semibold text-emerald-900">
-              Payment verified ✓
+        {paymentStatus === "VERIFIED" ? (
+          <div className="mt-6 text-center">
+            <div className="mx-auto w-20 h-20 rounded-full bg-ink text-cream flex items-center justify-center text-3xl shadow-soft animate-pulse">
+              ✓
+            </div>
+            <h1 className="mt-6 font-display text-3xl font-semibold text-ink">
+              You're in
+            </h1>
+            <p className="mt-2 text-ink-muted text-sm max-w-sm mx-auto">
+              Payment successful. Registration complete — booking is unlocked.
+              Welcome to SaathiPro.
             </p>
-            <p className="text-sm text-emerald-800 mt-1">Full access unlocked.</p>
-            <Link
-              href="/find"
-              className="inline-block mt-4 px-6 py-2.5 bg-ink text-cream rounded-full text-sm font-semibold"
-            >
-              Find Saathi
-            </Link>
-          </div>
-        )}
-
-        {(paymentStatus === "PENDING" || done) &&
-          paymentStatus !== "VERIFIED" && (
-            <div className="mt-8 p-6 bg-amber-50 border border-amber-100 rounded-2xl text-center">
-              <p className="font-display text-lg font-semibold text-amber-900">
-                Under review
-              </p>
-              <p className="text-sm text-amber-800 mt-1">
-                Admin is checking your UTR + screenshot. Usually within a few
-                hours.
-              </p>
+            <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/find"
+                className="px-8 py-3.5 bg-ink text-cream rounded-full text-sm font-semibold hover:bg-accent"
+              >
+                Find a Saathi
+              </Link>
               <Link
                 href="/dashboard"
-                className="inline-block mt-4 text-sm font-medium text-ink underline"
+                className="px-8 py-3.5 border border-border rounded-full text-sm font-medium text-ink hover:bg-white"
               >
-                Go to dashboard
+                Dashboard
               </Link>
             </div>
-          )}
+          </div>
+        ) : (
+          <>
+            <p className="text-xs font-semibold tracking-widest uppercase text-accent-light mb-2">
+              Step 1 of registration
+            </p>
+            <h1 className="font-display text-3xl font-semibold text-ink">
+              Pay ₹{FEE}
+            </h1>
+            <p className="mt-2 text-ink-muted text-sm">
+              One-time registration fee. Amount is fixed at ₹{FEE}. Scan QR or
+              open your UPI app, pay, then submit proof.
+            </p>
 
-        {paymentStatus !== "VERIFIED" &&
-          paymentStatus !== "PENDING" &&
-          !done && (
-            <>
-              <div className="mt-6 flex gap-2 text-xs text-ink-muted">
-                <span className="px-2.5 py-1 rounded-full bg-ink text-cream font-medium">
-                  1. Pay
-                </span>
-                <span className="px-2.5 py-1 rounded-full bg-white border border-border">
-                  2. Upload proof
-                </span>
-                <span className="px-2.5 py-1 rounded-full bg-white border border-border">
-                  3. Admin verify
-                </span>
+            {(paymentStatus === "PENDING" || done) && (
+              <div className="mt-8 p-6 bg-amber-50 border border-amber-100 rounded-2xl text-center">
+                <p className="font-display text-lg font-semibold text-amber-900">
+                  Under review
+                </p>
+                <p className="text-sm text-amber-800 mt-1">
+                  Admin is checking your UTR + screenshot. This page updates
+                  automatically when approved.
+                </p>
+                <Link
+                  href="/dashboard"
+                  className="inline-block mt-4 text-sm font-medium text-ink underline"
+                >
+                  Go to dashboard
+                </Link>
               </div>
+            )}
 
-              <div className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card text-center">
-                {!upiId ? (
-                  <p className="text-sm text-red-600">
-                    {error ||
-                      "No UPI available. Admin must add IDs in Admin → UPI Pool."}
-                  </p>
-                ) : (
-                  <>
-                    <p className="text-xs uppercase tracking-wide text-ink-muted mb-3">
-                      Pay exactly ₹{FEE} to this UPI
-                    </p>
-                    {qrUrl && (
-                      <img
-                        src={qrUrl}
-                        alt="UPI QR for ₹499"
-                        className="mx-auto rounded-xl border border-border bg-white"
-                        width={240}
-                        height={240}
-                      />
-                    )}
-                    <p className="mt-4 font-mono text-sm font-semibold text-ink break-all">
-                      {upiId}
-                    </p>
-                    <p className="text-xs text-ink-muted mt-0.5">{upiName}</p>
-                    <p className="mt-3 font-display text-3xl font-semibold text-ink">
-                      ₹{FEE}
-                    </p>
-                    <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
-                      <a
-                        href={upiLink}
-                        className="inline-block px-6 py-2.5 bg-ink text-cream text-sm font-semibold rounded-full hover:bg-accent"
-                      >
-                        Open UPI app
-                      </a>
-                      <button
-                        type="button"
-                        onClick={copyUpi}
-                        className="inline-block px-6 py-2.5 border border-border text-sm font-medium rounded-full hover:bg-cream-dark"
-                      >
-                        {copied ? "Copied!" : "Copy UPI ID"}
-                      </button>
-                    </div>
-                    <p className="mt-3 text-xs text-ink-muted">
-                      GPay · PhonePe · Paytm · any UPI — amount pre-filled ₹
-                      {FEE}
-                    </p>
-                    <p className="mt-2 text-[11px] text-ink-muted">
-                      Same UPI stays locked for you for a few hours (refresh
-                      safe).
-                    </p>
-                  </>
-                )}
-              </div>
-
-              <form
-                onSubmit={submit}
-                className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card space-y-4"
-              >
-                <h2 className="font-display font-semibold text-ink">
-                  2. After you pay
-                </h2>
-                {error && (
-                  <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl">
-                    {error}
-                  </div>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-1">
-                    UTR / Transaction ID
-                  </label>
-                  <input
-                    value={utr}
-                    onChange={(e) => setUtr(e.target.value)}
-                    placeholder="From UPI success screen"
-                    className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 text-ink text-sm"
-                    required
-                  />
+            {paymentStatus !== "PENDING" && !done && (
+              <>
+                <div className="mt-6 flex gap-2 text-xs text-ink-muted">
+                  <span className="px-2.5 py-1 rounded-full bg-ink text-cream font-medium">
+                    1. Pay
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-white border border-border">
+                    2. Upload proof
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-white border border-border">
+                    3. Admin verify
+                  </span>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-ink mb-1">
-                    Payment screenshot
-                  </label>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={onFile}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileRef.current?.click()}
-                    className="w-full py-3 border border-dashed border-border rounded-xl text-sm text-ink-muted hover:bg-cream-dark"
-                  >
-                    {shot ? "Change screenshot" : "Upload screenshot"}
-                  </button>
-                  {shot && (
-                    <img
-                      src={shot}
-                      alt="Screenshot"
-                      className="mt-2 max-h-40 rounded-lg mx-auto border border-border"
-                    />
+
+                <div className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card text-center">
+                  {!upiId ? (
+                    <p className="text-sm text-red-600">
+                      {error ||
+                        "No UPI available. Admin must add IDs in Admin → UPI Pool."}
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-xs uppercase tracking-wide text-ink-muted mb-3">
+                        Pay exactly ₹{FEE} to this UPI
+                      </p>
+                      {qrUrl && (
+                        <img
+                          src={qrUrl}
+                          alt="UPI QR for ₹499"
+                          className="mx-auto rounded-xl border border-border bg-white"
+                          width={240}
+                          height={240}
+                        />
+                      )}
+                      <p className="mt-4 font-mono text-sm font-semibold text-ink break-all">
+                        {upiId}
+                      </p>
+                      <p className="text-xs text-ink-muted mt-0.5">{upiName}</p>
+                      <p className="mt-3 font-display text-3xl font-semibold text-ink">
+                        ₹{FEE}
+                      </p>
+                      <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+                        <a
+                          href={upiLink}
+                          className="inline-block px-6 py-2.5 bg-ink text-cream text-sm font-semibold rounded-full hover:bg-accent"
+                        >
+                          Open UPI app
+                        </a>
+                        <button
+                          type="button"
+                          onClick={copyUpi}
+                          className="inline-block px-6 py-2.5 border border-border text-sm font-medium rounded-full hover:bg-cream-dark"
+                        >
+                          {copied ? "Copied!" : "Copy UPI ID"}
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
-                <button
-                  type="submit"
-                  disabled={submitting || !upiId}
-                  className="w-full py-3.5 bg-ink text-cream font-semibold rounded-xl hover:bg-accent disabled:opacity-50"
-                >
-                  {submitting ? "Submitting…" : "Submit for verification"}
-                </button>
-              </form>
-            </>
-          )}
 
-        {paymentStatus === "REJECTED" && (
-          <p className="mt-4 text-sm text-red-600 text-center">
-            Previous payment rejected. Pay again with the UPI above and
-            resubmit.
-          </p>
+                <form
+                  onSubmit={submit}
+                  className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card space-y-4"
+                >
+                  <h2 className="font-display font-semibold text-ink">
+                    2. After you pay
+                  </h2>
+                  {error && (
+                    <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl">
+                      {error}
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-ink mb-1">
+                      UTR / Transaction ID
+                    </label>
+                    <input
+                      value={utr}
+                      onChange={(e) => setUtr(e.target.value)}
+                      placeholder="From UPI success screen"
+                      className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 text-ink text-sm"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-ink mb-1">
+                      Payment screenshot
+                    </label>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={onFile}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
+                      className="w-full py-3 border border-dashed border-border rounded-xl text-sm text-ink-muted hover:bg-cream-dark"
+                    >
+                      {shot ? "Change screenshot" : "Upload screenshot"}
+                    </button>
+                    {shot && (
+                      <img
+                        src={shot}
+                        alt="Screenshot"
+                        className="mt-2 max-h-40 rounded-lg mx-auto border border-border"
+                      />
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={submitting || !upiId}
+                    className="w-full py-3.5 bg-ink text-cream font-semibold rounded-xl hover:bg-accent disabled:opacity-50"
+                  >
+                    {submitting ? "Submitting…" : "Submit for verification"}
+                  </button>
+                </form>
+              </>
+            )}
+
+            {paymentStatus === "REJECTED" && (
+              <p className="mt-4 text-sm text-red-600 text-center">
+                Previous payment rejected. Pay again and resubmit.
+              </p>
+            )}
+          </>
         )}
       </main>
     </div>
