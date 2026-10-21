@@ -49,7 +49,7 @@ providers.push(
       }
 
       if (user.isBanned) {
-        return null;
+        throw new Error("BANNED");
       }
 
       const isValid = await bcrypt.compare(
@@ -86,8 +86,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   providers,
   callbacks: {
+    async signIn({ user, account }) {
+      const email = user.email;
+      if (!email) return false;
+
+      try {
+        const dbUser = await prisma.user.findFirst({
+          where: { email: { equals: email, mode: "insensitive" } },
+          select: { isBanned: true },
+        });
+        if (dbUser?.isBanned) {
+          return "/login?error=banned";
+        }
+      } catch {
+        /* allow if DB hiccup on first Google create */
+        if (account?.provider === "credentials") return false;
+      }
+      return true;
+    },
     async jwt({ token, user, account, profile }) {
-      // Drop any fat fields that Auth might copy in
       delete (token as { picture?: unknown }).picture;
       if (typeof token.image === "string" && token.image.startsWith("data:")) {
         token.image = null;
@@ -100,14 +117,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.image = safeImage(user.image);
       }
 
-      // Google profile photo is a normal URL — keep it small only
       if (account?.provider === "google" && profile) {
         const g = profile as { picture?: string; email?: string; name?: string };
         token.picture = safeImage(g.picture) || undefined;
         if (g.email) token.email = g.email;
         if (g.name) token.name = g.name;
 
-        // ensure role from DB after Google login
         try {
           if (g.email) {
             const dbUser = await prisma.user.findFirst({
@@ -124,7 +139,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
-      if (token.id && !user && account?.provider !== "google") {
+      // Refresh ban status every request for existing sessions
+      if (token.id) {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id as string },
