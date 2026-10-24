@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const gate = await requirePaidAccess(session.user.email);
     if (!gate.ok) {
       return NextResponse.json(
-        { error: gate.error, code: gate.code, redirect: "/pay" },
+        { error: gate.error, code: gate.code, redirect: "/pricing" },
         { status: gate.status }
       );
     }
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       notes,
     } = body;
 
-    if (!saathiId || !saathiName || !service || !date || !time || !amount) {
+    if (!saathiId || !saathiName || !service || !date || !time || amount == null) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -41,41 +41,59 @@ export async function POST(req: Request) {
 
     const client = gate.user;
 
-    let saathiUserId = saathiId;
-    const realSaathi = await prisma.user.findUnique({
-      where: { id: saathiId },
+    // Real Saathi only — never fall back to client (was causing self-bookings on dummy IDs)
+    const saathiUser = await prisma.user.findUnique({
+      where: { id: String(saathiId) },
+      include: { saathiProfile: true },
     });
 
-    if (!realSaathi) {
-      saathiUserId = client.id;
+    if (!saathiUser || saathiUser.isBanned) {
+      return NextResponse.json(
+        { error: "Saathi not found" },
+        { status: 404 }
+      );
+    }
+
+    if (!saathiUser.saathiProfile || !saathiUser.saathiProfile.isActive) {
+      return NextResponse.json(
+        { error: "This Saathi is not available for booking" },
+        { status: 400 }
+      );
+    }
+
+    if (saathiUser.id === client.id) {
+      return NextResponse.json(
+        { error: "You cannot book yourself" },
+        { status: 400 }
+      );
     }
 
     const booking = await prisma.booking.create({
       data: {
         clientId: client.id,
-        saathiId: saathiUserId,
-        saathiName,
-        service,
-        city: city || null,
-        date,
-        time,
+        saathiId: saathiUser.id,
+        saathiName: saathiUser.name || String(saathiName),
+        service: String(service),
+        city: city || saathiUser.saathiProfile.city || null,
+        date: String(date),
+        time: String(time),
         durationHours: Number(durationHours) || 1,
         amount: Number(amount),
         status: "CONFIRMED",
-        notes: notes || null,
+        notes: notes ? String(notes) : null,
       },
     });
 
     sendBookingConfirmationEmail({
       to: client.email,
       clientName: session.user.name || null,
-      saathiName,
-      service,
-      date,
-      time,
+      saathiName: saathiUser.name || String(saathiName),
+      service: String(service),
+      date: String(date),
+      time: String(time),
       durationHours: Number(durationHours) || 1,
       amount: Number(amount),
-      city: city || null,
+      city: city || saathiUser.saathiProfile.city || null,
     }).catch((err) => console.error("[email] async error:", err));
 
     return NextResponse.json({ success: true, booking });

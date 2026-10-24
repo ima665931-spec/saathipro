@@ -2,6 +2,7 @@ import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { hasActivePlan } from "@/lib/plans";
 
 const SERVICES = [
   { title: "Movie Partner", emoji: "🎬", color: "from-violet-500 to-purple-600", href: "/find" },
@@ -39,7 +40,13 @@ export default async function DashboardPage() {
   const clientBookings = dbUser.bookingsAsClient || [];
   const saathiBookings = dbUser.bookingsAsSaathi || [];
   const pay = dbUser.paymentStatus || "NONE";
-  const needsPay = !isAdmin && pay !== "VERIFIED";
+  const active = isAdmin || hasActivePlan(dbUser);
+  const needsPay = !isAdmin && !active;
+  const expired =
+    !isAdmin &&
+    pay === "VERIFIED" &&
+    !!dbUser.planExpiresAt &&
+    new Date(dbUser.planExpiresAt).getTime() <= Date.now();
   const credit = dbUser.creditBalance || 0;
   const origin =
     process.env.AUTH_URL ||
@@ -50,9 +57,8 @@ export default async function DashboardPage() {
     ? `${origin.replace(/\/$/, "")}/register?ref=${inviteCode}&type=seeker`
     : null;
 
-  const [clientCount, saathiCount] = await Promise.all([
+  const [clientCount] = await Promise.all([
     prisma.booking.count({ where: { clientId: dbUser.id } }),
-    prisma.booking.count({ where: { saathiId: dbUser.id } }),
   ]);
 
   const recentBookings = isSaathi
@@ -81,7 +87,9 @@ export default async function DashboardPage() {
                 <Link href="/agent" className="hidden sm:inline text-sm font-medium text-accent">Agent hub</Link>
               )}
               {needsPay && (
-                <Link href="/pricing" className="text-sm font-semibold text-pink hover:underline">Get plan</Link>
+                <Link href="/pricing" className="text-sm font-semibold text-pink hover:underline">
+                  {expired ? "Renew plan" : "Get plan"}
+                </Link>
               )}
               <span className="text-sm text-ink-muted hidden md:inline">{dbUser.name || dbUser.email}</span>
               <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
@@ -139,23 +147,36 @@ export default async function DashboardPage() {
           <div className="mb-8 p-5 rounded-2xl bg-brand-gradient text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-glow">
             <div>
               <p className="font-display font-bold text-lg">
-                {pay === "PENDING" ? "Payment under review" : "Unlock full access"}
+                {pay === "PENDING"
+                  ? "Payment under review"
+                  : expired
+                    ? "Plan expired"
+                    : "Unlock full access"}
               </p>
               <p className="text-sm text-white/90 mt-1">
                 {pay === "PENDING"
                   ? "Admin is verifying. Booking & listing unlock after approval."
-                  : "Choose a membership plan to book & list."}
+                  : expired
+                    ? "Renew membership to book & list again."
+                    : "Choose a membership plan to book & list."}
               </p>
             </div>
-            <Link href={pay === "PENDING" ? "/pay" : "/pricing"} className="shrink-0 px-6 py-2.5 bg-white text-accent text-sm font-bold rounded-full text-center">
-              {pay === "PENDING" ? "View status" : "View plans"}
+            <Link
+              href={pay === "PENDING" ? "/pay" : "/pricing"}
+              className="shrink-0 px-6 py-2.5 bg-white text-accent text-sm font-bold rounded-full text-center"
+            >
+              {pay === "PENDING" ? "View status" : expired ? "Renew" : "View plans"}
             </Link>
           </div>
         )}
 
-        {pay === "VERIFIED" && (
+        {active && (
           <div className="mb-6 p-4 rounded-2xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-900 font-medium">
-            ✓ Membership active · booking & listing unlocked
+            ✓ Membership active
+            {dbUser.planExpiresAt && (
+              <> · until {new Date(dbUser.planExpiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</>
+            )}
+            {" · booking & listing unlocked"}
           </div>
         )}
 
@@ -191,7 +212,9 @@ export default async function DashboardPage() {
           </div>
           <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
             <p className="text-xs uppercase tracking-wide text-ink-muted">Payment</p>
-            <p className="font-display text-lg font-bold text-pink mt-1">{isAdmin ? "Admin" : pay}</p>
+            <p className="font-display text-lg font-bold text-pink mt-1">
+              {isAdmin ? "Admin" : active ? "ACTIVE" : expired ? "EXPIRED" : pay}
+            </p>
           </div>
           <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
             <p className="text-xs uppercase tracking-wide text-ink-muted">Role</p>
