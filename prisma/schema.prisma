@@ -20,12 +20,16 @@ model User {
   paymentStatus String    @default("NONE")
   plan          String?
   planExpiresAt DateTime?
-  /// Agent share link code e.g. RAHUL7X (only for role AGENT)
   referralCode  String?   @unique
-  /// Commission % on membership (agent only)
-  commissionPct Int       @default(20)
-  /// Which agent referred this user
+  commissionPct Int       @default(50)
   referredById  String?
+  /// Agent payout UPI
+  agentUpi      String?
+  /// 12-digit Aadhaar (KYC for agent)
+  aadhaar       String?
+  /// NONE | PENDING | APPROVED | REJECTED
+  agentStatus   String    @default("NONE")
+  agentNote     String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -42,6 +46,7 @@ model User {
   payments          Payment[]
   commissionsEarned Commission[] @relation("AgentCommissions")
   commissionsAsUser Commission[] @relation("UserCommissions")
+  withdrawals       Withdrawal[]
 }
 
 model Account {
@@ -163,25 +168,46 @@ model UpiPool {
   payments Payment[]
 }
 
-/// Agent earns commission when referred user membership is approved
 model Commission {
   id          String   @id @default(cuid())
   agentId     String
   userId      String
   paymentId   String?
   amount      Int
-  percent     Int      @default(20)
+  percent     Int      @default(50)
   planPrice   Int
   plan        String?
-  status      String   @default("PENDING") // PENDING | PAID | CANCELLED
+  status      String   @default("PENDING") // PENDING | LOCKED | PAID | CANCELLED
   note        String?
   paidAt      DateTime?
+  withdrawalId String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  agent   User     @relation("AgentCommissions", fields: [agentId], references: [id], onDelete: Cascade)
-  user    User     @relation("UserCommissions", fields: [userId], references: [id], onDelete: Cascade)
-  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  agent      User         @relation("AgentCommissions", fields: [agentId], references: [id], onDelete: Cascade)
+  user       User         @relation("UserCommissions", fields: [userId], references: [id], onDelete: Cascade)
+  payment    Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  withdrawal Withdrawal?  @relation(fields: [withdrawalId], references: [id], onDelete: SetNull)
 
   @@index([agentId, status])
+}
+
+/// Agent cashout request — admin pays to agentUpi
+model Withdrawal {
+  id        String   @id @default(cuid())
+  agentId   String
+  amount    Int
+  upiId     String
+  phone     String?
+  aadhaar   String?
+  status    String   @default("PENDING") // PENDING | PAID | REJECTED
+  note      String?
+  paidAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent       User         @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  commissions Commission[]
+
+  @@index([status])
 }
