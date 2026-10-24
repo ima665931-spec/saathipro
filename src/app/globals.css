@@ -3,14 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --cream: #f7f4ef;
-  --cream-dark: #efeae2;
-  --ink: #1a1816;
-  --ink-muted: #6b6560;
-  --accent: #5b4a3f;
-  --accent-light: #8b7355;
-  --gold: #c4a574;
-  --border: #e5dfd6;
+  --cream: #faf8ff;
+  --cream-dark: #f3efff;
+  --ink: #1e1033;
+  --ink-muted: #6b5b7a;
+  --accent: #a855f7;
+  --accent-light: #c084fc;
+  --pink: #ec4899;
+  --gold: #f59e0b;
+  --border: #e9e0f5;
   --card: #ffffff;
 }
 
@@ -25,6 +26,29 @@ body {
 
 .font-sans {
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Brand gradient button */
+.btn-brand {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
+  color: white;
+  font-weight: 600;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.btn-brand:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.bg-brand-gradient {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 45%, #ec4899 100%);
+}
+
+.text-brand-gradient {
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 @layer utilities {
