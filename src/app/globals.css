@@ -28,10 +28,9 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-/* Brand gradient button */
 .btn-brand {
   background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%);
-  color: white;
+  color: white !important;
   font-weight: 600;
   transition: opacity 0.2s, transform 0.15s;
 }
@@ -41,7 +40,11 @@ body {
 }
 
 .bg-brand-gradient {
-  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 45%, #ec4899 100%);
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 45%, #ec4899 100%) !important;
+}
+
+.bg-brand-soft {
+  background: linear-gradient(135deg, #faf5ff 0%, #fce7f3 50%, #eff6ff 100%) !important;
 }
 
 .text-brand-gradient {
@@ -49,6 +52,32 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* Map old classes so entire app looks purple-pink */
+.bg-ink {
+  background-color: #7c3aed !important;
+}
+.hover\:bg-accent:hover {
+  background-color: #ec4899 !important;
+}
+.bg-accent {
+  background-color: #a855f7 !important;
+}
+.text-cream {
+  color: #ffffff !important;
+}
+.bg-cream {
+  background-color: #faf8ff !important;
+}
+.bg-cream-dark {
+  background-color: #f3efff !important;
+}
+.text-accent {
+  color: #a855f7 !important;
+}
+.text-accent-light {
+  color: #c084fc !important;
 }
 
 @layer utilities {
