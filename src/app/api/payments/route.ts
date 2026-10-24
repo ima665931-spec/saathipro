@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { pickUpi, bumpUpiUsage } from "@/lib/upi-pool";
 import { getPlan, isValidPlanId, hasActivePlan, type PlanId } from "@/lib/plans";
 import { generateRegistrationId, isValidUtr12, normalizeUtr12 } from "@/lib/ids";
+import { isRazorpayConfigured, getRazorpayKeyId } from "@/lib/razorpay";
 
 const MAX_SHOT = 500_000;
 const ASSIGN_TTL_MS = 6 * 60 * 60 * 1000;
@@ -51,6 +52,7 @@ export async function GET(req: Request) {
     const creditBalance = user.creditBalance || 0;
     const maxCredit = Math.min(creditBalance, plan.price);
     const amountDue = Math.max(0, plan.price - maxCredit);
+    const razorpayEnabled = isRazorpayConfigured();
 
     const base = {
       publicId,
@@ -63,11 +65,14 @@ export async function GET(req: Request) {
       amountDue,
       selectedPlan: plan,
       lastUtr: lastPending?.utr || null,
+      razorpayEnabled,
+      razorpayKeyId: razorpayEnabled ? getRazorpayKeyId() : null,
       payments: user.payments.map((p) => ({
         id: p.id,
         amount: p.amount,
         plan: p.plan,
         status: p.status,
+        method: p.method,
         utr: p.utr,
         creditUsed: p.creditUsed,
         createdAt: p.createdAt,
@@ -95,19 +100,21 @@ export async function GET(req: Request) {
       });
     }
 
+    // UPI assignment still available as fallback
     const since = new Date(Date.now() - ASSIGN_TTL_MS);
     let assignment = await prisma.payment.findFirst({
       where: {
         userId: user.id,
         status: "ASSIGNED",
         plan: planId,
+        method: { not: "RAZORPAY" },
         createdAt: { gte: since },
       },
       orderBy: { createdAt: "desc" },
       include: { upiPool: true },
     });
 
-    if (!assignment) {
+    if (!assignment && !razorpayEnabled) {
       const picked = await pickUpi();
       if (!picked) {
         return NextResponse.json({
@@ -126,19 +133,38 @@ export async function GET(req: Request) {
           type: "MEMBERSHIP",
           plan: planId,
           status: "ASSIGNED",
+          method: "UPI",
           upiPoolId: picked.id,
           note: picked.upiId,
         },
         include: { upiPool: true },
       });
+    } else if (!assignment && razorpayEnabled) {
+      // Prefer Razorpay; still allow UPI if pool has entries
+      const picked = await pickUpi();
+      if (picked) {
+        assignment = await prisma.payment.create({
+          data: {
+            userId: user.id,
+            amount: plan.price,
+            type: "MEMBERSHIP",
+            plan: planId,
+            status: "ASSIGNED",
+            method: "UPI",
+            upiPoolId: picked.id,
+            note: picked.upiId,
+          },
+          include: { upiPool: true },
+        });
+      }
     }
 
     return NextResponse.json({
       ...base,
-      upiId: assignment.upiPool?.upiId || assignment.note || "",
-      upiName: assignment.upiPool?.displayName || "SaathiPro",
-      upiPoolId: assignment.upiPoolId,
-      assignmentId: assignment.id,
+      upiId: assignment?.upiPool?.upiId || assignment?.note || "",
+      upiName: assignment?.upiPool?.displayName || "SaathiPro",
+      upiPoolId: assignment?.upiPoolId || null,
+      assignmentId: assignment?.id || null,
       active: false,
     });
   } catch (err) {
@@ -173,7 +199,6 @@ export async function POST(req: Request) {
       useCredit && creditBalance > 0 ? Math.min(creditBalance, plan.price) : 0;
     const amountDue = Math.max(0, plan.price - creditUsed);
 
-    // Full credit covers plan — still need admin verify (screenshot optional if amount 0)
     if (amountDue > 0) {
       if (!utr || !isValidUtr12(String(utr))) {
         return NextResponse.json(
@@ -204,6 +229,7 @@ export async function POST(req: Request) {
           amount: amountDue,
           plan: planId,
           type: "MEMBERSHIP",
+          method: amountDue > 0 ? "UPI" : "CREDIT",
           creditUsed,
           note: creditUsed ? `CREDIT:${creditUsed}` : undefined,
         },
@@ -218,6 +244,7 @@ export async function POST(req: Request) {
           utr: utrNorm,
           screenshot: shot,
           status: "PENDING",
+          method: amountDue > 0 ? "UPI" : "CREDIT",
           upiPoolId: upiPoolId || null,
           creditUsed,
           note: creditUsed ? `CREDIT:${creditUsed}` : null,
