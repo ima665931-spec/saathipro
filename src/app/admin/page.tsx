@@ -5,14 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-type Tab =
-  | "stats"
-  | "users"
-  | "saathis"
-  | "bookings"
-  | "reviews"
-  | "payments"
-  | "upi";
+type Tab = "stats" | "users" | "saathis" | "bookings" | "reviews" | "payments" | "upi";
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
@@ -29,7 +22,6 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
-
   const [newUpi, setNewUpi] = useState("");
   const [bulkUpi, setBulkUpi] = useState("");
   const [newName, setNewName] = useState("SaathiPro");
@@ -67,7 +59,7 @@ export default function AdminPage() {
       return;
     }
     if (status === "authenticated") load(tab, q);
-  }, [status, tab, router, load]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [status, tab, router, load]);
 
   const act = async (body: Record<string, unknown>) => {
     setBusy(String(body.action));
@@ -102,9 +94,7 @@ export default function AdminPage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-cream text-ink-muted text-sm">
-        Loading…
-      </div>
+      <div className="min-h-screen flex items-center justify-center bg-brand-soft text-ink-muted text-sm">Loading…</div>
     );
   }
 
@@ -119,23 +109,21 @@ export default function AdminPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-cream">
-      <header className="sticky top-0 z-50 bg-ink text-cream border-b border-ink">
+    <div className="min-h-screen bg-brand-soft">
+      <header className="sticky top-0 z-50 bg-brand-gradient text-white shadow-soft">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="font-display font-semibold tracking-tight">
-              SaathiPro
+            <Link href="/" className="font-display font-bold tracking-tight">
+              Saathi<span className="opacity-90">Pro</span>
             </Link>
-            <span className="text-xs bg-cream/20 px-2 py-0.5 rounded-full">Admin</span>
+            <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">Admin</span>
           </div>
-          <Link href="/dashboard" className="text-sm text-cream/70 hover:text-cream">
-            Dashboard →
-          </Link>
+          <Link href="/dashboard" className="text-sm text-white/80 hover:text-white">Dashboard →</Link>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="font-display text-2xl font-semibold text-ink mb-6">Control panel</h1>
+        <h1 className="font-display text-2xl font-bold text-ink mb-6">Control panel</h1>
 
         <div className="flex flex-wrap gap-2 mb-6">
           {tabs.map((t) => (
@@ -144,9 +132,7 @@ export default function AdminPage() {
               type="button"
               onClick={() => setTab(t.id)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                tab === t.id
-                  ? "bg-ink text-cream"
-                  : "bg-white border border-border text-ink-muted hover:text-ink"
+                tab === t.id ? "btn-brand shadow-soft" : "bg-white border border-border text-ink-muted hover:text-accent"
               }`}
             >
               {t.label}
@@ -157,13 +143,8 @@ export default function AdminPage() {
         {error && (
           <div className="mb-6 p-4 bg-red-50 text-red-800 rounded-xl text-sm border border-red-100 space-y-2">
             <p className="font-medium">{error}</p>
-            <p>
-              Logged in as:{" "}
-              <code className="bg-red-100 px-1">{session?.user?.email || "unknown"}</code>
-            </p>
-            <p className="text-xs">
-              Set <code className="bg-red-100 px-1">ADMIN_EMAILS</code> in Vercel → Redeploy → re-login.
-            </p>
+            <p>Logged in as: <code className="bg-red-100 px-1">{session?.user?.email || "unknown"}</code></p>
+            <p className="text-xs">Set <code className="bg-red-100 px-1">ADMIN_EMAILS</code> in Vercel → Redeploy → re-login.</p>
           </div>
         )}
 
@@ -172,18 +153,13 @@ export default function AdminPage() {
         {!loading && tab === "stats" && stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              ["Users", stats.users],
-              ["Active UPIs", stats.upiCount],
-              ["Total UPIs", stats.upiTotal],
-              ["Pending payments", stats.pendingPay],
-              ["Bookings", stats.bookings],
-              ["Saathis", stats.saathis],
-              ["Booking ₹", stats.revenue],
-              ["Banned", stats.banned],
+              ["Users", stats.users], ["Active UPIs", stats.upiCount], ["Total UPIs", stats.upiTotal],
+              ["Pending payments", stats.pendingPay], ["Bookings", stats.bookings], ["Saathis", stats.saathis],
+              ["Booking ₹", stats.revenue], ["Banned", stats.banned],
             ].map(([label, val]) => (
               <div key={String(label)} className="bg-white border border-border rounded-2xl p-5 shadow-card">
                 <p className="text-xs uppercase tracking-wide text-ink-muted">{label}</p>
-                <p className="font-display text-2xl font-semibold text-ink mt-1">{val ?? 0}</p>
+                <p className="font-display text-2xl font-bold text-brand-gradient mt-1">{val ?? 0}</p>
               </div>
             ))}
           </div>
@@ -193,21 +169,19 @@ export default function AdminPage() {
           <div className="space-y-6">
             <div className="bg-white border border-border rounded-2xl p-5 shadow-card space-y-4">
               <div>
-                <h2 className="font-display font-semibold text-ink">UPI Pool</h2>
-                <p className="text-xs text-ink-muted mt-1">
-                  Add many UPIs. Each user gets a <strong>random</strong> active UPI under daily limit. QR amount ₹499. Limit 0 = unlimited.
-                </p>
+                <h2 className="font-display font-bold text-ink">UPI Pool</h2>
+                <p className="text-xs text-ink-muted mt-1">Random active UPI under daily limit. QR ₹499. Limit 0 = unlimited.</p>
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input value={newUpi} onChange={(e) => setNewUpi(e.target.value)} placeholder="name@ybl" className="flex-1 px-3 py-2 border border-border rounded-xl text-sm" />
                 <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Name" className="sm:w-36 px-3 py-2 border border-border rounded-xl text-sm" />
                 <input type="number" value={newLimit} onChange={(e) => setNewLimit(Number(e.target.value))} className="sm:w-24 px-3 py-2 border border-border rounded-xl text-sm" />
-                <button type="button" onClick={() => act({ action: "add_upi", upiId: newUpi, displayName: newName, dailyLimit: newLimit })} className="px-4 py-2 bg-ink text-cream rounded-xl text-sm font-medium">Add one</button>
+                <button type="button" onClick={() => act({ action: "add_upi", upiId: newUpi, displayName: newName, dailyLimit: newLimit })} className="btn-brand px-4 py-2 rounded-xl text-sm">Add one</button>
               </div>
               <div>
                 <label className="block text-xs font-medium text-ink-muted mb-1">Bulk paste (one per line)</label>
                 <textarea value={bulkUpi} onChange={(e) => setBulkUpi(e.target.value)} rows={4} placeholder={"a@ybl\nb@oksbi"} className="w-full px-3 py-2 border border-border rounded-xl text-sm font-mono" />
-                <button type="button" onClick={() => act({ action: "bulk_add_upi", upiBulk: bulkUpi, displayName: newName, dailyLimit: newLimit })} className="mt-2 px-4 py-2 bg-ink text-cream rounded-xl text-sm font-medium">Add all</button>
+                <button type="button" onClick={() => act({ action: "bulk_add_upi", upiBulk: bulkUpi, displayName: newName, dailyLimit: newLimit })} className="mt-2 btn-brand px-4 py-2 rounded-xl text-sm">Add all</button>
               </div>
               <p className="text-xs text-ink-muted">Pool: {upiList.length} · Active: {upiList.filter((u) => u.isActive).length}</p>
             </div>
@@ -270,9 +244,9 @@ export default function AdminPage() {
         {!loading && tab === "users" && (
           <div className="space-y-4">
             {users.map((u) => (
-              <div key={u.id} className="bg-white border rounded-2xl p-4 flex flex-wrap justify-between gap-2">
+              <div key={u.id} className="bg-white border border-border rounded-2xl p-4 flex flex-wrap justify-between gap-2 shadow-card">
                 <div>
-                  <p className="font-medium">{u.name}</p>
+                  <p className="font-medium text-ink">{u.name}</p>
                   <p className="text-sm text-ink-muted">{u.email}</p>
                 </div>
                 <Btn onClick={() => act({ action: u.isBanned ? "unban_user" : "ban_user", userId: u.id })} label={u.isBanned ? "Unban" : "Ban"} danger={!u.isBanned} />
@@ -284,9 +258,9 @@ export default function AdminPage() {
         {!loading && tab === "saathis" && (
           <div className="space-y-4">
             {saathis.map((s) => (
-              <div key={s.id} className="bg-white border rounded-2xl p-4 flex justify-between">
+              <div key={s.id} className="bg-white border border-border rounded-2xl p-4 flex justify-between shadow-card">
                 <div>
-                  <p className="font-medium">{s.user?.name}</p>
+                  <p className="font-medium text-ink">{s.user?.name}</p>
                   <p className="text-sm text-ink-muted">{s.user?.email}</p>
                 </div>
                 <Btn onClick={() => act({ action: s.isVerified ? "unverify_saathi" : "verify_saathi", saathiUserId: s.userId })} label={s.isVerified ? "Unverify" : "Verify"} />
@@ -298,9 +272,9 @@ export default function AdminPage() {
         {!loading && tab === "bookings" && (
           <div className="space-y-4">
             {bookings.map((b) => (
-              <div key={b.id} className="bg-white border rounded-2xl p-4 flex justify-between">
+              <div key={b.id} className="bg-white border border-border rounded-2xl p-4 flex justify-between shadow-card">
                 <div>
-                  <p className="font-medium">{b.saathiName} · {b.status}</p>
+                  <p className="font-medium text-ink">{b.saathiName} · {b.status}</p>
                   <p className="text-sm text-ink-muted">{b.client?.email}</p>
                 </div>
                 <Btn onClick={() => act({ action: "cancel_booking", bookingId: b.id })} label="Cancel" danger />
@@ -312,8 +286,8 @@ export default function AdminPage() {
         {!loading && tab === "reviews" && (
           <div className="space-y-4">
             {reviews.map((r) => (
-              <div key={r.id} className="bg-white border rounded-2xl p-4 flex justify-between">
-                <p className="text-sm">{"★".repeat(r.rating)} {r.comment}</p>
+              <div key={r.id} className="bg-white border border-border rounded-2xl p-4 flex justify-between shadow-card">
+                <p className="text-sm text-ink">{"★".repeat(r.rating)} {r.comment}</p>
                 <Btn onClick={() => act({ action: "delete_review", reviewId: r.id })} label="Delete" danger />
               </div>
             ))}
@@ -321,30 +295,20 @@ export default function AdminPage() {
         )}
 
         {busy && (
-          <p className="fixed bottom-4 right-4 bg-ink text-cream text-xs px-3 py-2 rounded-full">Working…</p>
+          <p className="fixed bottom-4 right-4 bg-brand-gradient text-white text-xs px-3 py-2 rounded-full shadow-glow">Working…</p>
         )}
       </main>
     </div>
   );
 }
 
-function Btn({
-  onClick,
-  label,
-  danger,
-}: {
-  onClick: () => void;
-  label: string;
-  danger?: boolean;
-}) {
+function Btn({ onClick, label, danger }: { onClick: () => void; label: string; danger?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`text-xs font-medium px-2.5 py-1 rounded-full border transition ${
-        danger
-          ? "border-red-200 text-red-700 hover:bg-red-50"
-          : "border-border text-ink hover:bg-cream-dark"
+        danger ? "border-red-200 text-red-700 hover:bg-red-50" : "border-border text-ink hover:border-accent/40"
       }`}
     >
       {label}
