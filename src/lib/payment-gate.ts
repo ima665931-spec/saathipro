@@ -1,13 +1,20 @@
 import { prisma } from "@/lib/prisma";
+import { hasActivePlan } from "@/lib/plans";
 
 /**
- * One-time ₹499 registration fee for every member
- * (clients who book + Saathis who list).
+ * Membership access: VERIFIED + plan not expired.
  */
 export async function requirePaidAccess(email: string): Promise<
   | {
       ok: true;
-      user: { id: string; email: string; role: string; paymentStatus: string };
+      user: {
+        id: string;
+        email: string;
+        role: string;
+        paymentStatus: string;
+        plan: string | null;
+        planExpiresAt: Date | null;
+      };
     }
   | {
       ok: false;
@@ -18,6 +25,7 @@ export async function requirePaidAccess(email: string): Promise<
         | "NOT_FOUND"
         | "PAYMENT_REQUIRED"
         | "PENDING"
+        | "EXPIRED"
         | "BANNED";
     }
 > {
@@ -46,18 +54,8 @@ export async function requirePaidAccess(email: string): Promise<
         email: user.email,
         role: user.role,
         paymentStatus: user.paymentStatus,
-      },
-    };
-  }
-
-  if (user.paymentStatus === "VERIFIED") {
-    return {
-      ok: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        paymentStatus: user.paymentStatus,
+        plan: user.plan,
+        planExpiresAt: user.planExpiresAt,
       },
     };
   }
@@ -71,10 +69,33 @@ export async function requirePaidAccess(email: string): Promise<
     };
   }
 
+  if (hasActivePlan(user)) {
+    return {
+      ok: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        paymentStatus: user.paymentStatus,
+        plan: user.plan,
+        planExpiresAt: user.planExpiresAt,
+      },
+    };
+  }
+
+  if (user.paymentStatus === "VERIFIED" && user.planExpiresAt) {
+    return {
+      ok: false,
+      status: 402,
+      error: "Your plan expired. Renew to continue.",
+      code: "EXPIRED",
+    };
+  }
+
   return {
     ok: false,
     status: 402,
-    error: "Pay ₹499 registration fee to unlock booking & listing.",
+    error: "Choose a membership plan to unlock booking & listing.",
     code: "PAYMENT_REQUIRED",
   };
 }
