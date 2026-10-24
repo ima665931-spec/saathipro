@@ -4,32 +4,32 @@ import { useState } from "react";
 import Link from "next/link";
 
 const services = [
-  { title: "Movie Partner", desc: "Watch together, share the moment", price: "From ₹1,500" },
-  { title: "Elder Care", desc: "Senior assistance & daily support", price: "From ₹1,000" },
-  { title: "Hanging Out", desc: "Casual social time, conversation", price: "From ₹1,500" },
-  { title: "Clubbing", desc: "Nightlife companion, professional", price: "From ₹2,000" },
-  { title: "Shopping Buddy", desc: "Errands, markets, retail", price: "From ₹1,400" },
-  { title: "Medical Support", desc: "Hospital & appointment help", price: "From ₹1,500" },
-  { title: "Travel Partner", desc: "Explore cities together", price: "From ₹1,800" },
-  { title: "Coffee Partner", desc: "Conversation over coffee", price: "From ₹1,200" },
+  { title: "Movie Partner", desc: "Watch together, share the moment", price: "From ₹1,500", emoji: "🎬", color: "from-violet-500 to-purple-600" },
+  { title: "Elder Care", desc: "Senior assistance & daily support", price: "From ₹1,000", emoji: "💚", color: "from-emerald-400 to-teal-500" },
+  { title: "Hanging Out", desc: "Casual social time, conversation", price: "From ₹1,500", emoji: "☕", color: "from-pink-400 to-rose-500" },
+  { title: "Clubbing", desc: "Nightlife companion, professional", price: "From ₹2,000", emoji: "🎉", color: "from-fuchsia-500 to-pink-600" },
+  { title: "Shopping Buddy", desc: "Errands, markets, retail", price: "From ₹1,400", emoji: "🛍️", color: "from-amber-400 to-orange-500" },
+  { title: "Medical Support", desc: "Hospital & appointment help", price: "From ₹1,500", emoji: "🏥", color: "from-sky-400 to-blue-500" },
+  { title: "Travel Partner", desc: "Explore cities together", price: "From ₹1,800", emoji: "✈️", color: "from-indigo-400 to-violet-500" },
+  { title: "Coffee Partner", desc: "Conversation over coffee", price: "From ₹1,200", emoji: "💬", color: "from-rose-400 to-pink-500" },
 ];
 
 const faqs = [
   {
     q: "What is SaathiPro?",
-    a: "A professional social support platform. Book verified companions for movies, elder care, hangouts, travel and more — consent-first, strictly professional. Not a dating service.",
+    a: "India's colorful social companion platform. Book verified Saathis for movies, care, hangouts and more — safe, professional, consent-first.",
+  },
+  {
+    q: "Is there a registration fee?",
+    a: "Yes — a one-time ₹499 fee unlocks full access for everyone (bookings + Become Saathi listing).",
   },
   {
     q: "How do I book?",
-    a: "Browse Find a Saathi, open a profile, choose date and duration, confirm. You will see bookings in your dashboard.",
+    a: "Register, pay ₹499, browse Find a Saathi, pick a profile, choose date & duration, confirm.",
   },
   {
     q: "Is it safe?",
-    a: "Profiles are reviewed, interactions are professional only, and clear boundaries are required. Report any issue from your account.",
-  },
-  {
-    q: "How do Saathis earn?",
-    a: "Set your own hourly rates, choose services, keep the majority of earnings. Flexible hours across India.",
+    a: "Profiles are reviewed, boundaries are clear, and you can report issues anytime. Not a dating service.",
   },
 ];
 
@@ -37,91 +37,80 @@ export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   return (
-    <div className="min-h-screen bg-cream">
-      <header className="sticky top-0 z-50 bg-cream/90 backdrop-blur border-b border-border">
+    <div className="min-h-screen bg-brand-soft">
+      {/* Top promo bar */}
+      <div className="bg-brand-gradient text-white text-center text-xs sm:text-sm font-medium py-2 px-4">
+        🎉 Join SaathiPro · One-time ₹499 · Unlock Find & Become Saathi
+      </div>
+
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-border shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-ink flex items-center justify-center text-cream font-display font-semibold text-sm">
+              <div className="w-9 h-9 rounded-xl bg-brand-gradient flex items-center justify-center text-white font-display font-bold text-sm shadow-glow">
                 S
               </div>
-              <span className="font-display text-lg font-semibold text-ink tracking-tight">
-                SaathiPro
+              <span className="font-display text-lg font-bold text-ink tracking-tight">
+                Saathi<span className="text-pink">Pro</span>
               </span>
             </Link>
-            <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-ink-muted">
-              <a href="#services" className="hover:text-ink transition">
-                Services
-              </a>
-              <a href="#earn" className="hover:text-ink transition">
-                Earn
-              </a>
-              <a href="#faq" className="hover:text-ink transition">
-                FAQ
-              </a>
-              <Link href="/find" className="hover:text-ink transition">
-                Find Saathi
-              </Link>
+            <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-ink-muted">
+              <a href="#services" className="hover:text-accent transition">Services</a>
+              <a href="#earn" className="hover:text-accent transition">Earn</a>
+              <Link href="/find" className="hover:text-accent transition">Find Saathi</Link>
             </nav>
-            <div className="flex items-center gap-3">
-              <Link
-                href="/login"
-                className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-ink"
-              >
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Link href="/login" className="text-sm font-semibold text-ink-muted hover:text-ink px-3 py-2">
                 Login
               </Link>
-              <Link
-                href="/register"
-                className="px-5 py-2.5 bg-ink hover:bg-accent text-cream text-sm font-semibold rounded-full transition"
-              >
-                Join
+              <Link href="/register" className="btn-brand px-5 py-2.5 text-sm rounded-full shadow-soft">
+                Join Now
               </Link>
             </div>
           </div>
         </div>
       </header>
 
+      {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-28 lg:pb-32">
+        <div className="absolute inset-0 bg-brand-soft opacity-80" />
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-pink/20 blur-3xl" />
+        <div className="absolute -bottom-32 -left-24 w-96 h-96 rounded-full bg-accent/20 blur-3xl" />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28">
           <div className="max-w-3xl mx-auto text-center">
-            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-accent-light mb-6">
-              Professional companionship · India
-            </p>
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-semibold text-ink leading-[1.15] tracking-tight text-balance">
-              Verified Saathis for life's moments
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-border text-xs font-semibold text-accent shadow-card">
+              🏆 India's colorful companion platform
+            </span>
+            <h1 className="mt-6 font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-ink leading-[1.12] tracking-tight text-balance">
+              Find your perfect{" "}
+              <span className="text-brand-gradient">Saathi</span>
             </h1>
-            <p className="mt-6 text-lg text-ink-muted max-w-xl mx-auto leading-relaxed">
-              Movies, elder care, hangouts, travel — book trusted professionals
-              with clear boundaries. Safe. Consent-first.
+            <p className="mt-5 text-lg text-ink-muted max-w-xl mx-auto leading-relaxed">
+              Movies, care, hangouts, travel — verified professionals across India.
+              One ₹499 fee unlocks everything.
             </p>
-            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link
-                href="/find"
-                className="w-full sm:w-auto px-8 py-3.5 bg-ink hover:bg-accent text-cream font-semibold rounded-full transition text-center"
-              >
+            <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link href="/find" className="w-full sm:w-auto btn-brand px-9 py-3.5 rounded-full text-center shadow-glow">
                 Find a Saathi
               </Link>
               <Link
                 href="/become-saathi"
-                className="w-full sm:w-auto px-8 py-3.5 bg-white border border-border text-ink font-semibold rounded-full hover:bg-cream-dark transition text-center"
+                className="w-full sm:w-auto px-9 py-3.5 bg-white border-2 border-accent/30 text-accent font-semibold rounded-full hover:border-accent hover:bg-pink-soft/40 transition text-center"
               >
                 Become a Saathi
               </Link>
             </div>
 
-            <div className="mt-16 grid grid-cols-3 gap-6 max-w-lg mx-auto border-t border-border pt-10">
+            <div className="mt-14 grid grid-cols-3 gap-4 max-w-md mx-auto">
               {[
-                { value: "Verified", label: "Profiles" },
-                { value: "Pan-India", label: "Coverage" },
+                { value: "₹499", label: "One-time fee" },
+                { value: "Pan-India", label: "Cities" },
                 { value: "24/7", label: "Support" },
               ].map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <div className="font-display text-xl font-semibold text-ink">
-                    {stat.value}
-                  </div>
-                  <div className="text-xs text-ink-muted mt-1 uppercase tracking-wide">
-                    {stat.label}
-                  </div>
+                <div key={stat.label} className="bg-white/80 backdrop-blur rounded-2xl border border-border p-4 shadow-card">
+                  <div className="font-display text-lg font-bold text-brand-gradient">{stat.value}</div>
+                  <div className="text-[11px] text-ink-muted mt-0.5 uppercase tracking-wide">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -129,107 +118,85 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="services" className="py-20 border-t border-border bg-white">
+      {/* Services */}
+      <section id="services" className="py-16 bg-white border-t border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-xl mb-12">
-            <p className="text-xs font-semibold tracking-widest uppercase text-accent-light mb-3">
-              Services
-            </p>
-            <h2 className="font-display text-3xl sm:text-4xl font-semibold text-ink">
-              Support for every need
+          <div className="text-center max-w-xl mx-auto mb-12">
+            <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">Services</p>
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-ink">
+              Something for every mood
             </h2>
+            <p className="mt-2 text-ink-muted text-sm">Pick a service · find your Saathi · book in minutes</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {services.map((s) => (
               <Link
                 key={s.title}
                 href="/find"
-                className="group p-6 rounded-2xl border border-border bg-cream/50 hover:bg-cream hover:shadow-card transition"
+                className="group relative overflow-hidden rounded-2xl border border-border bg-white p-5 shadow-card hover:shadow-soft transition"
               >
-                <h3 className="font-display font-semibold text-ink group-hover:text-accent transition">
-                  {s.title}
-                </h3>
-                <p className="mt-2 text-sm text-ink-muted leading-relaxed">{s.desc}</p>
-                <p className="mt-4 text-sm font-medium text-ink">{s.price}</p>
+                <div className={`absolute top-0 right-0 w-24 h-24 rounded-bl-full bg-gradient-to-br ${s.color} opacity-10 group-hover:opacity-20 transition`} />
+                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center text-xl shadow-sm`}>
+                  {s.emoji}
+                </div>
+                <h3 className="mt-4 font-display font-bold text-ink group-hover:text-accent transition">{s.title}</h3>
+                <p className="mt-1.5 text-sm text-ink-muted leading-relaxed">{s.desc}</p>
+                <p className="mt-3 text-sm font-semibold text-pink">{s.price}</p>
               </Link>
             ))}
           </div>
-          <div className="mt-10">
-            <Link
-              href="/find"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-ink hover:text-accent transition"
-            >
+          <div className="mt-10 text-center">
+            <Link href="/find" className="btn-brand inline-flex px-8 py-3 rounded-full shadow-soft">
               Browse all Saathis →
             </Link>
           </div>
         </div>
       </section>
 
-      <section id="earn" className="py-20 bg-ink text-cream">
+      {/* Earn */}
+      <section id="earn" className="py-20 bg-brand-gradient text-white">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <p className="text-xs font-semibold tracking-widest uppercase text-gold mb-4">
-            For professionals
-          </p>
-          <h2 className="font-display text-3xl sm:text-4xl font-semibold">
-            Earn on your terms
-          </h2>
-          <p className="mt-4 text-cream/70 text-lg">
-            Set rates, choose services, flexible hours — across India.
-          </p>
-          <div className="mt-10 grid grid-cols-3 gap-6 max-w-md mx-auto">
-            <div>
-              <div className="font-display text-2xl font-semibold">₹2K</div>
-              <div className="text-xs text-cream/50 mt-1 uppercase tracking-wide">
-                / hour up to
+          <p className="text-xs font-bold tracking-widest uppercase text-white/80 mb-3">For professionals</p>
+          <h2 className="font-display text-3xl sm:text-4xl font-bold">Earn up to ₹2,000/hr</h2>
+          <p className="mt-3 text-white/85 text-lg">Set rates · choose services · flexible hours · ₹499 listing unlock</p>
+          <div className="mt-10 grid grid-cols-3 gap-4 max-w-md mx-auto">
+            {[
+              { v: "₹2K", l: "Max / hr" },
+              { v: "80%", l: "You keep" },
+              { v: "You", l: "Set hours" },
+            ].map((x) => (
+              <div key={x.l} className="bg-white/15 backdrop-blur rounded-2xl p-4 border border-white/20">
+                <div className="font-display text-2xl font-bold">{x.v}</div>
+                <div className="text-xs text-white/70 mt-1 uppercase tracking-wide">{x.l}</div>
               </div>
-            </div>
-            <div>
-              <div className="font-display text-2xl font-semibold">80%</div>
-              <div className="text-xs text-cream/50 mt-1 uppercase tracking-wide">
-                You keep
-              </div>
-            </div>
-            <div>
-              <div className="font-display text-2xl font-semibold">You</div>
-              <div className="text-xs text-cream/50 mt-1 uppercase tracking-wide">
-                Set hours
-              </div>
-            </div>
+            ))}
           </div>
           <Link
             href="/become-saathi"
-            className="inline-block mt-10 px-10 py-3.5 bg-cream text-ink font-semibold rounded-full hover:bg-white transition"
+            className="inline-block mt-10 px-10 py-3.5 bg-white text-accent font-bold rounded-full hover:bg-pink-soft transition shadow-lg"
           >
             Apply as Saathi
           </Link>
         </div>
       </section>
 
-      <section id="faq" className="py-20 bg-cream">
+      {/* FAQ */}
+      <section id="faq" className="py-16 bg-cream">
         <div className="max-w-2xl mx-auto px-4">
-          <h2 className="font-display text-3xl font-semibold text-ink text-center mb-10">
-            FAQ
-          </h2>
+          <h2 className="font-display text-3xl font-bold text-ink text-center mb-8">FAQ</h2>
           <div className="space-y-2">
             {faqs.map((faq, i) => (
-              <div
-                key={i}
-                className="border border-border rounded-xl overflow-hidden bg-white"
-              >
+              <div key={i} className="border border-border rounded-2xl overflow-hidden bg-white shadow-card">
                 <button
                   type="button"
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between px-5 py-4 text-left font-medium text-ink"
+                  className="w-full flex items-center justify-between px-5 py-4 text-left font-semibold text-ink"
                 >
                   {faq.q}
-                  <span className="text-ink-muted text-lg ml-4">
-                    {openFaq === i ? "−" : "+"}
-                  </span>
+                  <span className="text-accent text-lg ml-4">{openFaq === i ? "−" : "+"}</span>
                 </button>
                 {openFaq === i && (
-                  <div className="px-5 pb-4 text-ink-muted text-sm leading-relaxed">
-                    {faq.a}
-                  </div>
+                  <div className="px-5 pb-4 text-ink-muted text-sm leading-relaxed">{faq.a}</div>
                 )}
               </div>
             ))}
@@ -237,45 +204,27 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-16 border-t border-border bg-white text-center">
+      <section className="py-14 bg-white border-t border-border text-center">
         <div className="max-w-xl mx-auto px-4">
-          <h2 className="font-display text-2xl font-semibold text-ink">
-            Ready when you are
-          </h2>
-          <p className="mt-2 text-ink-muted">
-            Browse profiles or create your account in minutes.
-          </p>
-          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              href="/find"
-              className="px-8 py-3.5 bg-ink text-cream font-semibold rounded-full hover:bg-accent transition"
-            >
-              Find a Saathi
-            </Link>
-            <Link
-              href="/register"
-              className="px-8 py-3.5 border border-border text-ink font-semibold rounded-full hover:bg-cream transition"
-            >
-              Create account
-            </Link>
+          <h2 className="font-display text-2xl font-bold text-ink">Ready to meet your Saathi?</h2>
+          <p className="mt-2 text-ink-muted">₹499 once · full access to Find & Become Saathi</p>
+          <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/register" className="btn-brand px-8 py-3.5 rounded-full shadow-glow">Create account</Link>
+            <Link href="/find" className="px-8 py-3.5 border-2 border-accent/40 text-accent font-semibold rounded-full hover:bg-pink-soft/50 transition">Browse Find</Link>
           </div>
         </div>
       </section>
 
-      <footer className="border-t border-border py-10">
+      <footer className="border-t border-border py-10 bg-cream">
         <div className="max-w-7xl mx-auto px-4 text-center text-sm text-ink-muted">
-          <p className="font-display font-semibold text-ink mb-2">SaathiPro</p>
-          <p>Professional social support across India. Not a dating service.</p>
+          <p className="font-display font-bold text-ink mb-1">
+            Saathi<span className="text-pink">Pro</span>
+          </p>
+          <p>Colorful companionship across India · Not a dating service</p>
           <div className="mt-4 flex justify-center gap-6">
-            <Link href="/find" className="hover:text-ink">
-              Find
-            </Link>
-            <Link href="/become-saathi" className="hover:text-ink">
-              Become Saathi
-            </Link>
-            <Link href="/login" className="hover:text-ink">
-              Login
-            </Link>
+            <Link href="/find" className="hover:text-accent">Find</Link>
+            <Link href="/become-saathi" className="hover:text-accent">Become Saathi</Link>
+            <Link href="/login" className="hover:text-accent">Login</Link>
           </div>
         </div>
       </footer>
