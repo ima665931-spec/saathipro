@@ -49,7 +49,6 @@ export default function AdminPage() {
         setAgents(data.agents || []);
         setApplications(data.applications || []);
         setWithdrawals(data.withdrawals || []);
-        // Agent entry fees from payments list
         const payRes = await fetch("/api/admin?section=payments");
         const payData = await payRes.json();
         if (payRes.ok) {
@@ -108,7 +107,28 @@ export default function AdminPage() {
       }
       return;
     }
-    act({ action: "approve_payment", paymentId: p.id });
+    const res = await fetch("/api/admin/approve-membership", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paymentId: p.id }),
+    });
+    const d = await res.json();
+    if (!res.ok) alert(d.error || "Failed");
+    else load(section, q);
+  };
+
+  const approveKyc = async (userId: string) => {
+    const res = await fetch("/api/admin/approve-kyc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, commissionPct: 50 }),
+    });
+    const d = await res.json();
+    if (!res.ok) alert(d.error || "Failed");
+    else {
+      alert("KYC OK · Agent ID " + (d.referralCode || ""));
+      load(section, q);
+    }
   };
 
   const viewKyc = async (userId: string) => {
@@ -276,7 +296,7 @@ export default function AdminPage() {
 
             <section>
               <h2 className="font-display font-bold mb-1">1 · KYC queue</h2>
-              <p className="text-xs text-ink-muted mb-3">Approve KYC first — fee is paid after this.</p>
+              <p className="text-xs text-ink-muted mb-3">Approve KYC first — fee is last. Parent agent gets ₹49 bonus.</p>
               {applications.map((a) => (
                 <div key={a.id} className="bg-white border rounded-2xl p-4 mb-2 flex flex-wrap justify-between gap-2 shadow-card text-sm">
                   <div>
@@ -286,7 +306,7 @@ export default function AdminPage() {
                   </div>
                   <div className="flex flex-col gap-1">
                     <button type="button" onClick={() => viewKyc(a.id)} className="text-xs border px-2 py-1 rounded-full">View photo</button>
-                    <button type="button" onClick={() => act({ action: "approve_agent_application", userId: a.id, commissionPct: 50 })} className="text-xs border px-2 py-1 rounded-full">Approve KYC</button>
+                    <button type="button" onClick={() => approveKyc(a.id)} className="text-xs border px-2 py-1 rounded-full">Approve KYC</button>
                     <button type="button" onClick={() => act({ action: "reject_agent_application", userId: a.id })} className="text-xs border border-red-200 text-red-700 px-2 py-1 rounded-full">Reject</button>
                   </div>
                 </div>
@@ -296,17 +316,11 @@ export default function AdminPage() {
 
             <section>
               <h2 className="font-display font-bold mb-1">2 · Agent fee ₹199 pending</h2>
-              <p className="text-xs text-ink-muted mb-3">Last step — approve after KYC is done.</p>
               {agentFees.map((p) => (
                 <div key={p.id} className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-2 flex flex-wrap justify-between gap-2 text-sm">
                   <div>
                     <p className="font-medium">{p.user?.name} · {p.user?.email}</p>
                     <p className="font-mono text-xs">UTR: {p.utr} · ₹{p.amount}</p>
-                    {p.screenshot && (
-                      <a href={p.screenshot} target="_blank" rel="noreferrer">
-                        <img src={p.screenshot} alt="" className="mt-2 max-h-16 rounded border" />
-                      </a>
-                    )}
                   </div>
                   <div className="flex flex-col gap-1">
                     <button type="button" onClick={() => approvePayment(p)} className="text-xs border px-2 py-1 rounded-full bg-white">Approve fee</button>
@@ -330,9 +344,6 @@ export default function AdminPage() {
                   </div>
                 </div>
               ))}
-              {withdrawals.filter((w) => w.status === "PENDING").length === 0 && (
-                <p className="text-sm text-ink-muted">No pending cashouts</p>
-              )}
             </section>
 
             <section>
@@ -342,7 +353,6 @@ export default function AdminPage() {
                   <div>
                     <p className="font-medium">{a.name} {a.isBanned ? "· BANNED" : ""}</p>
                     <p className="font-mono text-accent">Agent ID: {a.referralCode}</p>
-                    <p className="text-xs">{a.email} · {a.phone}</p>
                     <p className="text-xs">₹{a.pendingPay} avail · refs {a._count?.referrals ?? 0} · {a.commissionPct}%</p>
                   </div>
                   <div className="flex flex-col gap-1">
@@ -354,7 +364,6 @@ export default function AdminPage() {
                   </div>
                 </div>
               ))}
-              {agents.length === 0 && <p className="text-sm text-ink-muted">No active agents yet</p>}
             </section>
           </div>
         )}
