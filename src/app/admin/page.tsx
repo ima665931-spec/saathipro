@@ -5,12 +5,17 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-type Tab = "stats" | "users" | "saathis" | "bookings" | "reviews" | "payments" | "upi" | "agents";
+type Zone = "platform" | "agents";
+type PlatformTab = "stats" | "users" | "saathis" | "bookings" | "reviews" | "payments" | "upi";
+type AgentTab = "overview" | "kyc" | "list" | "cashouts";
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("stats");
+  const [zone, setZone] = useState<Zone>("platform");
+  const [pTab, setPTab] = useState<PlatformTab>("stats");
+  const [aTab, setATab] = useState<AgentTab>("kyc");
+
   const [stats, setStats] = useState<Record<string, number> | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [saathis, setSaathis] = useState<any[]>([]);
@@ -27,15 +32,17 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [newUpi, setNewUpi] = useState("");
-  const [bulkUpi, setBulkUpi] = useState("");
-  const [newName, setNewName] = useState("SaathiPro");
-  const [newLimit, setNewLimit] = useState(50);
 
-  const load = useCallback(async (section: Tab, search = "") => {
+  const section =
+    zone === "agents"
+      ? "agents"
+      : pTab;
+
+  const load = useCallback(async (sec: string, search = "") => {
     setLoading(true);
     setError("");
     try {
-      const url = `/api/admin?section=${section}${search ? `&q=${encodeURIComponent(search)}` : ""}`;
+      const url = `/api/admin?section=${sec}${search ? `&q=${encodeURIComponent(search)}` : ""}`;
       const res = await fetch(url);
       const data = await res.json();
       if (!res.ok) {
@@ -43,14 +50,14 @@ export default function AdminPage() {
         setLoading(false);
         return;
       }
-      if (section === "stats") setStats(data.stats);
-      if (section === "users") setUsers(data.users || []);
-      if (section === "saathis") setSaathis(data.saathis || []);
-      if (section === "bookings") setBookings(data.bookings || []);
-      if (section === "reviews") setReviews(data.reviews || []);
-      if (section === "payments") setPayments(data.payments || []);
-      if (section === "upi") setUpiList(data.upiList || []);
-      if (section === "agents") {
+      if (sec === "stats") setStats(data.stats);
+      if (sec === "users") setUsers(data.users || []);
+      if (sec === "saathis") setSaathis(data.saathis || []);
+      if (sec === "bookings") setBookings(data.bookings || []);
+      if (sec === "reviews") setReviews(data.reviews || []);
+      if (sec === "payments") setPayments(data.payments || []);
+      if (sec === "upi") setUpiList(data.upiList || []);
+      if (sec === "agents") {
         setAgents(data.agents || []);
         setApplications(data.applications || []);
         setWithdrawals(data.withdrawals || []);
@@ -67,8 +74,8 @@ export default function AdminPage() {
       router.push("/login?callbackUrl=/admin");
       return;
     }
-    if (status === "authenticated") load(tab, q);
-  }, [status, tab, router, load]);
+    if (status === "authenticated") load(section, q);
+  }, [status, section, router, load]);
 
   const act = async (body: Record<string, unknown>) => {
     setBusy(String(body.action));
@@ -79,21 +86,10 @@ export default function AdminPage() {
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || "Failed");
-      } else {
-        if (data.message) alert(data.message);
-        if (data.referralCode) alert(`Agent code: ${data.referralCode}`);
-        if (body.action === "approve_payment" && body.paymentId) {
-          fetch("/api/admin/notify-verified", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paymentId: body.paymentId }),
-          }).catch(() => {});
-        }
-        await load(tab, q);
-        if (body.action === "add_upi") setNewUpi("");
-        if (body.action === "bulk_add_upi") setBulkUpi("");
+      if (!res.ok) alert(data.error || "Failed");
+      else {
+        if (data.referralCode) alert(`Agent ID: ${data.referralCode}`);
+        await load(section, q);
       }
     } catch {
       alert("Network error");
@@ -113,21 +109,30 @@ export default function AdminPage() {
     }
   };
 
+  const copyText = (t: string) => {
+    navigator.clipboard.writeText(t).catch(() => {});
+  };
+
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-soft text-ink-muted text-sm">Loading…</div>
     );
   }
 
-  const tabs: { id: Tab; label: string }[] = [
+  const platformTabs: { id: PlatformTab; label: string }[] = [
     { id: "stats", label: "Overview" },
-    { id: "agents", label: "Agents" },
-    { id: "upi", label: "UPI Pool" },
     { id: "payments", label: "Payments" },
     { id: "users", label: "Users" },
     { id: "saathis", label: "Saathis" },
     { id: "bookings", label: "Bookings" },
     { id: "reviews", label: "Reviews" },
+    { id: "upi", label: "UPI Pool" },
+  ];
+
+  const agentTabs: { id: AgentTab; label: string }[] = [
+    { id: "kyc", label: "KYC queue" },
+    { id: "cashouts", label: "Cashouts" },
+    { id: "list", label: "Active agents" },
   ];
 
   return (
@@ -143,140 +148,183 @@ export default function AdminPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="font-display text-2xl font-bold text-ink mb-6">Control panel</h1>
+        <h1 className="font-display text-2xl font-bold text-ink mb-2">Control panel</h1>
+        <p className="text-sm text-ink-muted mb-6">Two sides — Platform users vs Agents. No mixing.</p>
 
-        <div className="flex flex-wrap gap-2 mb-6">
-          {tabs.map((t) => (
-            <button key={t.id} type="button" onClick={() => setTab(t.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                tab === t.id ? "btn-brand shadow-soft" : "bg-white border border-border text-ink-muted hover:text-accent"
-              }`}>{t.label}</button>
-          ))}
+        {/* Zone switch */}
+        <div className="flex gap-2 mb-6">
+          <button
+            type="button"
+            onClick={() => { setZone("platform"); setPTab("stats"); }}
+            className={`flex-1 py-3 rounded-2xl text-sm font-semibold border transition ${
+              zone === "platform"
+                ? "btn-brand shadow-soft border-transparent"
+                : "bg-white border-border text-ink-muted"
+            }`}
+          >
+            ① Platform
+            <span className="block text-xs font-normal opacity-80 mt-0.5">Seekers · Providers · Payments</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setZone("agents"); setATab("kyc"); }}
+            className={`flex-1 py-3 rounded-2xl text-sm font-semibold border transition ${
+              zone === "agents"
+                ? "btn-brand shadow-soft border-transparent"
+                : "bg-white border-border text-ink-muted"
+            }`}
+          >
+            ② Agents
+            <span className="block text-xs font-normal opacity-80 mt-0.5">KYC · Agent ID · Cashouts</span>
+          </button>
         </div>
 
+        {zone === "platform" && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {platformTabs.map((t) => (
+              <button key={t.id} type="button" onClick={() => setPTab(t.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  pTab === t.id ? "btn-brand" : "bg-white border border-border text-ink-muted"
+                }`}>{t.label}</button>
+            ))}
+          </div>
+        )}
+
+        {zone === "agents" && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {agentTabs.map((t) => (
+              <button key={t.id} type="button" onClick={() => setATab(t.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  aTab === t.id ? "btn-brand" : "bg-white border border-border text-ink-muted"
+                }`}>{t.label}</button>
+            ))}
+          </div>
+        )}
+
         {error && (
-          <div className="mb-6 p-4 bg-red-50 text-red-800 rounded-xl text-sm border border-red-100">
-            <p className="font-medium">{error}</p>
-            <p>Logged in as: <code className="bg-red-100 px-1">{session?.user?.email || "unknown"}</code></p>
+          <div className="mb-6 p-4 bg-red-50 text-red-800 rounded-xl text-sm">
+            {error} · {session?.user?.email}
           </div>
         )}
 
         {loading && <p className="text-ink-muted text-sm py-10">Loading…</p>}
 
-        {!loading && tab === "stats" && stats && (
+        {/* —— PLATFORM —— */}
+        {!loading && zone === "platform" && pTab === "stats" && stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              ["Users", stats.users], ["Agents", stats.agents],
-              ["Agent apps", stats.agentApps], ["Cashouts pending", stats.pendingWithdrawals],
-              ["Commission ₹", stats.pendingCommission], ["Pending payments", stats.pendingPay],
-              ["Bookings", stats.bookings], ["Banned", stats.banned],
-            ].map(([label, val]) => (
-              <div key={String(label)} className="bg-white border border-border rounded-2xl p-5 shadow-card">
-                <p className="text-xs uppercase tracking-wide text-ink-muted">{label}</p>
-                <p className="font-display text-2xl font-bold text-brand-gradient mt-1">{val ?? 0}</p>
+              ["Users", stats.users],
+              ["Pending payments", stats.pendingPay],
+              ["Saathis", stats.saathis],
+              ["Bookings", stats.bookings],
+              ["Agents (info)", stats.agents],
+              ["Banned", stats.banned],
+            ].map(([l, v]) => (
+              <div key={String(l)} className="bg-white border border-border rounded-2xl p-5 shadow-card">
+                <p className="text-xs uppercase text-ink-muted">{l}</p>
+                <p className="font-display text-2xl font-bold text-brand-gradient mt-1">{v ?? 0}</p>
               </div>
             ))}
           </div>
         )}
 
-        {!loading && tab === "agents" && (
-          <div className="space-y-10">
-            {kycView && (
-              <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setKycView(null)}>
-                <div className="bg-white rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                  <h3 className="font-display font-bold text-lg">KYC — {kycView.name}</h3>
-                  <p className="text-sm text-ink-muted">{kycView.email}</p>
-                  <p className="mt-3 text-sm">Phone: <strong>{kycView.phone}</strong></p>
-                  <p className="text-sm">Aadhaar: <strong className="font-mono">{kycView.aadhaar}</strong></p>
-                  <p className="text-sm">UPI: {kycView.agentUpi || "—"}</p>
-                  <p className="text-sm">Code: {kycView.referralCode || "—"} · {kycView.commissionPct}%</p>
-                  {kycView.aadhaarPhoto && (
-                    <img src={kycView.aadhaarPhoto} alt="Aadhaar" className="mt-4 w-full rounded-xl border" />
+        {!loading && zone === "platform" && pTab === "payments" && (
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search Reg ID / email / UTR"
+                className="flex-1 px-4 py-2 border border-border rounded-xl text-sm font-mono"
+              />
+              <button type="button" onClick={() => load("payments", q)} className="btn-brand px-4 py-2 rounded-xl text-sm">Search</button>
+            </div>
+            <p className="text-xs text-ink-muted">Paste Registration ID (SP……) for fast approve.</p>
+            {payments.map((p) => (
+              <div key={p.id} className="bg-white border border-border rounded-2xl p-4 shadow-card">
+                <div className="flex flex-wrap justify-between gap-3">
+                  <div className="text-sm">
+                    <p className="font-medium">{p.user?.name} · {p.status} · ₹{p.amount}</p>
+                    <p className="text-ink-muted">{p.user?.email}</p>
+                    <p className="font-mono text-xs mt-1">
+                      Reg ID:{" "}
+                      <strong className="text-accent">{p.user?.publicId || "—"}</strong>{" "}
+                      {p.user?.publicId && (
+                        <button type="button" className="text-accent underline" onClick={() => copyText(p.user.publicId)}>Copy</button>
+                      )}
+                    </p>
+                    <p className="font-mono text-xs">UTR: {p.utr || "—"} · {p.plan}</p>
+                    {p.screenshot && (
+                      <a href={p.screenshot} target="_blank" rel="noreferrer">
+                        <img src={p.screenshot} alt="" className="mt-2 max-h-24 rounded border" />
+                      </a>
+                    )}
+                  </div>
+                  {p.status === "PENDING" && (
+                    <div className="flex flex-col gap-1">
+                      <Btn onClick={() => act({ action: "approve_payment", paymentId: p.id })} label="Approve" />
+                      <Btn onClick={() => act({ action: "reject_payment", paymentId: p.id })} label="Reject" danger />
+                    </div>
                   )}
-                  {!kycView.aadhaarPhoto && <p className="mt-2 text-xs text-amber-700">No photo uploaded yet</p>}
-                  <button type="button" onClick={() => setKycView(null)} className="mt-4 btn-brand px-4 py-2 rounded-full text-sm">Close</button>
                 </div>
               </div>
-            )}
-
-            <div className="space-y-3">
-              <h2 className="font-display font-bold text-ink">Agent applications (KYC)</h2>
-              <p className="text-xs text-ink-muted">Mobile + Aadhaar number + photo. Approve → 50% + code.</p>
-              {applications.map((a) => (
-                <div key={a.id} className="bg-white border border-border rounded-2xl p-4 shadow-card">
-                  <div className="flex flex-wrap justify-between gap-3">
-                    <div className="text-sm">
-                      <p className="font-medium text-ink">{a.name} · {a.email}</p>
-                      <p className="text-ink-muted mt-1">Phone: <strong>{a.phone}</strong></p>
-                      <p className="text-ink-muted">Aadhaar: <strong className="font-mono">{a.aadhaar}</strong></p>
-                      <p className="text-ink-muted">UPI: {a.agentUpi || "—"}</p>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <Btn onClick={() => viewKyc(a.id)} label="View photo / KYC" />
-                      <Btn onClick={() => act({ action: "approve_agent_application", userId: a.id, commissionPct: 50 })} label="Approve agent" />
-                      <Btn onClick={() => act({ action: "reject_agent_application", userId: a.id })} label="Reject" danger />
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {applications.length === 0 && <p className="text-sm text-ink-muted">No pending applications</p>}
-            </div>
-
-            <div className="space-y-3">
-              <h2 className="font-display font-bold text-ink">Cashout requests</h2>
-              {withdrawals.filter((w) => w.status === "PENDING").map((w) => (
-                <div key={w.id} className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-card">
-                  <div className="flex flex-wrap justify-between gap-3">
-                    <div className="text-sm">
-                      <p className="font-medium">{w.agent?.name} · {w.agent?.email}</p>
-                      <p className="mt-1">Pay <strong className="text-lg text-brand-gradient">₹{w.amount}</strong> to</p>
-                      <p className="font-mono font-bold">{w.upiId}</p>
-                      <p className="text-xs text-ink-muted mt-1">Phone: {w.phone || w.agent?.phone} · Aadhaar: {w.aadhaar}</p>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <Btn onClick={() => act({ action: "pay_withdrawal", withdrawalId: w.id })} label="Mark paid" />
-                      <Btn onClick={() => act({ action: "reject_withdrawal", withdrawalId: w.id })} label="Reject" danger />
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {withdrawals.filter((w) => w.status === "PENDING").length === 0 && (
-                <p className="text-sm text-ink-muted">No pending cashouts</p>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <h2 className="font-display font-bold text-ink">Active agents ({agents.length})</h2>
-              {agents.map((a) => (
-                <div key={a.id} className="bg-white border border-border rounded-2xl p-4 shadow-card">
-                  <div className="flex flex-wrap justify-between gap-3">
-                    <div>
-                      <p className="font-medium">{a.name} · <span className="font-mono text-accent">{a.referralCode}</span></p>
-                      <p className="text-sm text-ink-muted">{a.email} · {a.phone}</p>
-                      <p className="text-xs text-ink-muted">UPI: {a.agentUpi || "—"} · Aadhaar: {a.aadhaar || "—"}</p>
-                      <p className="text-xs text-ink-muted">
-                        Refs: {a._count?.referrals ?? 0} · ₹{a.pendingPay} avail · ₹{a.paidTotal} paid · {a.commissionPct}%
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <Btn onClick={() => viewKyc(a.id)} label="View KYC" />
-                      <Btn onClick={() => act({ action: "demote_agent", userId: a.id })} label="Demote" danger />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            ))}
+            {payments.length === 0 && <p className="text-sm text-ink-muted">No payments</p>}
           </div>
         )}
 
-        {!loading && tab === "upi" && (
-          <div className="space-y-6">
-            <div className="bg-white border border-border rounded-2xl p-5 shadow-card space-y-4">
-              <h2 className="font-display font-bold text-ink">UPI Pool</h2>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input value={newUpi} onChange={(e) => setNewUpi(e.target.value)} placeholder="name@ybl" className="flex-1 px-3 py-2 border border-border rounded-xl text-sm" />
-                <button type="button" onClick={() => act({ action: "add_upi", upiId: newUpi, displayName: newName, dailyLimit: newLimit })} className="btn-brand px-4 py-2 rounded-xl text-sm">Add</button>
+        {!loading && zone === "platform" && pTab === "users" && (
+          <div className="space-y-3">
+            <div className="flex gap-2 mb-2">
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Reg ID or email"
+                className="flex-1 px-4 py-2 border rounded-xl text-sm font-mono" />
+              <button type="button" onClick={() => load("users", q)} className="btn-brand px-4 py-2 rounded-xl text-sm">Search</button>
+            </div>
+            {users.map((u) => (
+              <div key={u.id} className="bg-white border rounded-2xl p-4 flex flex-wrap justify-between gap-2 shadow-card">
+                <div className="text-sm">
+                  <p className="font-medium">{u.name} · {u.role}</p>
+                  <p className="text-ink-muted">{u.email}</p>
+                  <p className="font-mono text-xs mt-1">
+                    Reg ID: <strong>{u.publicId || "—"}</strong>{" "}
+                    {u.publicId && <button type="button" className="text-accent underline" onClick={() => copyText(u.publicId)}>Copy</button>}
+                  </p>
+                </div>
+                <Btn onClick={() => act({ action: u.isBanned ? "unban_user" : "ban_user", userId: u.id })}
+                  label={u.isBanned ? "Unban" : "Ban"} danger={!u.isBanned} />
               </div>
+            ))}
+          </div>
+        )}
+
+        {!loading && zone === "platform" && pTab === "saathis" && saathis.map((s) => (
+          <div key={s.id} className="bg-white border rounded-2xl p-4 mb-2 flex justify-between shadow-card">
+            <p className="text-sm">{s.user?.name} · {s.user?.email}</p>
+            <Btn onClick={() => act({ action: s.isVerified ? "unverify_saathi" : "verify_saathi", saathiUserId: s.userId })}
+              label={s.isVerified ? "Unverify" : "Verify"} />
+          </div>
+        ))}
+
+        {!loading && zone === "platform" && pTab === "bookings" && bookings.map((b) => (
+          <div key={b.id} className="bg-white border rounded-2xl p-4 mb-2 flex justify-between shadow-card">
+            <p className="text-sm">{b.saathiName} · {b.status}</p>
+            <Btn onClick={() => act({ action: "cancel_booking", bookingId: b.id })} label="Cancel" danger />
+          </div>
+        ))}
+
+        {!loading && zone === "platform" && pTab === "reviews" && reviews.map((r) => (
+          <div key={r.id} className="bg-white border rounded-2xl p-4 mb-2 flex justify-between shadow-card">
+            <p className="text-sm">{"★".repeat(r.rating)} {r.comment}</p>
+            <Btn onClick={() => act({ action: "delete_review", reviewId: r.id })} label="Delete" danger />
+          </div>
+        ))}
+
+        {!loading && zone === "platform" && pTab === "upi" && (
+          <div className="space-y-4">
+            <div className="bg-white border rounded-2xl p-4 flex gap-2 shadow-card">
+              <input value={newUpi} onChange={(e) => setNewUpi(e.target.value)} placeholder="name@ybl"
+                className="flex-1 px-3 py-2 border rounded-xl text-sm" />
+              <button type="button" onClick={() => act({ action: "add_upi", upiId: newUpi })} className="btn-brand px-4 py-2 rounded-xl text-sm">Add</button>
             </div>
             {upiList.map((u) => (
               <div key={u.id} className="bg-white border rounded-2xl p-4 flex justify-between shadow-card">
@@ -287,51 +335,93 @@ export default function AdminPage() {
           </div>
         )}
 
-        {!loading && tab === "payments" && payments.map((p) => (
-          <div key={p.id} className="bg-white border rounded-2xl p-4 mb-2 shadow-card flex justify-between">
-            <div className="text-sm">
-              <p className="font-medium">{p.user?.name} · {p.status} · ₹{p.amount}</p>
-              <p className="text-ink-muted">{p.user?.email} · UTR: {p.utr}</p>
-            </div>
-            {p.status === "PENDING" && (
-              <div className="flex flex-col gap-1">
-                <Btn onClick={() => act({ action: "approve_payment", paymentId: p.id })} label="Approve" />
-                <Btn onClick={() => act({ action: "reject_payment", paymentId: p.id })} label="Reject" danger />
+        {/* —— AGENTS —— */}
+        {!loading && zone === "agents" && (
+          <div className="space-y-6">
+            {kycView && (
+              <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setKycView(null)}>
+                <div className="bg-white rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="font-display font-bold text-lg">KYC — {kycView.name}</h3>
+                  <p className="text-sm text-ink-muted">{kycView.email}</p>
+                  <p className="mt-2 text-sm">Phone: <strong>{kycView.phone}</strong></p>
+                  <p className="text-sm">Aadhaar: <strong className="font-mono">{kycView.aadhaar}</strong></p>
+                  <p className="text-sm">Agent ID: <strong className="font-mono">{kycView.referralCode || "—"}</strong></p>
+                  {kycView.aadhaarPhoto && <img src={kycView.aadhaarPhoto} alt="" className="mt-4 w-full rounded-xl border" />}
+                  <button type="button" onClick={() => setKycView(null)} className="mt-4 btn-brand px-4 py-2 rounded-full text-sm">Close</button>
+                </div>
+              </div>
+            )}
+
+            {aTab === "kyc" && (
+              <div className="space-y-3">
+                <h2 className="font-display font-bold">KYC queue</h2>
+                <p className="text-xs text-ink-muted">Approve only after checking mobile + Aadhaar photo.</p>
+                {applications.map((a) => (
+                  <div key={a.id} className="bg-white border rounded-2xl p-4 shadow-card">
+                    <div className="flex flex-wrap justify-between gap-3">
+                      <div className="text-sm">
+                        <p className="font-medium">{a.name} · {a.email}</p>
+                        <p>Phone: <strong>{a.phone}</strong></p>
+                        <p>Aadhaar: <strong className="font-mono">{a.aadhaar}</strong></p>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <Btn onClick={() => viewKyc(a.id)} label="View photo" />
+                        <Btn onClick={() => act({ action: "approve_agent_application", userId: a.id, commissionPct: 50 })} label="Approve" />
+                        <Btn onClick={() => act({ action: "reject_agent_application", userId: a.id })} label="Reject" danger />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {applications.length === 0 && <p className="text-sm text-ink-muted">No pending KYC</p>}
+              </div>
+            )}
+
+            {aTab === "cashouts" && (
+              <div className="space-y-3">
+                <h2 className="font-display font-bold">Cashouts</h2>
+                {withdrawals.filter((w) => w.status === "PENDING").map((w) => (
+                  <div key={w.id} className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                    <p className="font-medium text-sm">{w.agent?.name}</p>
+                    <p className="text-lg font-bold text-brand-gradient">₹{w.amount} → {w.upiId}</p>
+                    <p className="text-xs">Phone {w.phone} · Aadhaar {w.aadhaar}</p>
+                    <div className="mt-2 flex gap-2">
+                      <Btn onClick={() => act({ action: "pay_withdrawal", withdrawalId: w.id })} label="Mark paid" />
+                      <Btn onClick={() => act({ action: "reject_withdrawal", withdrawalId: w.id })} label="Reject" danger />
+                    </div>
+                  </div>
+                ))}
+                {withdrawals.filter((w) => w.status === "PENDING").length === 0 && (
+                  <p className="text-sm text-ink-muted">No pending cashouts</p>
+                )}
+              </div>
+            )}
+
+            {aTab === "list" && (
+              <div className="space-y-3">
+                <h2 className="font-display font-bold">Active agents ({agents.length})</h2>
+                {agents.map((a) => (
+                  <div key={a.id} className="bg-white border rounded-2xl p-4 shadow-card">
+                    <div className="flex flex-wrap justify-between gap-2">
+                      <div className="text-sm">
+                        <p className="font-medium">{a.name}</p>
+                        <p className="font-mono text-accent">
+                          Agent ID: {a.referralCode}{" "}
+                          <button type="button" className="underline text-xs" onClick={() => copyText(a.referralCode || "")}>Copy</button>
+                        </p>
+                        <p className="text-ink-muted">{a.email} · {a.phone}</p>
+                        <p className="text-xs">₹{a.pendingPay} avail · ₹{a.paidTotal} paid · {a.commissionPct}%</p>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <Btn onClick={() => viewKyc(a.id)} label="View KYC" />
+                        <Btn onClick={() => act({ action: "demote_agent", userId: a.id })} label="Demote" danger />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        ))}
-
-        {!loading && tab === "users" && users.map((u) => (
-          <div key={u.id} className="bg-white border rounded-2xl p-4 mb-2 flex justify-between shadow-card">
-            <div><p className="font-medium">{u.name} · {u.role}</p><p className="text-sm text-ink-muted">{u.email}</p></div>
-            <div className="flex gap-1">
-              {u.role !== "AGENT" && <Btn onClick={() => act({ action: "promote_to_agent", userId: u.id, commissionPct: 50 })} label="→ Agent" />}
-              <Btn onClick={() => act({ action: u.isBanned ? "unban_user" : "ban_user", userId: u.id })} label={u.isBanned ? "Unban" : "Ban"} danger={!u.isBanned} />
-            </div>
-          </div>
-        ))}
-
-        {!loading && tab === "saathis" && saathis.map((s) => (
-          <div key={s.id} className="bg-white border rounded-2xl p-4 mb-2 flex justify-between shadow-card">
-            <p className="text-sm">{s.user?.name}</p>
-            <Btn onClick={() => act({ action: s.isVerified ? "unverify_saathi" : "verify_saathi", saathiUserId: s.userId })} label={s.isVerified ? "Unverify" : "Verify"} />
-          </div>
-        ))}
-
-        {!loading && tab === "bookings" && bookings.map((b) => (
-          <div key={b.id} className="bg-white border rounded-2xl p-4 mb-2 flex justify-between shadow-card">
-            <p className="text-sm">{b.saathiName} · {b.status}</p>
-            <Btn onClick={() => act({ action: "cancel_booking", bookingId: b.id })} label="Cancel" danger />
-          </div>
-        ))}
-
-        {!loading && tab === "reviews" && reviews.map((r) => (
-          <div key={r.id} className="bg-white border rounded-2xl p-4 mb-2 flex justify-between shadow-card">
-            <p className="text-sm">{"★".repeat(r.rating)} {r.comment}</p>
-            <Btn onClick={() => act({ action: "delete_review", reviewId: r.id })} label="Delete" danger />
-          </div>
-        ))}
+        )}
 
         {busy && <p className="fixed bottom-4 right-4 bg-brand-gradient text-white text-xs px-3 py-2 rounded-full">Working…</p>}
       </main>
@@ -342,8 +432,8 @@ export default function AdminPage() {
 function Btn({ onClick, label, danger }: { onClick: () => void; label: string; danger?: boolean }) {
   return (
     <button type="button" onClick={onClick}
-      className={`text-xs font-medium px-2.5 py-1 rounded-full border transition ${
-        danger ? "border-red-200 text-red-700 hover:bg-red-50" : "border-border text-ink hover:border-accent/40"
+      className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+        danger ? "border-red-200 text-red-700" : "border-border text-ink"
       }`}>{label}</button>
   );
 }
