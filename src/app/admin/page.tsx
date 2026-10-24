@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 type Zone = "platform" | "agents";
+type AgentTab = "kyc" | "fees" | "cashouts" | "list";
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [zone, setZone] = useState<Zone>("platform");
   const [tab, setTab] = useState("payments");
+  const [agentTab, setAgentTab] = useState<AgentTab>("kyc");
   const [stats, setStats] = useState<Record<string, number> | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
@@ -166,6 +168,8 @@ export default function AdminPage() {
     }
   };
 
+  const pendingCashouts = withdrawals.filter((w) => w.status === "PENDING");
+
   if (status === "loading") {
     return <div className="min-h-screen flex items-center justify-center bg-brand-soft text-sm text-ink-muted">Loading…</div>;
   }
@@ -183,30 +187,83 @@ export default function AdminPage() {
         <h1 className="font-display text-2xl font-bold text-ink mb-2">Control panel</h1>
 
         <div className="flex gap-2 mb-6">
-          <button type="button" onClick={() => { setZone("platform"); setTab("payments"); }}
+          <button
+            type="button"
+            onClick={() => {
+              setZone("platform");
+              setTab("payments");
+            }}
             className={`flex-1 py-3 rounded-2xl text-sm font-semibold border ${
               zone === "platform" ? "btn-brand border-transparent" : "bg-white border-border text-ink-muted"
-            }`}>① Platform<span className="block text-xs font-normal opacity-80">Users · Payments · Saathis</span></button>
-          <button type="button" onClick={() => { setZone("agents"); setTab("agents"); }}
+            }`}
+          >
+            ① Platform
+            <span className="block text-xs font-normal opacity-80">Users · Payments · Saathis</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setZone("agents");
+              setAgentTab("kyc");
+            }}
             className={`flex-1 py-3 rounded-2xl text-sm font-semibold border ${
               zone === "agents" ? "btn-brand border-transparent" : "bg-white border-border text-ink-muted"
-            }`}>② Agents<span className="block text-xs font-normal opacity-80">KYC · Fees · Ban · Delete</span></button>
+            }`}
+          >
+            ② Agents
+            <span className="block text-xs font-normal opacity-80">KYC · Fees · Cashouts · List</span>
+          </button>
         </div>
 
         {zone === "platform" && (
           <div className="flex flex-wrap gap-2 mb-6">
             {["payments", "users", "saathis", "upi", "stats"].map((t) => (
-              <button key={t} type="button" onClick={() => setTab(t)}
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
                 className={`px-4 py-2 rounded-full text-sm font-medium ${
                   tab === t ? "btn-brand" : "bg-white border border-border text-ink-muted"
-                }`}>{t}</button>
+                }`}
+              >
+                {t}
+              </button>
             ))}
           </div>
         )}
 
-        {error && <div className="mb-4 p-3 bg-red-50 text-red-800 rounded-xl text-sm">{error} · {session?.user?.email}</div>}
+        {zone === "agents" && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {(
+              [
+                { id: "kyc" as const, label: `KYC queue (${applications.length})` },
+                { id: "fees" as const, label: `Fees ₹199 (${agentFees.length})` },
+                { id: "cashouts" as const, label: `Cashouts (${pendingCashouts.length})` },
+                { id: "list" as const, label: `All agents (${agents.length})` },
+              ] as const
+            ).map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setAgentTab(t.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  agentTab === t.id ? "btn-brand" : "bg-white border border-border text-ink-muted"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-800 rounded-xl text-sm">
+            {error} · {session?.user?.email}
+          </div>
+        )}
         {loading && <p className="text-sm text-ink-muted py-8">Loading…</p>}
 
+        {/* —— PLATFORM —— */}
         {!loading && zone === "platform" && tab === "stats" && stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {Object.entries(stats).map(([k, v]) => (
@@ -221,9 +278,15 @@ export default function AdminPage() {
         {!loading && zone === "platform" && tab === "payments" && (
           <div className="space-y-3">
             <div className="flex gap-2">
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Reg ID / email / UTR"
-                className="flex-1 px-4 py-2 border rounded-xl text-sm font-mono" />
-              <button type="button" onClick={() => load("payments", q)} className="btn-brand px-4 py-2 rounded-xl text-sm">Search</button>
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Reg ID / email / UTR"
+                className="flex-1 px-4 py-2 border rounded-xl text-sm font-mono"
+              />
+              <button type="button" onClick={() => load("payments", q)} className="btn-brand px-4 py-2 rounded-xl text-sm">
+                Search
+              </button>
             </div>
             {payments.map((p) => (
               <div key={p.id} className="bg-white border rounded-2xl p-4 shadow-card flex flex-wrap justify-between gap-3">
@@ -238,16 +301,25 @@ export default function AdminPage() {
                   <p className="font-mono text-xs mt-1">
                     Reg ID: <strong>{p.user?.publicId || "—"}</strong>{" "}
                     {p.user?.publicId && (
-                      <button type="button" className="text-accent underline" onClick={() => copyText(p.user.publicId)}>Copy</button>
+                      <button type="button" className="text-accent underline" onClick={() => copyText(p.user.publicId)}>
+                        Copy
+                      </button>
                     )}
                   </p>
                   <p className="font-mono text-xs">UTR: {p.utr || "—"}</p>
                 </div>
                 {p.status === "PENDING" && (
                   <div className="flex flex-col gap-1">
-                    <button type="button" onClick={() => approvePayment(p)} className="text-xs px-2.5 py-1 rounded-full border">Approve</button>
-                    <button type="button" onClick={() => act({ action: "reject_payment", paymentId: p.id })}
-                      className="text-xs px-2.5 py-1 rounded-full border border-red-200 text-red-700">Reject</button>
+                    <button type="button" onClick={() => approvePayment(p)} className="text-xs px-2.5 py-1 rounded-full border">
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => act({ action: "reject_payment", paymentId: p.id })}
+                      className="text-xs px-2.5 py-1 rounded-full border border-red-200 text-red-700"
+                    >
+                      Reject
+                    </button>
                   </div>
                 )}
               </div>
@@ -258,23 +330,41 @@ export default function AdminPage() {
         {!loading && zone === "platform" && tab === "users" && (
           <div className="space-y-3">
             <div className="flex gap-2">
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Reg ID or email"
-                className="flex-1 px-4 py-2 border rounded-xl text-sm font-mono" />
-              <button type="button" onClick={() => load("users", q)} className="btn-brand px-4 py-2 rounded-xl text-sm">Search</button>
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Reg ID or email"
+                className="flex-1 px-4 py-2 border rounded-xl text-sm font-mono"
+              />
+              <button type="button" onClick={() => load("users", q)} className="btn-brand px-4 py-2 rounded-xl text-sm">
+                Search
+              </button>
             </div>
             {users.map((u) => (
               <div key={u.id} className="bg-white border rounded-2xl p-4 flex flex-wrap justify-between gap-3 shadow-card text-sm">
                 <div>
-                  <p className="font-medium">{u.name} · {u.role}</p>
+                  <p className="font-medium">
+                    {u.name} · {u.role}
+                  </p>
                   <p className="text-ink-muted">{u.email}</p>
                   <p className="font-mono text-xs">Reg ID: {u.publicId || "—"}</p>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <button type="button" onClick={() => act({ action: u.isBanned ? "unban_user" : "ban_user", userId: u.id })}
-                    className="text-xs px-2.5 py-1 rounded-full border border-red-200 text-red-700">{u.isBanned ? "Unban" : "Ban"}</button>
+                  <button
+                    type="button"
+                    onClick={() => act({ action: u.isBanned ? "unban_user" : "ban_user", userId: u.id })}
+                    className="text-xs px-2.5 py-1 rounded-full border border-red-200 text-red-700"
+                  >
+                    {u.isBanned ? "Unban" : "Ban"}
+                  </button>
                   {u.role !== "ADMIN" && (
-                    <button type="button" onClick={() => deleteUser(u)}
-                      className="text-xs px-2.5 py-1 rounded-full bg-red-600 text-white">Delete forever</button>
+                    <button
+                      type="button"
+                      onClick={() => deleteUser(u)}
+                      className="text-xs px-2.5 py-1 rounded-full bg-red-600 text-white"
+                    >
+                      Delete forever
+                    </button>
                   )}
                 </div>
               </div>
@@ -282,119 +372,246 @@ export default function AdminPage() {
           </div>
         )}
 
-        {!loading && zone === "platform" && tab === "saathis" && saathis.map((s) => (
-          <div key={s.id} className="bg-white border rounded-2xl p-4 mb-2 flex justify-between shadow-card text-sm">
-            <p>{s.user?.name}</p>
-            <button type="button" onClick={() => act({ action: s.isVerified ? "unverify_saathi" : "verify_saathi", saathiUserId: s.userId })}
-              className="text-xs px-2.5 py-1 rounded-full border">{s.isVerified ? "Unverify" : "Verify"}</button>
-          </div>
-        ))}
+        {!loading &&
+          zone === "platform" &&
+          tab === "saathis" &&
+          saathis.map((s) => (
+            <div key={s.id} className="bg-white border rounded-2xl p-4 mb-2 flex justify-between shadow-card text-sm">
+              <p>{s.user?.name}</p>
+              <button
+                type="button"
+                onClick={() =>
+                  act({
+                    action: s.isVerified ? "unverify_saathi" : "verify_saathi",
+                    saathiUserId: s.userId,
+                  })
+                }
+                className="text-xs px-2.5 py-1 rounded-full border"
+              >
+                {s.isVerified ? "Unverify" : "Verify"}
+              </button>
+            </div>
+          ))}
 
         {!loading && zone === "platform" && tab === "upi" && (
           <div className="space-y-3">
             <div className="flex gap-2">
-              <input value={newUpi} onChange={(e) => setNewUpi(e.target.value)} placeholder="name@ybl" className="flex-1 px-3 py-2 border rounded-xl text-sm" />
-              <button type="button" onClick={() => act({ action: "add_upi", upiId: newUpi })} className="btn-brand px-4 py-2 rounded-xl text-sm">Add</button>
+              <input
+                value={newUpi}
+                onChange={(e) => setNewUpi(e.target.value)}
+                placeholder="name@ybl"
+                className="flex-1 px-3 py-2 border rounded-xl text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => act({ action: "add_upi", upiId: newUpi })}
+                className="btn-brand px-4 py-2 rounded-xl text-sm"
+              >
+                Add
+              </button>
             </div>
             {upiList.map((u) => (
               <div key={u.id} className="bg-white border rounded-2xl p-3 flex justify-between text-sm">
                 <span className="font-mono">{u.upiId}</span>
-                <button type="button" onClick={() => act({ action: "toggle_upi", poolId: u.id })} className="text-xs border px-2 py-1 rounded-full">{u.isActive ? "Off" : "On"}</button>
+                <button
+                  type="button"
+                  onClick={() => act({ action: "toggle_upi", poolId: u.id })}
+                  className="text-xs border px-2 py-1 rounded-full"
+                >
+                  {u.isActive ? "Off" : "On"}
+                </button>
               </div>
             ))}
           </div>
         )}
 
-        {!loading && zone === "agents" && (
-          <div className="space-y-10">
-            {kycView && (
-              <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setKycView(null)}>
-                <div className="bg-white rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                  <h3 className="font-bold">{kycView.name}</h3>
-                  <p className="text-sm">{kycView.email}</p>
-                  <p className="text-sm mt-2">Phone: {kycView.phone}</p>
-                  <p className="text-sm">Aadhaar: {kycView.aadhaar}</p>
-                  <p className="text-sm font-mono">Agent ID: {kycView.referralCode}</p>
-                  {kycView.aadhaarPhoto && <img src={kycView.aadhaarPhoto} alt="" className="mt-3 w-full rounded-xl border" />}
-                  <button type="button" onClick={() => setKycView(null)} className="mt-4 btn-brand px-4 py-2 rounded-full text-sm">Close</button>
+        {/* —— AGENTS (tabbed) —— */}
+        {zone === "agents" && kycView && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setKycView(null)}>
+            <div
+              className="bg-white rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-bold">{kycView.name}</h3>
+              <p className="text-sm">{kycView.email}</p>
+              <p className="text-sm mt-2">Phone: {kycView.phone}</p>
+              <p className="text-sm">Aadhaar: {kycView.aadhaar}</p>
+              <p className="text-sm font-mono">Agent ID: {kycView.referralCode}</p>
+              {kycView.aadhaarPhoto && (
+                <img src={kycView.aadhaarPhoto} alt="" className="mt-3 w-full rounded-xl border" />
+              )}
+              <button
+                type="button"
+                onClick={() => setKycView(null)}
+                className="mt-4 btn-brand px-4 py-2 rounded-full text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!loading && zone === "agents" && agentTab === "kyc" && (
+          <div className="space-y-3">
+            <p className="text-xs text-ink-muted">Approve KYC first — ₹199 fee is last step for the agent.</p>
+            {applications.map((a) => (
+              <div
+                key={a.id}
+                className="bg-white border rounded-2xl p-4 flex flex-wrap justify-between gap-2 shadow-card text-sm"
+              >
+                <div>
+                  <p className="font-medium">
+                    {a.name} · {a.email}
+                  </p>
+                  <p>
+                    Phone: {a.phone} · Aadhaar: {a.aadhaar}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <button type="button" onClick={() => viewKyc(a.id)} className="text-xs border px-2 py-1 rounded-full">
+                    View photo
+                  </button>
+                  <button type="button" onClick={() => approveKyc(a.id)} className="text-xs border px-2 py-1 rounded-full">
+                    Approve KYC
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => act({ action: "reject_agent_application", userId: a.id })}
+                    className="text-xs border border-red-200 text-red-700 px-2 py-1 rounded-full"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteUser(a)}
+                    className="text-xs bg-red-600 text-white px-2 py-1 rounded-full"
+                  >
+                    Delete forever
+                  </button>
                 </div>
               </div>
-            )}
+            ))}
+            {applications.length === 0 && <p className="text-sm text-ink-muted py-6">No pending KYC</p>}
+          </div>
+        )}
 
-            <section>
-              <h2 className="font-display font-bold mb-1">1 · KYC queue</h2>
-              <p className="text-xs text-ink-muted mb-3">Approve KYC first — fee is last.</p>
-              {applications.map((a) => (
-                <div key={a.id} className="bg-white border rounded-2xl p-4 mb-2 flex flex-wrap justify-between gap-2 shadow-card text-sm">
-                  <div>
-                    <p className="font-medium">{a.name} · {a.email}</p>
-                    <p>Phone: {a.phone} · Aadhaar: {a.aadhaar}</p>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <button type="button" onClick={() => viewKyc(a.id)} className="text-xs border px-2 py-1 rounded-full">View photo</button>
-                    <button type="button" onClick={() => approveKyc(a.id)} className="text-xs border px-2 py-1 rounded-full">Approve KYC</button>
-                    <button type="button" onClick={() => act({ action: "reject_agent_application", userId: a.id })} className="text-xs border border-red-200 text-red-700 px-2 py-1 rounded-full">Reject</button>
-                    <button type="button" onClick={() => deleteUser(a)} className="text-xs bg-red-600 text-white px-2 py-1 rounded-full">Delete forever</button>
-                  </div>
+        {!loading && zone === "agents" && agentTab === "fees" && (
+          <div className="space-y-3">
+            <p className="text-xs text-ink-muted">Agent entry fee ₹199 — after KYC approved.</p>
+            {agentFees.map((p) => (
+              <div
+                key={p.id}
+                className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-wrap justify-between gap-2 text-sm"
+              >
+                <div>
+                  <p className="font-medium">
+                    {p.user?.name} · {p.user?.email}
+                  </p>
+                  <p className="font-mono text-xs">
+                    UTR: {p.utr} · ₹{p.amount}
+                  </p>
                 </div>
-              ))}
-              {applications.length === 0 && <p className="text-sm text-ink-muted">No pending KYC</p>}
-            </section>
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => approvePayment(p)}
+                    className="text-xs border px-2 py-1 rounded-full bg-white"
+                  >
+                    Approve fee
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => act({ action: "reject_payment", paymentId: p.id })}
+                    className="text-xs border border-red-200 text-red-700 px-2 py-1 rounded-full"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+            {agentFees.length === 0 && <p className="text-sm text-ink-muted py-6">No pending agent fees</p>}
+          </div>
+        )}
 
-            <section>
-              <h2 className="font-display font-bold mb-1">2 · Agent fee ₹199 pending</h2>
-              {agentFees.map((p) => (
-                <div key={p.id} className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-2 flex flex-wrap justify-between gap-2 text-sm">
-                  <div>
-                    <p className="font-medium">{p.user?.name} · {p.user?.email}</p>
-                    <p className="font-mono text-xs">UTR: {p.utr} · ₹{p.amount}</p>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <button type="button" onClick={() => approvePayment(p)} className="text-xs border px-2 py-1 rounded-full bg-white">Approve fee</button>
-                    <button type="button" onClick={() => act({ action: "reject_payment", paymentId: p.id })}
-                      className="text-xs border border-red-200 text-red-700 px-2 py-1 rounded-full">Reject</button>
-                  </div>
+        {!loading && zone === "agents" && agentTab === "cashouts" && (
+          <div className="space-y-3">
+            <p className="text-xs text-ink-muted">Mark paid after you send money on agent UPI.</p>
+            {pendingCashouts.map((w) => (
+              <div key={w.id} className="bg-white border rounded-2xl p-4 text-sm shadow-card">
+                <p className="font-medium">{w.agent?.name}</p>
+                <p className="text-xs text-ink-muted">{w.agent?.email}</p>
+                <p className="text-lg font-bold text-brand-gradient mt-1">
+                  ₹{w.amount} → {w.upiId}
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => act({ action: "pay_withdrawal", withdrawalId: w.id })}
+                    className="text-xs border px-2 py-1 rounded-full"
+                  >
+                    Mark paid
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => act({ action: "reject_withdrawal", withdrawalId: w.id })}
+                    className="text-xs border border-red-200 text-red-700 px-2 py-1 rounded-full"
+                  >
+                    Reject
+                  </button>
                 </div>
-              ))}
-              {agentFees.length === 0 && <p className="text-sm text-ink-muted">No pending agent fees</p>}
-            </section>
+              </div>
+            ))}
+            {pendingCashouts.length === 0 && <p className="text-sm text-ink-muted py-6">No pending cashouts</p>}
+          </div>
+        )}
 
-            <section>
-              <h2 className="font-display font-bold mb-2">3 · Cashouts</h2>
-              {withdrawals.filter((w) => w.status === "PENDING").map((w) => (
-                <div key={w.id} className="bg-white border rounded-2xl p-4 mb-2 text-sm">
-                  <p className="font-medium">{w.agent?.name}</p>
-                  <p className="text-lg font-bold text-brand-gradient">₹{w.amount} → {w.upiId}</p>
-                  <div className="mt-2 flex gap-2">
-                    <button type="button" onClick={() => act({ action: "pay_withdrawal", withdrawalId: w.id })} className="text-xs border px-2 py-1 rounded-full">Mark paid</button>
-                    <button type="button" onClick={() => act({ action: "reject_withdrawal", withdrawalId: w.id })} className="text-xs border border-red-200 text-red-700 px-2 py-1 rounded-full">Reject</button>
-                  </div>
+        {!loading && zone === "agents" && agentTab === "list" && (
+          <div className="space-y-3">
+            <p className="text-xs text-ink-muted">Active agents — ban, demote, or delete.</p>
+            {agents.map((a) => (
+              <div
+                key={a.id}
+                className="bg-white border rounded-2xl p-4 text-sm shadow-card flex flex-wrap justify-between gap-2"
+              >
+                <div>
+                  <p className="font-medium">
+                    {a.name} {a.isBanned ? "· BANNED" : ""}
+                  </p>
+                  <p className="font-mono text-accent">Agent ID: {a.referralCode}</p>
+                  <p className="text-xs">{a.email}</p>
+                  <p className="text-xs">
+                    ₹{a.pendingPay} avail · refs {a._count?.referrals ?? 0} · {a.commissionPct}%
+                  </p>
                 </div>
-              ))}
-            </section>
-
-            <section>
-              <h2 className="font-display font-bold mb-2">4 · Active agents ({agents.length})</h2>
-              {agents.map((a) => (
-                <div key={a.id} className="bg-white border rounded-2xl p-4 mb-2 text-sm shadow-card flex flex-wrap justify-between gap-2">
-                  <div>
-                    <p className="font-medium">{a.name} {a.isBanned ? "· BANNED" : ""}</p>
-                    <p className="font-mono text-accent">Agent ID: {a.referralCode}</p>
-                    <p className="text-xs">{a.email}</p>
-                    <p className="text-xs">₹{a.pendingPay} avail · refs {a._count?.referrals ?? 0}</p>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <button type="button" onClick={() => viewKyc(a.id)} className="text-xs border px-2 py-1 rounded-full">KYC</button>
-                    <button type="button" onClick={() => act({ action: a.isBanned ? "unban_user" : "ban_user", userId: a.id })}
-                      className="text-xs border border-red-200 text-red-700 px-2 py-1 rounded-full">{a.isBanned ? "Unban" : "Ban"}</button>
-                    <button type="button" onClick={() => act({ action: "demote_agent", userId: a.id })}
-                      className="text-xs border px-2 py-1 rounded-full">Demote</button>
-                    <button type="button" onClick={() => deleteUser(a)}
-                      className="text-xs bg-red-600 text-white px-2 py-1 rounded-full">Delete forever</button>
-                  </div>
+                <div className="flex flex-col gap-1">
+                  <button type="button" onClick={() => viewKyc(a.id)} className="text-xs border px-2 py-1 rounded-full">
+                    KYC
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => act({ action: a.isBanned ? "unban_user" : "ban_user", userId: a.id })}
+                    className="text-xs border border-red-200 text-red-700 px-2 py-1 rounded-full"
+                  >
+                    {a.isBanned ? "Unban" : "Ban"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => act({ action: "demote_agent", userId: a.id })}
+                    className="text-xs border px-2 py-1 rounded-full"
+                  >
+                    Demote
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteUser(a)}
+                    className="text-xs bg-red-600 text-white px-2 py-1 rounded-full"
+                  >
+                    Delete forever
+                  </button>
                 </div>
-              ))}
-            </section>
+              </div>
+            ))}
+            {agents.length === 0 && <p className="text-sm text-ink-muted py-6">No active agents</p>}
           </div>
         )}
       </main>
