@@ -84,18 +84,31 @@ export default function BecomeSaathiPage() {
       const res = await fetch("/api/become-saathi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bio: bio.trim(), city, hourlyRate: Number(hourlyRate), services, phone: phone.trim() || null, photo: photo || undefined }),
+        body: JSON.stringify({
+          bio: bio.trim(),
+          city,
+          hourlyRate: Number(hourlyRate),
+          services,
+          phone: phone.trim() || null,
+          photo: photo || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Failed"); setLoading(false); return; }
       setNeedsPay(!!data.needsPayment);
       setSuccess(true);
-      setTimeout(() => router.push(data.needsPayment ? "/pay" : "/dashboard"), 1800);
+      setTimeout(() => router.push(data.needsPayment ? "/pricing" : "/dashboard"), 1800);
     } catch { setError("Network error"); }
     finally { setLoading(false); }
   };
 
-  if (status === "loading") return <div className="min-h-screen flex items-center justify-center bg-brand-soft text-ink-muted text-sm">Loading…</div>;
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-brand-soft text-ink-muted text-sm">
+        Loading…
+      </div>
+    );
+  }
 
   if (success) {
     return (
@@ -103,7 +116,11 @@ export default function BecomeSaathiPage() {
         <div className="bg-white rounded-2xl border border-border shadow-soft p-10 text-center max-w-md">
           <div className="w-14 h-14 rounded-full bg-brand-gradient text-white flex items-center justify-center mx-auto text-xl">✓</div>
           <h1 className="mt-4 font-display text-2xl font-bold text-ink">Profile saved</h1>
-          <p className="mt-2 text-ink-muted text-sm">{needsPay ? "Next: pay ₹499 to unlock…" : "Redirecting…"}</p>
+          <p className="mt-2 text-ink-muted text-sm">
+            {needsPay
+              ? "Next: choose a membership plan to go live on Find."
+              : "Your listing is live. Redirecting…"}
+          </p>
         </div>
       </div>
     );
@@ -115,11 +132,16 @@ export default function BecomeSaathiPage() {
       <main className="max-w-2xl mx-auto px-4 py-10">
         <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">For professionals</p>
         <h1 className="font-display text-3xl font-bold text-ink">Become a Saathi</h1>
-        <p className="mt-2 text-ink-muted mb-8">₹499 membership unlocks your listing on Find.</p>
+        <p className="mt-2 text-ink-muted mb-8">
+          Active membership unlocks your listing on Find. Profile can be saved anytime.
+        </p>
 
         {!session && (
           <div className="mb-6 p-4 bg-pink-soft border border-border rounded-xl text-sm">
-            <Link href="/login?callbackUrl=/become-saathi" className="font-semibold text-accent underline">Sign in</Link> to apply.
+            <Link href="/login?callbackUrl=/become-saathi" className="font-semibold text-accent underline">
+              Sign in
+            </Link>{" "}
+            to apply.
           </div>
         )}
 
@@ -129,42 +151,88 @@ export default function BecomeSaathiPage() {
             <label className="block text-sm font-medium text-ink mb-2">Photo</label>
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-100 to-pink-100 overflow-hidden flex items-center justify-center">
-                {photo ? <img src={photo} alt="" className="w-full h-full object-cover" /> : <span className="text-xs text-ink-muted">None</span>}
+                {photo ? (
+                  <img src={photo} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs text-ink-muted">None</span>
+                )}
               </div>
-              <button type="button" onClick={() => fileRef.current?.click()} className="px-4 py-2 text-sm border border-border rounded-full">{photo ? "Change" : "Upload"}</button>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="px-4 py-2 text-sm border border-border rounded-full"
+              >
+                {photo ? "Change" : "Upload"}
+              </button>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPhotoChange} />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-1">City</label>
-            <select value={city} onChange={(e) => setCity(e.target.value)} required className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50">
+            <select
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              required
+              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50"
+            >
               <option value="">Select</option>
-              {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {CITIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-1">Phone</label>
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50" />
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-2">Services</label>
             <div className="flex flex-wrap gap-2">
               {ALL_SERVICES.map((svc) => (
-                <button key={svc} type="button" onClick={() => toggleService(svc)} className={`px-3 py-1.5 rounded-full text-sm ${
-                  services.includes(svc) ? "btn-brand" : "bg-white border border-border text-ink-muted"
-                }`}>{svc}</button>
+                <button
+                  key={svc}
+                  type="button"
+                  onClick={() => toggleService(svc)}
+                  className={`px-3 py-1.5 rounded-full text-sm ${
+                    services.includes(svc) ? "btn-brand" : "bg-white border border-border text-ink-muted"
+                  }`}
+                >
+                  {svc}
+                </button>
               ))}
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-1">Hourly rate ₹</label>
-            <input type="number" min={500} max={5000} value={hourlyRate} onChange={(e) => setHourlyRate(Number(e.target.value))} className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50" />
+            <input
+              type="number"
+              min={500}
+              max={5000}
+              value={hourlyRate}
+              onChange={(e) => setHourlyRate(Number(e.target.value))}
+              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-ink mb-1">About you</label>
-            <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={4} required className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50" />
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={4}
+              required
+              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50"
+            />
           </div>
-          <button type="submit" disabled={loading || !session} className="w-full py-3.5 btn-brand rounded-xl disabled:opacity-50">
+          <button
+            type="submit"
+            disabled={loading || !session}
+            className="w-full py-3.5 btn-brand rounded-xl disabled:opacity-50"
+          >
             {loading ? "Submitting…" : "Submit application"}
           </button>
         </form>

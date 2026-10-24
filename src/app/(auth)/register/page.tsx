@@ -36,6 +36,13 @@ function RegisterForm() {
     }
   }, [searchParams]);
 
+  const postAuthPath =
+    inviteType === "agent"
+      ? "/agent"
+      : inviteType === "provider"
+        ? "/become-saathi"
+        : "/pricing";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -69,17 +76,18 @@ function RegisterForm() {
       });
 
       if (loginRes?.error) {
-        setError("Account created. Sign in, then choose a plan.");
-      } else {
-        try {
-          localStorage.removeItem("saathi_ref");
-          localStorage.removeItem("saathi_ref_type");
-        } catch { /* */ }
-        if (inviteType === "agent") router.push("/agent");
-        else if (inviteType === "provider") router.push("/become-saathi");
-        else router.push("/pricing");
-        router.refresh();
+        setError("Account created. Please sign in, then choose a plan.");
+        setLoading(false);
+        return;
       }
+
+      try {
+        localStorage.removeItem("saathi_ref");
+        localStorage.removeItem("saathi_ref_type");
+      } catch { /* */ }
+
+      router.push(postAuthPath);
+      router.refresh();
     } catch {
       setError("Something went wrong");
     } finally {
@@ -116,7 +124,7 @@ function RegisterForm() {
 
         <button
           type="button"
-          onClick={() => signIn("google", { callbackUrl: inviteType === "agent" ? "/agent" : inviteType === "provider" ? "/become-saathi" : "/pricing" })}
+          onClick={() => signIn("google", { callbackUrl: postAuthPath })}
           className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-border rounded-xl hover:bg-cream transition font-medium text-ink"
         >
           Continue with Google

@@ -4,6 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { generateRegistrationId } from "@/lib/ids";
 
 /** Only keep small http(s) avatar URLs — base64 blows cookie size → 494 */
 function safeImage(url?: string | null): string | null {
@@ -11,6 +12,23 @@ function safeImage(url?: string | null): string | null {
   if (url.startsWith("data:")) return null;
   if (url.length > 500) return null;
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return null;
+}
+
+async function ensurePublicId(userId: string, current?: string | null) {
+  if (current) return current;
+  for (let i = 0; i < 8; i++) {
+    const id = generateRegistrationId();
+    try {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { publicId: id },
+      });
+      return id;
+    } catch {
+      /* unique clash */
+    }
+  }
   return null;
 }
 
@@ -61,6 +79,8 @@ providers.push(
         return null;
       }
 
+      await ensurePublicId(user.id, user.publicId);
+
       return {
         id: user.id,
         email: user.email,
@@ -93,10 +113,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       try {
         const dbUser = await prisma.user.findFirst({
           where: { email: { equals: email, mode: "insensitive" } },
-          select: { isBanned: true },
+          select: { id: true, isBanned: true, publicId: true },
         });
         if (dbUser?.isBanned) {
           return "/login?error=banned";
+        }
+        if (dbUser) {
+          await ensurePublicId(dbUser.id, dbUser.publicId);
         }
       } catch {
         /* allow if DB hiccup on first Google create */
@@ -127,11 +150,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           if (g.email) {
             const dbUser = await prisma.user.findFirst({
               where: { email: { equals: g.email, mode: "insensitive" } },
-              select: { id: true, role: true, isBanned: true },
+              select: { id: true, role: true, isBanned: true, publicId: true },
             });
             if (dbUser) {
               token.id = dbUser.id;
               token.role = dbUser.isBanned ? "BANNED" : dbUser.role;
+              await ensurePublicId(dbUser.id, dbUser.publicId);
             }
           }
         } catch {
@@ -139,15 +163,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
-      // Refresh ban status every request for existing sessions
+      // Refresh ban status / role every request for existing sessions
       if (token.id) {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id as string },
-            select: { role: true, isBanned: true },
+            select: { role: true, isBanned: true, publicId: true },
           });
           if (dbUser?.isBanned) token.role = "BANNED";
           else if (dbUser?.role) token.role = dbUser.role;
+          if (dbUser) await ensurePublicId(dbUser.id, dbUser.publicId);
         } catch {
           /* ignore */
         }
