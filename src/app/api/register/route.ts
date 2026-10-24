@@ -44,20 +44,22 @@ export async function POST(req: Request) {
     }
 
     let referredById: string | null = null;
-    const referredAs = isInviteType(type) ? type : isInviteType(ref) ? undefined : "seeker";
 
     if (ref && typeof ref === "string") {
       const code = normalizeRefCode(ref);
       if (code) {
-        const agent = await prisma.user.findFirst({
+        // Agent code OR any user's Registration ID (user referral)
+        const referrer = await prisma.user.findFirst({
           where: {
-            referralCode: { equals: code, mode: "insensitive" },
             isBanned: false,
-            OR: [{ role: "AGENT" }, { agentStatus: "APPROVED" }],
+            OR: [
+              { referralCode: { equals: code, mode: "insensitive" } },
+              { publicId: { equals: code, mode: "insensitive" } },
+            ],
           },
           select: { id: true },
         });
-        if (agent) referredById = agent.id;
+        if (referrer) referredById = referrer.id;
       }
     }
 
