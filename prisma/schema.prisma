@@ -49,6 +49,7 @@ model User {
   commissionsEarned Commission[] @relation("AgentCommissions")
   commissionsAsUser Commission[] @relation("UserCommissions")
   withdrawals       Withdrawal[]
+  messagesSent      Message[]
 }
 
 model Account {
@@ -117,9 +118,25 @@ model Booking {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  client User @relation("ClientBookings", fields: [clientId], references: [id], onDelete: Cascade)
-  saathi User @relation("SaathiBookings", fields: [saathiId], references: [id], onDelete: Cascade)
-  review Review?
+  client   User      @relation("ClientBookings", fields: [clientId], references: [id], onDelete: Cascade)
+  saathi   User      @relation("SaathiBookings", fields: [saathiId], references: [id], onDelete: Cascade)
+  review   Review?
+  messages Message[]
+}
+
+model Message {
+  id        String    @id @default(cuid())
+  bookingId String
+  senderId  String
+  body      String
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sender  User    @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+  @@index([senderId])
 }
 
 model Review {
