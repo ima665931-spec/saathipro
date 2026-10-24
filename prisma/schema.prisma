@@ -9,6 +9,8 @@ datasource db {
 
 model User {
   id            String    @id @default(cuid())
+  /// Public Registration ID e.g. SP7K2M9A — for admin search / TG
+  publicId      String?   @unique
   name          String?
   email         String    @unique
   emailVerified DateTime?
@@ -20,15 +22,13 @@ model User {
   paymentStatus String    @default("NONE")
   plan          String?
   planExpiresAt DateTime?
+  /// Agent ID + referral code e.g. AG4X9P2Q
   referralCode  String?   @unique
   commissionPct Int       @default(50)
   referredById  String?
   agentUpi      String?
-  /// 12-digit Aadhaar number (admin only full view)
   aadhaar       String?
-  /// Compressed JPEG of Aadhaar card photo (data URL)
   aadhaarPhoto  String?
-  /// NONE | PENDING | APPROVED | REJECTED
   agentStatus   String    @default("NONE")
   agentNote     String?
   createdAt     DateTime  @default(now())
