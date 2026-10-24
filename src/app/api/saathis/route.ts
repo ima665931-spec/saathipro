@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isQualityProfile } from "@/lib/content-filter";
+import { hasActivePlan } from "@/lib/plans";
 
 function pickImage(image: string | null): string | null {
   if (!image) return null;
@@ -21,6 +22,9 @@ export async function GET() {
             image: true,
             email: true,
             isBanned: true,
+            role: true,
+            paymentStatus: true,
+            planExpiresAt: true,
             reviewsReceived: {
               select: { rating: true },
             },
@@ -31,7 +35,12 @@ export async function GET() {
     });
 
     const saathis = profiles
-      .filter((p) => !p.user.isBanned)
+      .filter((p) => {
+        if (p.user.isBanned) return false;
+        // ADMIN always visible if profile active; others need active membership
+        if (p.user.role === "ADMIN") return true;
+        return hasActivePlan(p.user);
+      })
       .map((p) => {
         let services: string[] = [];
         try {
