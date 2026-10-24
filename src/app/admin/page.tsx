@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-type Tab = "stats" | "users" | "saathis" | "bookings" | "reviews" | "payments" | "upi";
+type Tab = "stats" | "users" | "saathis" | "bookings" | "reviews" | "payments" | "upi" | "agents";
 
 export default function AdminPage() {
   const { data: session, status } = useSession();
@@ -18,6 +18,8 @@ export default function AdminPage() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [upiList, setUpiList] = useState<any[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [pendingCommissions, setPendingCommissions] = useState<any[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -46,6 +48,10 @@ export default function AdminPage() {
       if (section === "reviews") setReviews(data.reviews || []);
       if (section === "payments") setPayments(data.payments || []);
       if (section === "upi") setUpiList(data.upiList || []);
+      if (section === "agents") {
+        setAgents(data.agents || []);
+        setPendingCommissions(data.pendingCommissions || []);
+      }
     } catch {
       setError("Network error");
     } finally {
@@ -74,6 +80,7 @@ export default function AdminPage() {
         alert(data.error || "Failed");
       } else {
         if (data.message) alert(data.message);
+        if (data.referralCode) alert(`Agent code: ${data.referralCode}`);
         if (body.action === "approve_payment" && body.paymentId) {
           fetch("/api/admin/notify-verified", {
             method: "POST",
@@ -100,6 +107,7 @@ export default function AdminPage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "stats", label: "Overview" },
+    { id: "agents", label: "Agents" },
     { id: "upi", label: "UPI Pool" },
     { id: "payments", label: "Payments" },
     { id: "users", label: "Users" },
@@ -113,9 +121,7 @@ export default function AdminPage() {
       <header className="sticky top-0 z-50 bg-brand-gradient text-white shadow-soft">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="font-display font-bold tracking-tight">
-              Saathi<span className="opacity-90">Pro</span>
-            </Link>
+            <Link href="/" className="font-display font-bold tracking-tight">Saathi<span className="opacity-90">Pro</span></Link>
             <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">Admin</span>
           </div>
           <Link href="/dashboard" className="text-sm text-white/80 hover:text-white">Dashboard →</Link>
@@ -127,16 +133,10 @@ export default function AdminPage() {
 
         <div className="flex flex-wrap gap-2 mb-6">
           {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
+            <button key={t.id} type="button" onClick={() => setTab(t.id)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition ${
                 tab === t.id ? "btn-brand shadow-soft" : "bg-white border border-border text-ink-muted hover:text-accent"
-              }`}
-            >
-              {t.label}
-            </button>
+              }`}>{t.label}</button>
           ))}
         </div>
 
@@ -144,7 +144,6 @@ export default function AdminPage() {
           <div className="mb-6 p-4 bg-red-50 text-red-800 rounded-xl text-sm border border-red-100 space-y-2">
             <p className="font-medium">{error}</p>
             <p>Logged in as: <code className="bg-red-100 px-1">{session?.user?.email || "unknown"}</code></p>
-            <p className="text-xs">Set <code className="bg-red-100 px-1">ADMIN_EMAILS</code> in Vercel → Redeploy → re-login.</p>
           </div>
         )}
 
@@ -153,9 +152,9 @@ export default function AdminPage() {
         {!loading && tab === "stats" && stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              ["Users", stats.users], ["Active UPIs", stats.upiCount], ["Total UPIs", stats.upiTotal],
-              ["Pending payments", stats.pendingPay], ["Bookings", stats.bookings], ["Saathis", stats.saathis],
-              ["Booking ₹", stats.revenue], ["Banned", stats.banned],
+              ["Users", stats.users], ["Agents", stats.agents], ["Pending commission ₹", stats.pendingCommission],
+              ["Pending payments", stats.pendingPay], ["Active UPIs", stats.upiCount], ["Bookings", stats.bookings],
+              ["Saathis", stats.saathis], ["Banned", stats.banned],
             ].map(([label, val]) => (
               <div key={String(label)} className="bg-white border border-border rounded-2xl p-5 shadow-card">
                 <p className="text-xs uppercase tracking-wide text-ink-muted">{label}</p>
@@ -165,50 +164,74 @@ export default function AdminPage() {
           </div>
         )}
 
-        {!loading && tab === "upi" && (
-          <div className="space-y-6">
-            <div className="bg-white border border-border rounded-2xl p-5 shadow-card space-y-4">
-              <div>
-                <h2 className="font-display font-bold text-ink">UPI Pool</h2>
-                <p className="text-xs text-ink-muted mt-1">Random active UPI under daily limit. QR ₹499. Limit 0 = unlimited.</p>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input value={newUpi} onChange={(e) => setNewUpi(e.target.value)} placeholder="name@ybl" className="flex-1 px-3 py-2 border border-border rounded-xl text-sm" />
-                <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Name" className="sm:w-36 px-3 py-2 border border-border rounded-xl text-sm" />
-                <input type="number" value={newLimit} onChange={(e) => setNewLimit(Number(e.target.value))} className="sm:w-24 px-3 py-2 border border-border rounded-xl text-sm" />
-                <button type="button" onClick={() => act({ action: "add_upi", upiId: newUpi, displayName: newName, dailyLimit: newLimit })} className="btn-brand px-4 py-2 rounded-xl text-sm">Add one</button>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-ink-muted mb-1">Bulk paste (one per line)</label>
-                <textarea value={bulkUpi} onChange={(e) => setBulkUpi(e.target.value)} rows={4} placeholder={"a@ybl\nb@oksbi"} className="w-full px-3 py-2 border border-border rounded-xl text-sm font-mono" />
-                <button type="button" onClick={() => act({ action: "bulk_add_upi", upiBulk: bulkUpi, displayName: newName, dailyLimit: newLimit })} className="mt-2 btn-brand px-4 py-2 rounded-xl text-sm">Add all</button>
-              </div>
-              <p className="text-xs text-ink-muted">Pool: {upiList.length} · Active: {upiList.filter((u) => u.isActive).length}</p>
-            </div>
-            {upiList.map((u) => {
-              const full = u.dailyLimit > 0 && u.usedToday >= u.dailyLimit;
-              return (
-                <div key={u.id} className="bg-white border border-border rounded-2xl p-4 shadow-card">
+        {!loading && tab === "agents" && (
+          <div className="space-y-8">
+            <p className="text-sm text-ink-muted">Promote users from Users tab. Agents share <code className="bg-cream-dark px-1">/register?ref=CODE</code></p>
+            <div className="space-y-3">
+              <h2 className="font-display font-bold text-ink">Agents ({agents.length})</h2>
+              {agents.map((a) => (
+                <div key={a.id} className="bg-white border border-border rounded-2xl p-4 shadow-card">
                   <div className="flex flex-wrap justify-between gap-3">
                     <div>
-                      <p className="font-mono font-medium text-ink">{u.upiId}</p>
-                      <p className="text-sm text-ink-muted">{u.displayName}</p>
+                      <p className="font-medium text-ink">{a.name} · <span className="font-mono text-accent">{a.referralCode}</span></p>
+                      <p className="text-sm text-ink-muted">{a.email}</p>
                       <p className="text-xs text-ink-muted mt-1">
-                        Today: {u.usedToday}{u.dailyLimit > 0 ? ` / ${u.dailyLimit}` : " / ∞"}
-                        {full && <span className="text-amber-700"> · LIMIT FULL</span>}
-                        {!u.isActive && <span className="text-red-600"> · OFF</span>}
+                        Refs: {a._count?.referrals ?? 0} · Pending ₹{a.pendingPay} · Paid ₹{a.paidTotal} · {a.commissionPct}%
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      <Btn onClick={() => act({ action: "toggle_upi", poolId: u.id })} label={u.isActive ? "Disable" : "Enable"} danger={u.isActive} />
-                      <Btn onClick={() => act({ action: "reset_upi_count", poolId: u.id })} label="Reset" />
-                      <Btn onClick={() => { if (confirm("Delete?")) act({ action: "delete_upi", poolId: u.id }); }} label="Delete" danger />
+                      <Btn onClick={() => act({ action: "mark_all_agent_commissions_paid", userId: a.id })} label="Pay all pending" />
+                      <Btn onClick={() => act({ action: "demote_agent", userId: a.id })} label="Demote" danger />
                     </div>
                   </div>
                 </div>
-              );
-            })}
-            {upiList.length === 0 && !error && <p className="text-sm text-ink-muted">Pool empty — add UPI IDs above.</p>}
+              ))}
+              {agents.length === 0 && <p className="text-sm text-ink-muted">No agents yet — open Users and Promote to agent.</p>}
+            </div>
+            <div className="space-y-3">
+              <h2 className="font-display font-bold text-ink">Pending commissions</h2>
+              {pendingCommissions.map((c) => (
+                <div key={c.id} className="bg-white border border-border rounded-xl p-3 flex justify-between text-sm shadow-card">
+                  <div>
+                    <p className="font-medium">{c.agent?.name} ← {c.user?.email}</p>
+                    <p className="text-xs text-ink-muted">{c.plan} · {c.percent}%</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-brand-gradient">₹{c.amount}</span>
+                    <Btn onClick={() => act({ action: "mark_commission_paid", commissionId: c.id })} label="Paid" />
+                  </div>
+                </div>
+              ))}
+              {pendingCommissions.length === 0 && <p className="text-sm text-ink-muted">No pending commissions</p>}
+            </div>
+          </div>
+        )}
+
+        {!loading && tab === "upi" && (
+          <div className="space-y-6">
+            <div className="bg-white border border-border rounded-2xl p-5 shadow-card space-y-4">
+              <h2 className="font-display font-bold text-ink">UPI Pool</h2>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input value={newUpi} onChange={(e) => setNewUpi(e.target.value)} placeholder="name@ybl" className="flex-1 px-3 py-2 border border-border rounded-xl text-sm" />
+                <input value={newName} onChange={(e) => setNewName(e.target.value)} className="sm:w-36 px-3 py-2 border border-border rounded-xl text-sm" />
+                <input type="number" value={newLimit} onChange={(e) => setNewLimit(Number(e.target.value))} className="sm:w-24 px-3 py-2 border border-border rounded-xl text-sm" />
+                <button type="button" onClick={() => act({ action: "add_upi", upiId: newUpi, displayName: newName, dailyLimit: newLimit })} className="btn-brand px-4 py-2 rounded-xl text-sm">Add</button>
+              </div>
+              <textarea value={bulkUpi} onChange={(e) => setBulkUpi(e.target.value)} rows={3} className="w-full px-3 py-2 border border-border rounded-xl text-sm font-mono" placeholder="Bulk UPI one per line" />
+              <button type="button" onClick={() => act({ action: "bulk_add_upi", upiBulk: bulkUpi, displayName: newName, dailyLimit: newLimit })} className="btn-brand px-4 py-2 rounded-xl text-sm">Add all</button>
+            </div>
+            {upiList.map((u) => (
+              <div key={u.id} className="bg-white border border-border rounded-2xl p-4 shadow-card flex flex-wrap justify-between gap-2">
+                <div>
+                  <p className="font-mono font-medium">{u.upiId}</p>
+                  <p className="text-xs text-ink-muted">{u.usedToday}/{u.dailyLimit || "∞"} · {u.isActive ? "ON" : "OFF"}</p>
+                </div>
+                <div className="flex gap-1">
+                  <Btn onClick={() => act({ action: "toggle_upi", poolId: u.id })} label={u.isActive ? "Off" : "On"} />
+                  <Btn onClick={() => act({ action: "delete_upi", poolId: u.id })} label="Del" danger />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -218,18 +241,13 @@ export default function AdminPage() {
               <div key={p.id} className="bg-white border border-border rounded-2xl p-4 shadow-card">
                 <div className="flex flex-wrap justify-between gap-3">
                   <div>
-                    <p className="font-medium text-ink">{p.user?.name} · {p.status}</p>
+                    <p className="font-medium">{p.user?.name} · {p.status} · {p.plan}</p>
                     <p className="text-sm text-ink-muted">{p.user?.email}</p>
-                    <p className="text-sm font-mono mt-1">UTR: {p.utr}</p>
-                    {p.upiPool && <p className="text-xs text-ink-muted">Paid to: {p.upiPool.upiId}</p>}
-                    {p.screenshot && (
-                      <a href={p.screenshot} target="_blank" rel="noreferrer">
-                        <img src={p.screenshot} alt="shot" className="mt-2 max-h-28 rounded-lg border" />
-                      </a>
-                    )}
+                    <p className="text-sm font-mono">UTR: {p.utr} · ₹{p.amount}</p>
+                    {p.screenshot && <a href={p.screenshot} target="_blank" rel="noreferrer"><img src={p.screenshot} alt="" className="mt-2 max-h-24 rounded border" /></a>}
                   </div>
                   {p.status === "PENDING" && (
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-1">
                       <Btn onClick={() => act({ action: "approve_payment", paymentId: p.id })} label="Approve" />
                       <Btn onClick={() => act({ action: "reject_payment", paymentId: p.id })} label="Reject" danger />
                     </div>
@@ -237,7 +255,6 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
-            {payments.length === 0 && <p className="text-ink-muted text-sm">No payment submissions</p>}
           </div>
         )}
 
@@ -246,57 +263,42 @@ export default function AdminPage() {
             {users.map((u) => (
               <div key={u.id} className="bg-white border border-border rounded-2xl p-4 flex flex-wrap justify-between gap-2 shadow-card">
                 <div>
-                  <p className="font-medium text-ink">{u.name}</p>
+                  <p className="font-medium text-ink">{u.name} · <span className="text-xs">{u.role}</span></p>
                   <p className="text-sm text-ink-muted">{u.email}</p>
                 </div>
-                <Btn onClick={() => act({ action: u.isBanned ? "unban_user" : "ban_user", userId: u.id })} label={u.isBanned ? "Unban" : "Ban"} danger={!u.isBanned} />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!loading && tab === "saathis" && (
-          <div className="space-y-4">
-            {saathis.map((s) => (
-              <div key={s.id} className="bg-white border border-border rounded-2xl p-4 flex justify-between shadow-card">
-                <div>
-                  <p className="font-medium text-ink">{s.user?.name}</p>
-                  <p className="text-sm text-ink-muted">{s.user?.email}</p>
+                <div className="flex flex-wrap gap-1">
+                  {u.role !== "AGENT" && (
+                    <Btn onClick={() => act({ action: "promote_to_agent", userId: u.id, commissionPct: 20 })} label="→ Agent" />
+                  )}
+                  <Btn onClick={() => act({ action: u.isBanned ? "unban_user" : "ban_user", userId: u.id })} label={u.isBanned ? "Unban" : "Ban"} danger={!u.isBanned} />
                 </div>
-                <Btn onClick={() => act({ action: s.isVerified ? "unverify_saathi" : "verify_saathi", saathiUserId: s.userId })} label={s.isVerified ? "Unverify" : "Verify"} />
               </div>
             ))}
           </div>
         )}
 
-        {!loading && tab === "bookings" && (
-          <div className="space-y-4">
-            {bookings.map((b) => (
-              <div key={b.id} className="bg-white border border-border rounded-2xl p-4 flex justify-between shadow-card">
-                <div>
-                  <p className="font-medium text-ink">{b.saathiName} · {b.status}</p>
-                  <p className="text-sm text-ink-muted">{b.client?.email}</p>
-                </div>
-                <Btn onClick={() => act({ action: "cancel_booking", bookingId: b.id })} label="Cancel" danger />
-              </div>
-            ))}
+        {!loading && tab === "saathis" && saathis.map((s) => (
+          <div key={s.id} className="bg-white border rounded-2xl p-4 flex justify-between mb-2 shadow-card">
+            <div><p className="font-medium">{s.user?.name}</p><p className="text-sm text-ink-muted">{s.user?.email}</p></div>
+            <Btn onClick={() => act({ action: s.isVerified ? "unverify_saathi" : "verify_saathi", saathiUserId: s.userId })} label={s.isVerified ? "Unverify" : "Verify"} />
           </div>
-        )}
+        ))}
 
-        {!loading && tab === "reviews" && (
-          <div className="space-y-4">
-            {reviews.map((r) => (
-              <div key={r.id} className="bg-white border border-border rounded-2xl p-4 flex justify-between shadow-card">
-                <p className="text-sm text-ink">{"★".repeat(r.rating)} {r.comment}</p>
-                <Btn onClick={() => act({ action: "delete_review", reviewId: r.id })} label="Delete" danger />
-              </div>
-            ))}
+        {!loading && tab === "bookings" && bookings.map((b) => (
+          <div key={b.id} className="bg-white border rounded-2xl p-4 flex justify-between mb-2 shadow-card">
+            <div><p className="font-medium">{b.saathiName} · {b.status}</p><p className="text-sm text-ink-muted">{b.client?.email}</p></div>
+            <Btn onClick={() => act({ action: "cancel_booking", bookingId: b.id })} label="Cancel" danger />
           </div>
-        )}
+        ))}
 
-        {busy && (
-          <p className="fixed bottom-4 right-4 bg-brand-gradient text-white text-xs px-3 py-2 rounded-full shadow-glow">Working…</p>
-        )}
+        {!loading && tab === "reviews" && reviews.map((r) => (
+          <div key={r.id} className="bg-white border rounded-2xl p-4 flex justify-between mb-2 shadow-card">
+            <p className="text-sm">{"★".repeat(r.rating)} {r.comment}</p>
+            <Btn onClick={() => act({ action: "delete_review", reviewId: r.id })} label="Delete" danger />
+          </div>
+        ))}
+
+        {busy && <p className="fixed bottom-4 right-4 bg-brand-gradient text-white text-xs px-3 py-2 rounded-full">Working…</p>}
       </main>
     </div>
   );
@@ -304,14 +306,9 @@ export default function AdminPage() {
 
 function Btn({ onClick, label, danger }: { onClick: () => void; label: string; danger?: boolean }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <button type="button" onClick={onClick}
       className={`text-xs font-medium px-2.5 py-1 rounded-full border transition ${
         danger ? "border-red-200 text-red-700 hover:bg-red-50" : "border-border text-ink hover:border-accent/40"
-      }`}
-    >
-      {label}
-    </button>
+      }`}>{label}</button>
   );
 }
