@@ -140,6 +140,32 @@ export default function AdminPage() {
 
   const copyText = (t: string) => navigator.clipboard.writeText(t).catch(() => {});
 
+  const deleteUser = async (u: { id: string; email?: string; name?: string | null; role?: string }) => {
+    const label = u.email || u.name || u.id;
+    if (
+      !confirm(
+        `PERMANENT DELETE\n\n${label}\nRole: ${u.role || "?"}\n\nAll data will be removed. Same Gmail can register again.`
+      )
+    )
+      return;
+    if (!confirm("Sure? This cannot be undone.")) return;
+    try {
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: u.id }),
+      });
+      const d = await res.json();
+      if (!res.ok) alert(d.error || "Delete failed");
+      else {
+        alert("Deleted: " + (d.deleted?.email || label));
+        await load(section, q);
+      }
+    } catch {
+      alert("Network error");
+    }
+  };
+
   if (status === "loading") {
     return <div className="min-h-screen flex items-center justify-center bg-brand-soft text-sm text-ink-muted">Loading…</div>;
   }
@@ -164,7 +190,7 @@ export default function AdminPage() {
           <button type="button" onClick={() => { setZone("agents"); setTab("agents"); }}
             className={`flex-1 py-3 rounded-2xl text-sm font-semibold border ${
               zone === "agents" ? "btn-brand border-transparent" : "bg-white border-border text-ink-muted"
-            }`}>② Agents<span className="block text-xs font-normal opacity-80">KYC · Fees · Ban · Cashouts</span></button>
+            }`}>② Agents<span className="block text-xs font-normal opacity-80">KYC · Fees · Ban · Delete</span></button>
         </div>
 
         {zone === "platform" && (
@@ -216,11 +242,6 @@ export default function AdminPage() {
                     )}
                   </p>
                   <p className="font-mono text-xs">UTR: {p.utr || "—"}</p>
-                  {p.screenshot && (
-                    <a href={p.screenshot} target="_blank" rel="noreferrer">
-                      <img src={p.screenshot} alt="" className="mt-2 max-h-20 rounded border" />
-                    </a>
-                  )}
                 </div>
                 {p.status === "PENDING" && (
                   <div className="flex flex-col gap-1">
@@ -242,14 +263,20 @@ export default function AdminPage() {
               <button type="button" onClick={() => load("users", q)} className="btn-brand px-4 py-2 rounded-xl text-sm">Search</button>
             </div>
             {users.map((u) => (
-              <div key={u.id} className="bg-white border rounded-2xl p-4 flex justify-between shadow-card text-sm">
+              <div key={u.id} className="bg-white border rounded-2xl p-4 flex flex-wrap justify-between gap-3 shadow-card text-sm">
                 <div>
                   <p className="font-medium">{u.name} · {u.role}</p>
                   <p className="text-ink-muted">{u.email}</p>
                   <p className="font-mono text-xs">Reg ID: {u.publicId || "—"}</p>
                 </div>
-                <button type="button" onClick={() => act({ action: u.isBanned ? "unban_user" : "ban_user", userId: u.id })}
-                  className="text-xs px-2.5 py-1 rounded-full border border-red-200 text-red-700">{u.isBanned ? "Unban" : "Ban"}</button>
+                <div className="flex flex-col gap-1">
+                  <button type="button" onClick={() => act({ action: u.isBanned ? "unban_user" : "ban_user", userId: u.id })}
+                    className="text-xs px-2.5 py-1 rounded-full border border-red-200 text-red-700">{u.isBanned ? "Unban" : "Ban"}</button>
+                  {u.role !== "ADMIN" && (
+                    <button type="button" onClick={() => deleteUser(u)}
+                      className="text-xs px-2.5 py-1 rounded-full bg-red-600 text-white">Delete forever</button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -296,18 +323,18 @@ export default function AdminPage() {
 
             <section>
               <h2 className="font-display font-bold mb-1">1 · KYC queue</h2>
-              <p className="text-xs text-ink-muted mb-3">Approve KYC first — fee is last. Parent agent gets ₹49 bonus.</p>
+              <p className="text-xs text-ink-muted mb-3">Approve KYC first — fee is last.</p>
               {applications.map((a) => (
                 <div key={a.id} className="bg-white border rounded-2xl p-4 mb-2 flex flex-wrap justify-between gap-2 shadow-card text-sm">
                   <div>
                     <p className="font-medium">{a.name} · {a.email}</p>
                     <p>Phone: {a.phone} · Aadhaar: {a.aadhaar}</p>
-                    {a.referralCode && <p className="font-mono text-xs text-accent">ID: {a.referralCode}</p>}
                   </div>
                   <div className="flex flex-col gap-1">
                     <button type="button" onClick={() => viewKyc(a.id)} className="text-xs border px-2 py-1 rounded-full">View photo</button>
                     <button type="button" onClick={() => approveKyc(a.id)} className="text-xs border px-2 py-1 rounded-full">Approve KYC</button>
                     <button type="button" onClick={() => act({ action: "reject_agent_application", userId: a.id })} className="text-xs border border-red-200 text-red-700 px-2 py-1 rounded-full">Reject</button>
+                    <button type="button" onClick={() => deleteUser(a)} className="text-xs bg-red-600 text-white px-2 py-1 rounded-full">Delete forever</button>
                   </div>
                 </div>
               ))}
@@ -353,7 +380,8 @@ export default function AdminPage() {
                   <div>
                     <p className="font-medium">{a.name} {a.isBanned ? "· BANNED" : ""}</p>
                     <p className="font-mono text-accent">Agent ID: {a.referralCode}</p>
-                    <p className="text-xs">₹{a.pendingPay} avail · refs {a._count?.referrals ?? 0} · {a.commissionPct}%</p>
+                    <p className="text-xs">{a.email}</p>
+                    <p className="text-xs">₹{a.pendingPay} avail · refs {a._count?.referrals ?? 0}</p>
                   </div>
                   <div className="flex flex-col gap-1">
                     <button type="button" onClick={() => viewKyc(a.id)} className="text-xs border px-2 py-1 rounded-full">KYC</button>
@@ -361,6 +389,8 @@ export default function AdminPage() {
                       className="text-xs border border-red-200 text-red-700 px-2 py-1 rounded-full">{a.isBanned ? "Unban" : "Ban"}</button>
                     <button type="button" onClick={() => act({ action: "demote_agent", userId: a.id })}
                       className="text-xs border px-2 py-1 rounded-full">Demote</button>
+                    <button type="button" onClick={() => deleteUser(a)}
+                      className="text-xs bg-red-600 text-white px-2 py-1 rounded-full">Delete forever</button>
                   </div>
                 </div>
               ))}
