@@ -15,12 +15,10 @@ export const authConfig = {
     authorized({ auth, request }) {
       const path = request.nextUrl.pathname;
 
-      // Admin login is public
       if (path === "/admin/login" || path.startsWith("/admin/login/")) {
         return true;
       }
 
-      // Admin area needs session
       if (path === "/admin" || path.startsWith("/admin/")) {
         return !!auth;
       }
@@ -32,6 +30,7 @@ export const authConfig = {
         "/become-saathi",
         "/agent",
         "/book",
+        "/chat",
       ];
 
       const needsAuth = protectedPrefixes.some(

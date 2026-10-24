@@ -120,7 +120,7 @@ export default function BookingsPage() {
           <div>
             <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">Account</p>
             <h1 className="font-display text-3xl font-bold text-ink">My bookings</h1>
-            <p className="mt-1 text-ink-muted text-sm">Review or cancel sessions here</p>
+            <p className="mt-1 text-ink-muted text-sm">Chat, review or cancel sessions here</p>
           </div>
           <Link href="/find" className="btn-brand px-5 py-2.5 text-sm rounded-full text-center">
             Book new
@@ -145,17 +145,25 @@ export default function BookingsPage() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-display font-bold text-ink">{b.saathiName}</h3>
-                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                        b.status === "CONFIRMED" ? "bg-emerald-50 text-emerald-800"
-                          : b.status === "CANCELLED" ? "bg-red-50 text-red-700"
-                          : "bg-amber-50 text-amber-800"
-                      }`}>{b.status}</span>
+                      <span
+                        className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                          b.status === "CONFIRMED"
+                            ? "bg-emerald-50 text-emerald-800"
+                            : b.status === "CANCELLED"
+                            ? "bg-red-50 text-red-700"
+                            : "bg-amber-50 text-amber-800"
+                        }`}
+                      >
+                        {b.status}
+                      </span>
                     </div>
                     <p className="text-sm text-ink-muted mt-1">
-                      {b.service}{b.city ? ` · ${b.city}` : ""}
+                      {b.service}
+                      {b.city ? ` · ${b.city}` : ""}
                     </p>
                     <p className="text-sm text-ink-muted mt-0.5">
-                      {b.date} · {b.time} · {b.durationHours} hr{b.durationHours > 1 ? "s" : ""}
+                      {b.date} · {b.time} · {b.durationHours} hr
+                      {b.durationHours > 1 ? "s" : ""}
                     </p>
                     {b.hasReview && b.review && (
                       <p className="text-sm text-gold mt-1">
@@ -167,15 +175,30 @@ export default function BookingsPage() {
                   <div className="sm:text-right shrink-0 flex flex-col items-start sm:items-end gap-2">
                     <p className="font-display text-xl font-bold text-brand-gradient">₹{b.amount}</p>
                     <div className="flex flex-wrap gap-2">
+                      {b.status !== "CANCELLED" && (
+                        <Link
+                          href={`/chat/${b.id}`}
+                          className="text-sm font-medium text-accent border border-accent/30 px-3 py-1.5 rounded-full hover:bg-pink-soft"
+                        >
+                          Chat
+                        </Link>
+                      )}
                       {b.isClient && b.status === "CONFIRMED" && !b.hasReview && (
-                        <button type="button" onClick={() => cancelBooking(b.id)} disabled={cancellingId === b.id}
-                          className="text-sm font-medium text-red-700 border border-red-200 px-3 py-1.5 rounded-full hover:bg-red-50 disabled:opacity-50">
+                        <button
+                          type="button"
+                          onClick={() => cancelBooking(b.id)}
+                          disabled={cancellingId === b.id}
+                          className="text-sm font-medium text-red-700 border border-red-200 px-3 py-1.5 rounded-full hover:bg-red-50 disabled:opacity-50"
+                        >
                           {cancellingId === b.id ? "Cancelling…" : "Cancel"}
                         </button>
                       )}
                       {b.isClient && b.status === "CONFIRMED" && !b.hasReview && (
-                        <button type="button" onClick={() => setReviewingId(reviewingId === b.id ? null : b.id)}
-                          className="text-sm font-medium text-ink border border-border px-3 py-1.5 rounded-full hover:border-accent/40">
+                        <button
+                          type="button"
+                          onClick={() => setReviewingId(reviewingId === b.id ? null : b.id)}
+                          className="text-sm font-medium text-ink border border-border px-3 py-1.5 rounded-full hover:border-accent/40"
+                        >
                           {reviewingId === b.id ? "Close" : "Leave review"}
                         </button>
                       )}
@@ -187,15 +210,29 @@ export default function BookingsPage() {
                   <div className="mt-4 pt-4 border-t border-border space-y-3">
                     <div className="flex gap-1">
                       {[1, 2, 3, 4, 5].map((n) => (
-                        <button key={n} type="button" onClick={() => setRating(n)}
-                          className={`text-2xl ${n <= rating ? "text-gold" : "text-border"}`}>★</button>
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setRating(n)}
+                          className={`text-2xl ${n <= rating ? "text-gold" : "text-border"}`}
+                        >
+                          ★
+                        </button>
                       ))}
                     </div>
-                    <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2}
+                    <textarea
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      rows={2}
                       placeholder="Optional comment…"
-                      className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-cream/50 text-ink" />
-                    <button type="button" disabled={submitting} onClick={() => submitReview(b.id)}
-                      className="btn-brand px-5 py-2 text-sm rounded-full disabled:opacity-50">
+                      className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-cream/50 text-ink"
+                    />
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => submitReview(b.id)}
+                      className="btn-brand px-5 py-2 text-sm rounded-full disabled:opacity-50"
+                    >
                       {submitting ? "Saving…" : "Submit review"}
                     </button>
                   </div>

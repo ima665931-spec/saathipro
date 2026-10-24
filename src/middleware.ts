@@ -17,6 +17,8 @@ export const config = {
     "/agent/:path*",
     "/book",
     "/book/:path*",
+    "/chat",
+    "/chat/:path*",
     "/admin",
     "/admin/:path*",
   ],
