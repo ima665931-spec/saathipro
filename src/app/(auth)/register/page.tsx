@@ -40,9 +40,9 @@ export default function RegisterPage() {
       });
 
       if (loginRes?.error) {
-        setError("Account created. Sign in, then pay ₹499.");
+        setError("Account created. Sign in, then choose a plan.");
       } else {
-        router.push("/pay");
+        router.push("/pricing");
         router.refresh();
       }
     } catch {
@@ -52,25 +52,19 @@ export default function RegisterPage() {
     }
   };
 
-  const handleGoogle = () => {
-    signIn("google", { callbackUrl: "/pay" });
-  };
-
   return (
     <div className="min-h-screen bg-brand-soft flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-brand-gradient flex items-center justify-center text-white font-display font-bold text-sm shadow-glow">
-              S
-            </div>
+            <div className="w-10 h-10 rounded-xl bg-brand-gradient flex items-center justify-center text-white font-display font-bold text-sm shadow-glow">S</div>
             <span className="font-display text-xl font-bold text-ink">
               Saathi<span className="text-pink">Pro</span>
             </span>
           </Link>
           <h1 className="mt-8 font-display text-3xl font-bold text-ink">Create account</h1>
           <p className="mt-2 text-ink-muted text-sm">
-            Then pay ₹499 once — unlock Find bookings & Become Saathi
+            Next: choose Weekly / Monthly / Half-year / Yearly plan
           </p>
         </div>
 
@@ -81,7 +75,7 @@ export default function RegisterPage() {
 
           <button
             type="button"
-            onClick={handleGoogle}
+            onClick={() => signIn("google", { callbackUrl: "/pricing" })}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-border rounded-xl hover:bg-cream transition font-medium text-ink"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -103,15 +97,15 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-ink mb-1.5">Full name</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50 focus:outline-none focus:ring-2 focus:ring-accent/30 text-ink" placeholder="Your name" />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50 text-ink" placeholder="Your name" />
             </div>
             <div>
               <label className="block text-sm font-medium text-ink mb-1.5">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50 focus:outline-none focus:ring-2 focus:ring-accent/30 text-ink" placeholder="you@gmail.com" />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50 text-ink" placeholder="you@gmail.com" />
             </div>
             <div>
               <label className="block text-sm font-medium text-ink mb-1.5">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50 focus:outline-none focus:ring-2 focus:ring-accent/30 text-ink" placeholder="Minimum 6 characters" />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50 text-ink" placeholder="Minimum 6 characters" />
             </div>
             <button type="submit" disabled={loading} className="w-full py-3.5 btn-brand rounded-xl disabled:opacity-50">
               {loading ? "Creating…" : "Create account"}
