@@ -25,21 +25,16 @@ export async function requireAdmin() {
   const email = session.user.email.trim().toLowerCase();
   const adminEmails = parseAdminEmails();
 
-  let user = await prisma.user.findUnique({
-    where: { email: session.user.email },
+  let user = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
   });
-
-  // try case-insensitive lookup if exact miss
-  if (!user) {
-    const all = await prisma.user.findMany({
-      where: { email: { equals: email, mode: "insensitive" } },
-      take: 1,
-    });
-    user = all[0] || null;
-  }
 
   if (!user) {
     return { error: "User not found", status: 404 as const, user: null };
+  }
+
+  if (user.isBanned) {
+    return { error: "Banned", status: 403 as const, user: null };
   }
 
   const inList = adminEmails.includes(user.email.trim().toLowerCase());
@@ -47,13 +42,13 @@ export async function requireAdmin() {
 
   if (!isAdmin) {
     return {
-      error: `Forbidden. Logged in as ${user.email}. Set this exact email in ADMIN_EMAILS (current list size: ${adminEmails.length}).`,
+      error: `Forbidden. Use /admin/login with ADMIN_USERNAME + ADMIN_PASSWORD, or set this email in ADMIN_EMAILS.`,
       status: 403 as const,
       user: null,
     };
   }
 
-  if (user.role !== "ADMIN" && inList) {
+  if (user.role !== "ADMIN") {
     user = await prisma.user.update({
       where: { id: user.id },
       data: { role: "ADMIN" },
