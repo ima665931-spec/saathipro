@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { AGENT_ENTRY_TYPE } from "@/lib/agent-fee";
+import { DEFAULT_COMMISSION_PCT } from "@/lib/referral";
 
-/** Approve ₹199 agent entry fee without touching membership plan */
+/** Approve ₹199 agent entry fee (last step). Unlocks hub if KYC already approved. */
 export async function POST(req: Request) {
   const gate = await requireAdmin();
   if (gate.error) {
@@ -30,6 +31,15 @@ export async function POST(req: Request) {
     });
 
     const user = await prisma.user.findUnique({ where: { id: pay.userId } });
+    if (user && user.agentStatus === "APPROVED") {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          role: "AGENT",
+          commissionPct: user.commissionPct || DEFAULT_COMMISSION_PCT,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,
