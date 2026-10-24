@@ -5,6 +5,9 @@ export const DEFAULT_COMMISSION_PCT = 50;
 /** When invited friend becomes agent (KYC approved) */
 export const AGENT_KYC_BONUS = 49;
 
+/** Normal user: ₹ credit when friend buys a plan */
+export const USER_REFERRAL_CREDIT = 49;
+
 /** Parent agent gets this % of sub-agent commission earnings */
 export const SUB_AGENT_SHARE_PCT = 10;
 
