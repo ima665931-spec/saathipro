@@ -9,12 +9,42 @@ import {
   isValidUpi,
 } from "@/lib/referral";
 
+const MAX_PHOTO = 400_000; // ~300KB base64
+
+function kycComplete(u: {
+  phone?: string | null;
+  aadhaar?: string | null;
+  aadhaarPhoto?: string | null;
+}) {
+  return !!(u.phone && u.aadhaar && u.aadhaarPhoto);
+}
+
 async function getSessionUser() {
   const session = await auth();
   if (!session?.user?.email) return null;
   return prisma.user.findFirst({
     where: { email: { equals: session.user.email, mode: "insensitive" } },
   });
+}
+
+function validateKycBody(body: {
+  phone?: string;
+  aadhaar?: string;
+  aadhaarPhoto?: string;
+  agentUpi?: string;
+}) {
+  const phone = String(body.phone || "").replace(/\D/g, "").slice(-10);
+  const aadhaar = String(body.aadhaar || "").replace(/\s/g, "");
+  const photo = body.aadhaarPhoto ? String(body.aadhaarPhoto) : "";
+  const agentUpi = body.agentUpi ? String(body.agentUpi).trim().toLowerCase() : null;
+
+  if (!isValidPhone(phone)) return { error: "Valid 10-digit mobile required" };
+  if (!isValidAadhaar(aadhaar)) return { error: "Valid 12-digit Aadhaar number required" };
+  if (!photo.startsWith("data:image/")) return { error: "Aadhaar card photo required" };
+  if (photo.length > MAX_PHOTO) return { error: "Photo too large — compress and retry" };
+  if (agentUpi && !isValidUpi(agentUpi)) return { error: "Invalid UPI ID" };
+
+  return { phone, aadhaar, photo, agentUpi };
 }
 
 export async function GET() {
@@ -31,16 +61,43 @@ export async function GET() {
     process.env.NEXTAUTH_URL ||
     "https://saathipro.vercel.app";
 
-  // Not agent yet — show apply status
+  const hasKyc = kycComplete(user);
+
+  // Not agent — application flow
   if (user.role !== "AGENT" && user.role !== "ADMIN") {
     return NextResponse.json({
       isAgent: false,
+      needsKyc: true,
       agentStatus: user.agentStatus || "NONE",
       agentNote: user.agentNote,
+      kycComplete: hasKyc,
       profile: {
         phone: user.phone,
-        aadhaar: user.aadhaar ? `XXXX-XXXX-${user.aadhaar.slice(-4)}` : null,
+        aadhaarMasked: user.aadhaar ? `XXXX-XXXX-${user.aadhaar.slice(-4)}` : null,
+        hasPhoto: !!user.aadhaarPhoto,
         agentUpi: user.agentUpi,
+      },
+    });
+  }
+
+  // Agent but incomplete KYC (e.g. promoted without docs)
+  if (!hasKyc) {
+    return NextResponse.json({
+      isAgent: true,
+      needsKyc: true,
+      kycComplete: false,
+      agentStatus: user.agentStatus,
+      agent: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        referralCode: user.referralCode,
+        commissionPct: user.commissionPct ?? DEFAULT_COMMISSION_PCT,
+      },
+      profile: {
+        phone: user.phone,
+        aadhaarMasked: user.aadhaar ? `XXXX-XXXX-${user.aadhaar.slice(-4)}` : null,
+        hasPhoto: !!user.aadhaarPhoto,
       },
     });
   }
@@ -52,13 +109,8 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
         take: 100,
         select: {
-          id: true,
-          name: true,
-          email: true,
-          paymentStatus: true,
-          plan: true,
-          planExpiresAt: true,
-          createdAt: true,
+          id: true, name: true, email: true, paymentStatus: true,
+          plan: true, planExpiresAt: true, createdAt: true,
         },
       }),
       prisma.commission.findMany({
@@ -74,18 +126,14 @@ export async function GET() {
       }),
     ]);
 
-    const pending = commissions
-      .filter((c) => c.status === "PENDING")
-      .reduce((s, c) => s + c.amount, 0);
-    const locked = commissions
-      .filter((c) => c.status === "LOCKED")
-      .reduce((s, c) => s + c.amount, 0);
-    const paid = commissions
-      .filter((c) => c.status === "PAID")
-      .reduce((s, c) => s + c.amount, 0);
+    const pending = commissions.filter((c) => c.status === "PENDING").reduce((s, c) => s + c.amount, 0);
+    const locked = commissions.filter((c) => c.status === "LOCKED").reduce((s, c) => s + c.amount, 0);
+    const paid = commissions.filter((c) => c.status === "PAID").reduce((s, c) => s + c.amount, 0);
 
     return NextResponse.json({
       isAgent: true,
+      needsKyc: false,
+      kycComplete: true,
       agent: {
         id: user.id,
         name: user.name,
@@ -130,34 +178,53 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const { action } = body;
 
-    // ——— Apply to become agent (KYC) ———
-    if (action === "apply_agent") {
-      if (user.role === "AGENT") {
-        return NextResponse.json({ error: "Already an agent" }, { status: 400 });
+    // Apply OR complete KYC (same fields)
+    if (action === "apply_agent" || action === "complete_kyc") {
+      if (action === "apply_agent" && user.role === "AGENT" && kycComplete(user)) {
+        return NextResponse.json({ error: "Already an agent with KYC" }, { status: 400 });
       }
-      if (user.agentStatus === "PENDING") {
+      if (action === "apply_agent" && user.agentStatus === "PENDING" && user.role !== "AGENT") {
         return NextResponse.json({ error: "Application already pending" }, { status: 400 });
       }
 
-      const phone = String(body.phone || "").replace(/\D/g, "").slice(-10);
-      const aadhaar = String(body.aadhaar || "").replace(/\s/g, "");
-      const agentUpi = body.agentUpi ? String(body.agentUpi).trim().toLowerCase() : null;
+      const v = validateKycBody(body);
+      if ("error" in v && v.error) {
+        return NextResponse.json({ error: v.error }, { status: 400 });
+      }
+      const { phone, aadhaar, photo, agentUpi } = v as {
+        phone: string;
+        aadhaar: string;
+        photo: string;
+        agentUpi: string | null;
+      };
 
-      if (!isValidPhone(phone)) {
-        return NextResponse.json({ error: "Valid 10-digit mobile required" }, { status: 400 });
-      }
-      if (!isValidAadhaar(aadhaar)) {
-        return NextResponse.json({ error: "Valid 12-digit Aadhaar required" }, { status: 400 });
-      }
-      if (agentUpi && !isValidUpi(agentUpi)) {
-        return NextResponse.json({ error: "Invalid UPI ID" }, { status: 400 });
+      // Already agent → just save KYC (always kept for admin)
+      if (user.role === "AGENT" || user.role === "ADMIN") {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            phone,
+            aadhaar,
+            aadhaarPhoto: photo,
+            agentUpi: agentUpi || user.agentUpi,
+            agentStatus: "APPROVED",
+            // bump old 20% agents to 50% when they complete KYC
+            commissionPct:
+              !user.commissionPct || user.commissionPct < DEFAULT_COMMISSION_PCT
+                ? DEFAULT_COMMISSION_PCT
+                : user.commissionPct,
+          },
+        });
+        return NextResponse.json({ success: true, kycComplete: true });
       }
 
+      // New applicant
       await prisma.user.update({
         where: { id: user.id },
         data: {
           phone,
           aadhaar,
+          aadhaarPhoto: photo,
           agentUpi: agentUpi || user.agentUpi,
           agentStatus: "PENDING",
           agentNote: null,
@@ -167,9 +234,15 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ success: true, agentStatus: "PENDING" });
     }
 
-    // ——— Agent-only actions ———
     if (user.role !== "AGENT" && user.role !== "ADMIN") {
       return NextResponse.json({ error: "Agents only" }, { status: 403 });
+    }
+
+    if (!kycComplete(user) && action !== "complete_kyc") {
+      return NextResponse.json(
+        { error: "Complete mobile + Aadhaar photo KYC first" },
+        { status: 400 }
+      );
     }
 
     if (action === "set_upi") {
@@ -177,37 +250,28 @@ export async function PATCH(req: Request) {
       if (!isValidUpi(agentUpi)) {
         return NextResponse.json({ error: "Valid UPI required (name@ybl)" }, { status: 400 });
       }
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { agentUpi },
-      });
+      await prisma.user.update({ where: { id: user.id }, data: { agentUpi } });
       return NextResponse.json({ success: true, agentUpi });
     }
 
     if (action === "clear_upi") {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { agentUpi: null },
-      });
+      await prisma.user.update({ where: { id: user.id }, data: { agentUpi: null } });
       return NextResponse.json({ success: true });
     }
 
     if (action === "request_cashout") {
       if (!user.agentUpi || !isValidUpi(user.agentUpi)) {
-        return NextResponse.json(
-          { error: "Add your UPI first before cashout" },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "Add your UPI first before cashout" }, { status: 400 });
+      }
+      if (!kycComplete(user)) {
+        return NextResponse.json({ error: "KYC required before cashout" }, { status: 400 });
       }
 
       const open = await prisma.withdrawal.findFirst({
         where: { agentId: user.id, status: "PENDING" },
       });
       if (open) {
-        return NextResponse.json(
-          { error: "You already have a pending cashout request" },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "You already have a pending cashout" }, { status: 400 });
       }
 
       const pending = await prisma.commission.findMany({
