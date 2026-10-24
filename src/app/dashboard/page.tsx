@@ -35,11 +35,20 @@ export default async function DashboardPage() {
   const role = dbUser.role || "USER";
   const isSaathi = role === "SAATHI";
   const isAdmin = role === "ADMIN";
-  const profile = dbUser.saathiProfile;
+  const isAgent = role === "AGENT";
   const clientBookings = dbUser.bookingsAsClient || [];
   const saathiBookings = dbUser.bookingsAsSaathi || [];
   const pay = dbUser.paymentStatus || "NONE";
   const needsPay = !isAdmin && pay !== "VERIFIED";
+  const credit = dbUser.creditBalance || 0;
+  const origin =
+    process.env.AUTH_URL ||
+    process.env.NEXTAUTH_URL ||
+    "https://saathipro.vercel.app";
+  const inviteCode = dbUser.referralCode || dbUser.publicId;
+  const inviteLink = inviteCode
+    ? `${origin.replace(/\/$/, "")}/register?ref=${inviteCode}&type=seeker`
+    : null;
 
   const [clientCount, saathiCount] = await Promise.all([
     prisma.booking.count({ where: { clientId: dbUser.id } }),
@@ -68,8 +77,11 @@ export default async function DashboardPage() {
             <div className="flex items-center gap-3">
               <Link href="/find" className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-accent">Find</Link>
               <Link href="/bookings" className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-accent">Bookings</Link>
+              {isAgent && (
+                <Link href="/agent" className="hidden sm:inline text-sm font-medium text-accent">Agent hub</Link>
+              )}
               {needsPay && (
-                <Link href="/pay" className="text-sm font-semibold text-pink hover:underline">Pay ₹499</Link>
+                <Link href="/pricing" className="text-sm font-semibold text-pink hover:underline">Get plan</Link>
               )}
               <span className="text-sm text-ink-muted hidden md:inline">{dbUser.name || dbUser.email}</span>
               <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
@@ -87,40 +99,66 @@ export default async function DashboardPage() {
             <h1 className="font-display text-3xl font-bold text-ink">
               Hey{dbUser.name ? `, ${dbUser.name.split(" ")[0]}` : ""} 👋
             </h1>
-            <p className="text-ink-muted mt-1 text-sm">Pick a service & find your Saathi</p>
+            <p className="text-ink-muted mt-1 text-sm">
+              {dbUser.publicId && (
+                <span className="font-mono text-xs">Reg ID: {dbUser.publicId} · </span>
+              )}
+              Pick a service & find your Saathi
+            </p>
           </div>
           <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
             isSaathi ? "bg-brand-gradient text-white" : "bg-white border border-border text-ink"
           }`}>
-            {isSaathi ? "Saathi" : "Member"}
+            {isSaathi ? "Saathi" : isAgent ? "Agent" : "Member"}
           </span>
         </div>
+
+        {credit > 0 && (
+          <div className="mb-6 p-4 rounded-2xl border border-pink/30 bg-white shadow-card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase text-ink-muted font-semibold">Referral credit</p>
+              <p className="font-display text-2xl font-bold text-brand-gradient">₹{credit}</p>
+              <p className="text-xs text-ink-muted mt-1">Auto-applied on next plan payment</p>
+            </div>
+            <Link href="/pricing" className="btn-brand px-5 py-2.5 rounded-full text-sm text-center">Use on next plan</Link>
+          </div>
+        )}
+
+        {inviteLink && !isAgent && (
+          <div className="mb-6 p-5 rounded-2xl bg-white border border-border shadow-card">
+            <p className="font-display font-bold text-ink">Invite friends · earn ₹49 credit</p>
+            <p className="text-sm text-ink-muted mt-1">
+              When they buy a plan, you get ₹49 bill credit (not cash).
+            </p>
+            <p className="mt-3 text-xs font-mono text-ink-muted break-all">{inviteLink}</p>
+            <p className="text-xs text-accent mt-2">Share code: <strong className="font-mono">{inviteCode}</strong></p>
+          </div>
+        )}
 
         {needsPay && (
           <div className="mb-8 p-5 rounded-2xl bg-brand-gradient text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-glow">
             <div>
               <p className="font-display font-bold text-lg">
-                {pay === "PENDING" ? "Payment under review" : "Unlock full access — ₹499"}
+                {pay === "PENDING" ? "Payment under review" : "Unlock full access"}
               </p>
               <p className="text-sm text-white/90 mt-1">
                 {pay === "PENDING"
                   ? "Admin is verifying. Booking & listing unlock after approval."
-                  : "One-time fee for Find bookings + Become Saathi. Both need this."}
+                  : "Choose a membership plan to book & list."}
               </p>
             </div>
-            <Link href="/pay" className="shrink-0 px-6 py-2.5 bg-white text-accent text-sm font-bold rounded-full text-center">
-              {pay === "PENDING" ? "View status" : "Pay ₹499 now"}
+            <Link href={pay === "PENDING" ? "/pay" : "/pricing"} className="shrink-0 px-6 py-2.5 bg-white text-accent text-sm font-bold rounded-full text-center">
+              {pay === "PENDING" ? "View status" : "View plans"}
             </Link>
           </div>
         )}
 
         {pay === "VERIFIED" && (
           <div className="mb-6 p-4 rounded-2xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-900 font-medium">
-            ✓ Registration paid · booking & listing unlocked
+            ✓ Membership active · booking & listing unlocked
           </div>
         )}
 
-        {/* Attractive services */}
         <section className="mb-10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-display text-xl font-bold text-ink">Available services</h2>
@@ -130,15 +168,13 @@ export default async function DashboardPage() {
             {SERVICES.map((s) => (
               <Link
                 key={s.title}
-                href={needsPay ? "/pay" : s.href}
+                href={needsPay ? "/pricing" : s.href}
                 className="group relative overflow-hidden rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-soft transition"
               >
                 <div className={`absolute top-0 right-0 w-16 h-16 rounded-bl-full bg-gradient-to-br ${s.color} opacity-15 group-hover:opacity-25`} />
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center text-lg`}>{
-                  s.emoji
-                }</div>
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center text-lg`}>{s.emoji}</div>
                 <p className="mt-3 font-semibold text-ink text-sm group-hover:text-accent">{s.title}</p>
-                <p className="text-[11px] text-ink-muted mt-0.5">{needsPay ? "Pay to unlock" : "Book now"}</p>
+                <p className="text-[11px] text-ink-muted mt-0.5">{needsPay ? "Plan required" : "Book now"}</p>
               </Link>
             ))}
           </div>
@@ -149,12 +185,10 @@ export default async function DashboardPage() {
             <p className="text-xs uppercase tracking-wide text-ink-muted">My bookings</p>
             <p className="font-display text-2xl font-bold text-ink mt-1">{clientCount}</p>
           </div>
-          {isSaathi && (
-            <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
-              <p className="text-xs uppercase tracking-wide text-ink-muted">Received</p>
-              <p className="font-display text-2xl font-bold text-ink mt-1">{saathiCount}</p>
-            </div>
-          )}
+          <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
+            <p className="text-xs uppercase tracking-wide text-ink-muted">Credit</p>
+            <p className="font-display text-2xl font-bold text-pink mt-1">₹{credit}</p>
+          </div>
           <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
             <p className="text-xs uppercase tracking-wide text-ink-muted">Payment</p>
             <p className="font-display text-lg font-bold text-pink mt-1">{isAdmin ? "Admin" : pay}</p>
@@ -166,9 +200,9 @@ export default async function DashboardPage() {
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
-          <Link href={needsPay ? "/pay" : "/find"} className="bg-white rounded-2xl border border-border p-6 hover:shadow-soft transition shadow-card">
+          <Link href={needsPay ? "/pricing" : "/find"} className="bg-white rounded-2xl border border-border p-6 hover:shadow-soft transition shadow-card">
             <h3 className="font-display font-bold text-ink">Find a Saathi</h3>
-            <p className="text-sm text-ink-muted mt-1">{needsPay ? "Unlock with ₹499" : "Browse & book"}</p>
+            <p className="text-sm text-ink-muted mt-1">{needsPay ? "Plan required" : "Browse & book"}</p>
           </Link>
           <Link href="/bookings" className="bg-white rounded-2xl border border-border p-6 hover:shadow-soft transition shadow-card">
             <h3 className="font-display font-bold text-ink">My bookings</h3>
@@ -188,8 +222,8 @@ export default async function DashboardPage() {
           {recentBookings.length === 0 ? (
             <div className="text-center py-10 text-ink-muted text-sm">
               <p>No bookings yet</p>
-              <Link href={needsPay ? "/pay" : "/find"} className="inline-block mt-4 text-pink font-semibold hover:underline">
-                {needsPay ? "Pay ₹499 to unlock →" : "Book your first session →"}
+              <Link href={needsPay ? "/pricing" : "/find"} className="inline-block mt-4 text-pink font-semibold hover:underline">
+                {needsPay ? "Get a plan →" : "Book your first session →"}
               </Link>
             </div>
           ) : (
