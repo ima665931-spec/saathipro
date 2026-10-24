@@ -49,6 +49,7 @@ function PayInner() {
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState("NONE");
   const [planExpiresAt, setPlanExpiresAt] = useState<string | null>(null);
+  const [publicId, setPublicId] = useState<string | null>(null);
   const [active, setActive] = useState(false);
   const [utr, setUtr] = useState("");
   const [shot, setShot] = useState<string | null>(null);
@@ -57,6 +58,7 @@ function PayInner() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -74,6 +76,7 @@ function PayInner() {
           setAssignmentId(d.assignmentId || null);
           setPaymentStatus(d.paymentStatus || "NONE");
           setPlanExpiresAt(d.planExpiresAt || null);
+          setPublicId(d.publicId || null);
           setActive(!!d.active);
           if (d.paymentStatus === "VERIFIED" && d.active) setDone(true);
           if (d.paymentStatus === "PENDING") setDone(true);
@@ -118,6 +121,15 @@ function PayInner() {
     } catch { /* */ }
   };
 
+  const copyRegId = async () => {
+    if (!publicId) return;
+    try {
+      await navigator.clipboard.writeText(publicId);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    } catch { /* */ }
+  };
+
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -132,8 +144,9 @@ function PayInner() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!utr.trim() || utr.trim().length < 6) {
-      setError("Enter full UTR / UPI transaction ID");
+    const digits = utr.replace(/\D/g, "");
+    if (digits.length !== 12) {
+      setError("UTR must be exactly 12 digits");
       return;
     }
     if (!shot) {
@@ -146,7 +159,7 @@ function PayInner() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          utr: utr.trim(),
+          utr: digits,
           screenshot: shot,
           upiPoolId,
           assignmentId,
@@ -159,6 +172,7 @@ function PayInner() {
         setSubmitting(false);
         return;
       }
+      if (data.publicId) setPublicId(data.publicId);
       setDone(true);
       setPaymentStatus("PENDING");
     } catch {
@@ -186,6 +200,15 @@ function PayInner() {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-10">
+        {publicId && (
+          <div className="mb-4 p-3 bg-white border border-border rounded-xl flex items-center justify-between text-sm shadow-card">
+            <span>Registration ID: <strong className="font-mono text-accent">{publicId}</strong></span>
+            <button type="button" onClick={copyRegId} className="text-xs font-medium text-accent">
+              {copiedId ? "Copied" : "Copy"}
+            </button>
+          </div>
+        )}
+
         {active || (paymentStatus === "VERIFIED" && planExpiresAt) ? (
           <div className="mt-6 text-center">
             <div className="mx-auto w-20 h-20 rounded-full bg-brand-gradient text-white flex items-center justify-center text-3xl shadow-glow">✓</div>
@@ -206,14 +229,16 @@ function PayInner() {
             <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">Membership</p>
             <h1 className="font-display text-3xl font-bold text-ink">Pay ₹{FEE}</h1>
             <p className="mt-2 text-ink-muted text-sm">
-              <strong className="text-ink">{planMeta.name}</strong> · {planMeta.days} days access.
-              {" "}<Link href="/pricing" className="text-accent underline">Change plan</Link>
+              <strong className="text-ink">{planMeta.name}</strong> · {planMeta.days} days.{" "}
+              <Link href="/pricing" className="text-accent underline">Change plan</Link>
             </p>
 
             {(paymentStatus === "PENDING" || done) && (
               <div className="mt-8 p-6 bg-amber-50 border border-amber-100 rounded-2xl text-center">
                 <p className="font-display text-lg font-semibold text-amber-900">Under review</p>
-                <p className="text-sm text-amber-800 mt-1">Admin is checking UTR + screenshot. Access unlocks after approval.</p>
+                <p className="text-sm text-amber-800 mt-1">
+                  Save your Registration ID <strong className="font-mono">{publicId}</strong> for support.
+                </p>
                 <Link href="/dashboard" className="inline-block mt-4 text-sm font-medium text-accent underline">Dashboard</Link>
               </div>
             )}
@@ -244,8 +269,18 @@ function PayInner() {
                   <h2 className="font-display font-semibold text-ink">After you pay</h2>
                   {error && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl">{error}</div>}
                   <div>
-                    <label className="block text-sm font-medium text-ink mb-1">UTR / Transaction ID</label>
-                    <input value={utr} onChange={(e) => setUtr(e.target.value)} className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50 text-sm" required />
+                    <label className="block text-sm font-medium text-ink mb-1">UTR (exactly 12 digits)</label>
+                    <input
+                      value={utr}
+                      onChange={(e) => setUtr(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                      inputMode="numeric"
+                      pattern="\d{12}"
+                      maxLength={12}
+                      placeholder="123456789012"
+                      className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50 text-sm font-mono"
+                      required
+                    />
+                    <p className="text-xs text-ink-muted mt-1">{utr.length}/12 digits</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-ink mb-1">Screenshot</label>
@@ -255,7 +290,7 @@ function PayInner() {
                     </button>
                     {shot && <img src={shot} alt="" className="mt-2 max-h-40 rounded-lg mx-auto border" />}
                   </div>
-                  <button type="submit" disabled={submitting || !upiId} className="w-full py-3.5 btn-brand rounded-xl disabled:opacity-50">
+                  <button type="submit" disabled={submitting || !upiId || utr.length !== 12} className="w-full py-3.5 btn-brand rounded-xl disabled:opacity-50">
                     {submitting ? "Submitting…" : "Submit for verification"}
                   </button>
                 </form>
