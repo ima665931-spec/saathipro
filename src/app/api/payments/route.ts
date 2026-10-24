@@ -3,9 +3,24 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { pickUpi, bumpUpiUsage } from "@/lib/upi-pool";
 import { getPlan, isValidPlanId, hasActivePlan, type PlanId } from "@/lib/plans";
+import { generateRegistrationId, isValidUtr12, normalizeUtr12 } from "@/lib/ids";
 
 const MAX_SHOT = 500_000;
 const ASSIGN_TTL_MS = 6 * 60 * 60 * 1000;
+
+async function ensurePublicId(userId: string, current?: string | null) {
+  if (current) return current;
+  for (let i = 0; i < 8; i++) {
+    const id = generateRegistrationId();
+    try {
+      await prisma.user.update({ where: { id: userId }, data: { publicId: id } });
+      return id;
+    } catch {
+      /* unique clash */
+    }
+  }
+  return null;
+}
 
 export async function GET(req: Request) {
   try {
@@ -30,49 +45,44 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    const publicId = await ensurePublicId(user.id, user.publicId);
     const active = hasActivePlan(user);
+
+    const base = {
+      publicId,
+      paymentStatus: user.paymentStatus as string,
+      plan: user.plan,
+      planExpiresAt: user.planExpiresAt,
+      amount: plan.price,
+      selectedPlan: plan,
+      payments: user.payments.map((p) => ({
+        id: p.id,
+        amount: p.amount,
+        plan: p.plan,
+        status: p.status,
+        utr: p.utr,
+        createdAt: p.createdAt,
+      })),
+    };
 
     if (user.paymentStatus === "PENDING") {
       return NextResponse.json({
-        paymentStatus: "PENDING",
-        plan: user.plan,
-        planExpiresAt: user.planExpiresAt,
-        amount: plan.price,
-        selectedPlan: plan,
+        ...base,
         upiId: "",
         upiName: "",
         upiPoolId: null,
         active,
-        payments: user.payments.map((p) => ({
-          id: p.id,
-          amount: p.amount,
-          plan: p.plan,
-          status: p.status,
-          utr: p.utr,
-          createdAt: p.createdAt,
-        })),
       });
     }
 
     if (active) {
       return NextResponse.json({
+        ...base,
         paymentStatus: "VERIFIED",
-        plan: user.plan,
-        planExpiresAt: user.planExpiresAt,
-        amount: plan.price,
-        selectedPlan: plan,
         upiId: "",
         upiName: "",
         upiPoolId: null,
         active: true,
-        payments: user.payments.map((p) => ({
-          id: p.id,
-          amount: p.amount,
-          plan: p.plan,
-          status: p.status,
-          utr: p.utr,
-          createdAt: p.createdAt,
-        })),
       });
     }
 
@@ -92,9 +102,7 @@ export async function GET(req: Request) {
       const picked = await pickUpi();
       if (!picked) {
         return NextResponse.json({
-          paymentStatus: user.paymentStatus,
-          amount: plan.price,
-          selectedPlan: plan,
+          ...base,
           upiId: "",
           upiName: "",
           upiPoolId: null,
@@ -118,24 +126,12 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({
-      paymentStatus: user.paymentStatus,
-      plan: user.plan,
-      planExpiresAt: user.planExpiresAt,
-      amount: plan.price,
-      selectedPlan: plan,
+      ...base,
       upiId: assignment.upiPool?.upiId || assignment.note || "",
       upiName: assignment.upiPool?.displayName || "SaathiPro",
       upiPoolId: assignment.upiPoolId,
       assignmentId: assignment.id,
       active: false,
-      payments: user.payments.map((p) => ({
-        id: p.id,
-        amount: p.amount,
-        plan: p.plan,
-        status: p.status,
-        utr: p.utr,
-        createdAt: p.createdAt,
-      })),
     });
   } catch (err) {
     console.error("payment GET:", err);
@@ -157,21 +153,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    if (hasActivePlan(user) && user.paymentStatus === "VERIFIED") {
-      // allow renew intentionally — still accept new payment
-    }
+    const publicId = await ensurePublicId(user.id, user.publicId);
 
     const body = await req.json();
     const { utr, screenshot, assignmentId, upiPoolId, plan: planRaw } = body;
     const planId: PlanId = isValidPlanId(planRaw) ? planRaw : "MONTHLY";
     const plan = getPlan(planId);
 
-    if (!utr || typeof utr !== "string" || utr.trim().length < 6) {
+    if (!utr || !isValidUtr12(String(utr))) {
       return NextResponse.json(
-        { error: "Valid UTR / transaction ID required" },
+        { error: "UTR must be exactly 12 digits" },
         { status: 400 }
       );
     }
+    const utrNorm = normalizeUtr12(String(utr));
 
     if (!screenshot || typeof screenshot !== "string" || !screenshot.startsWith("data:image/")) {
       return NextResponse.json({ error: "Payment screenshot required" }, { status: 400 });
@@ -187,7 +182,7 @@ export async function POST(req: Request) {
       payment = await prisma.payment.update({
         where: { id: assignmentId },
         data: {
-          utr: utr.trim(),
+          utr: utrNorm,
           screenshot,
           status: "PENDING",
           amount: plan.price,
@@ -202,7 +197,7 @@ export async function POST(req: Request) {
           amount: plan.price,
           type: "MEMBERSHIP",
           plan: planId,
-          utr: utr.trim(),
+          utr: utrNorm,
           screenshot,
           status: "PENDING",
           upiPoolId: upiPoolId || null,
@@ -217,7 +212,13 @@ export async function POST(req: Request) {
 
     await bumpUpiUsage(payment.upiPoolId || upiPoolId);
 
-    return NextResponse.json({ success: true, paymentId: payment.id, plan: planId });
+    return NextResponse.json({
+      success: true,
+      paymentId: payment.id,
+      plan: planId,
+      publicId,
+      utr: utrNorm,
+    });
   } catch (err) {
     console.error("payment POST:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
