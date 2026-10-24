@@ -1,26 +1,52 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandHeader from "@/components/BrandHeader";
 
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 1000;
+        let w = img.width, h = img.height;
+        if (w > max || h > max) {
+          if (w > h) { h = Math.round((h * max) / w); w = max; }
+          else { w = Math.round((w * max) / h); h = max; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("no canvas"));
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
+      };
+      img.onerror = () => reject(new Error("bad image"));
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(new Error("read fail"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function AgentPage() {
   const { status } = useSession();
   const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Apply form
   const [phone, setPhone] = useState("");
   const [aadhaar, setAadhaar] = useState("");
+  const [photo, setPhoto] = useState<string | null>(null);
   const [applyUpi, setApplyUpi] = useState("");
-
-  // UPI edit
   const [upiEdit, setUpiEdit] = useState("");
 
   const load = () => {
@@ -33,6 +59,7 @@ export default function AgentPage() {
           setData(d);
           setError("");
           if (d.agent?.agentUpi) setUpiEdit(d.agent.agentUpi);
+          if (d.profile?.phone) setPhone(d.profile.phone);
         }
       })
       .catch(() => setError("Network error"))
@@ -66,6 +93,33 @@ export default function AgentPage() {
     }
   };
 
+  const onPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      setPhoto(await compressImage(f));
+      setError("");
+    } catch {
+      setError("Could not read photo");
+    }
+  };
+
+  const submitKyc = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!photo) {
+      setError("Upload Aadhaar card photo");
+      return;
+    }
+    const action = data?.isAgent ? "complete_kyc" : "apply_agent";
+    act({
+      action,
+      phone,
+      aadhaar,
+      aadhaarPhoto: photo,
+      agentUpi: applyUpi || undefined,
+    });
+  };
+
   const copy = async () => {
     if (!data?.agent?.shareLink) return;
     try {
@@ -81,6 +135,13 @@ export default function AgentPage() {
     );
   }
 
+  const showKycForm =
+    data &&
+    (data.needsKyc ||
+      !data.isAgent ||
+      data.agentStatus === "REJECTED" ||
+      (data.agentStatus === "PENDING" && !data.isAgent));
+
   return (
     <div className="min-h-screen bg-brand-soft">
       <BrandHeader />
@@ -92,63 +153,60 @@ export default function AgentPage() {
           <div className="mt-4 p-3 bg-red-50 text-red-800 rounded-xl text-sm border border-red-100">{error}</div>
         )}
 
-        {/* ——— Not agent: apply form ——— */}
-        {data && !data.isAgent && (
+        {/* KYC gate */}
+        {showKycForm && data?.agentStatus !== "PENDING" && (
           <div className="mt-8 bg-white border border-border rounded-2xl p-6 shadow-card">
-            {data.agentStatus === "PENDING" ? (
-              <>
-                <h2 className="font-display text-xl font-bold text-ink">Application under review</h2>
-                <p className="text-sm text-ink-muted mt-2">
-                  Admin is checking your mobile + Aadhaar. You will get agent access after approval.
-                </p>
-              </>
-            ) : data.agentStatus === "REJECTED" ? (
-              <>
-                <h2 className="font-display text-xl font-bold text-ink">Application rejected</h2>
-                <p className="text-sm text-red-700 mt-2">{data.agentNote || "Contact support"}</p>
-                <p className="text-sm text-ink-muted mt-2">You can re-apply below with correct details.</p>
-              </>
-            ) : (
-              <h2 className="font-display text-xl font-bold text-ink">Become an agent</h2>
-            )}
+            <h2 className="font-display text-xl font-bold text-ink">
+              {data.isAgent ? "Complete your KYC" : "Become an agent"}
+            </h2>
+            <p className="text-sm text-ink-muted mt-2">
+              One-time: <strong>mobile number</strong>, <strong>12-digit Aadhaar</strong>, and{" "}
+              <strong>Aadhaar card photo</strong>. Saved permanently for admin verification.
+              Commission: <strong>50%</strong> on membership plans.
+            </p>
 
-            {data.agentStatus !== "PENDING" && (
-              <form
-                className="mt-6 space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  act({ action: "apply_agent", phone, aadhaar, agentUpi: applyUpi || undefined });
-                }}
-              >
-                <p className="text-sm text-ink-muted">
-                  Required: <strong>10-digit mobile</strong> + <strong>12-digit Aadhaar</strong>.
-                  Commission after approval: <strong>50%</strong> of membership plans.
-                </p>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Mobile number</label>
-                  <input value={phone} onChange={(e) => setPhone(e.target.value)} required
-                    className="w-full px-4 py-3 border border-border rounded-xl text-sm" placeholder="9876543210" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Aadhaar number</label>
-                  <input value={aadhaar} onChange={(e) => setAadhaar(e.target.value)} required
-                    className="w-full px-4 py-3 border border-border rounded-xl text-sm" placeholder="12 digits" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Your UPI (optional now)</label>
-                  <input value={applyUpi} onChange={(e) => setApplyUpi(e.target.value)}
-                    className="w-full px-4 py-3 border border-border rounded-xl text-sm" placeholder="name@ybl" />
-                </div>
-                <button type="submit" disabled={busy} className="btn-brand px-6 py-3 rounded-full text-sm disabled:opacity-50">
-                  {busy ? "Submitting…" : "Submit application"}
+            <form className="mt-6 space-y-4" onSubmit={submitKyc}>
+              <div>
+                <label className="block text-sm font-medium mb-1">Mobile number *</label>
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} required
+                  className="w-full px-4 py-3 border border-border rounded-xl text-sm" placeholder="9876543210" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Aadhaar number (12 digits) *</label>
+                <input value={aadhaar} onChange={(e) => setAadhaar(e.target.value)} required
+                  className="w-full px-4 py-3 border border-border rounded-xl text-sm" placeholder="XXXX XXXX XXXX" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Aadhaar card photo *</label>
+                <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhoto} />
+                <button type="button" onClick={() => fileRef.current?.click()}
+                  className="w-full py-3 border border-dashed border-border rounded-xl text-sm text-ink-muted">
+                  {photo ? "Change photo" : "Upload / take Aadhaar photo"}
                 </button>
-              </form>
-            )}
+                {photo && <img src={photo} alt="Aadhaar" className="mt-2 max-h-48 rounded-lg border mx-auto" />}
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Payout UPI (optional)</label>
+                <input value={applyUpi} onChange={(e) => setApplyUpi(e.target.value)}
+                  className="w-full px-4 py-3 border border-border rounded-xl text-sm" placeholder="name@ybl" />
+              </div>
+              <button type="submit" disabled={busy} className="btn-brand px-6 py-3 rounded-full text-sm disabled:opacity-50">
+                {busy ? "Saving…" : data.isAgent ? "Save KYC" : "Submit application"}
+              </button>
+            </form>
           </div>
         )}
 
-        {/* ——— Active agent ——— */}
-        {data?.isAgent && (
+        {!data?.isAgent && data?.agentStatus === "PENDING" && (
+          <div className="mt-8 p-6 bg-amber-50 border border-amber-100 rounded-2xl">
+            <h2 className="font-display text-lg font-bold text-amber-900">Under review</h2>
+            <p className="text-sm text-amber-800 mt-1">
+              Admin is verifying your mobile + Aadhaar. Access unlocks after approval.
+            </p>
+          </div>
+        )}
+
+        {data?.isAgent && !data.needsKyc && (
           <>
             <p className="text-ink-muted text-sm mt-1">
               Earn <strong className="text-accent">{data.agent.commissionPct}%</strong> on every membership from your link
@@ -161,6 +219,9 @@ export default function AgentPage() {
               <button type="button" onClick={copy} className="mt-4 btn-brand px-5 py-2.5 rounded-full text-sm">
                 {copied ? "Copied!" : "Copy share link"}
               </button>
+              <p className="mt-3 text-xs text-ink-muted">
+                KYC: {data.agent.phone} · {data.agent.aadhaarMasked}
+              </p>
             </div>
 
             <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -176,37 +237,25 @@ export default function AgentPage() {
                 </div>
               ))}
             </div>
-            {data.stats.lockedCommission > 0 && (
-              <p className="mt-2 text-xs text-amber-700">Cashout in progress: ₹{data.stats.lockedCommission} locked</p>
-            )}
 
-            {/* UPI manage */}
             <section className="mt-10 bg-white border border-border rounded-2xl p-6 shadow-card">
               <h2 className="font-display text-lg font-bold text-ink">Your payout UPI</h2>
-              <p className="text-xs text-ink-muted mt-1">Cashouts go to this UPI. You can change anytime.</p>
               <div className="mt-4 flex flex-col sm:flex-row gap-2">
                 <input value={upiEdit} onChange={(e) => setUpiEdit(e.target.value)}
                   className="flex-1 px-4 py-3 border border-border rounded-xl text-sm" placeholder="name@ybl" />
                 <button type="button" disabled={busy} onClick={() => act({ action: "set_upi", agentUpi: upiEdit })}
                   className="btn-brand px-4 py-2.5 rounded-xl text-sm">Save UPI</button>
-                {data.agent.agentUpi && (
-                  <button type="button" disabled={busy} onClick={() => act({ action: "clear_upi" })}
-                    className="px-4 py-2.5 border border-red-200 text-red-700 rounded-xl text-sm">Remove</button>
-                )}
               </div>
             </section>
 
-            {/* Cashout */}
             <section className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card">
               <h2 className="font-display text-lg font-bold text-ink">Cashout</h2>
-              <p className="text-sm text-ink-muted mt-1">
-                Available: <strong>₹{data.stats.pendingCommission}</strong> · Min ₹{data.stats.minCashout}
-              </p>
+              <p className="text-sm text-ink-muted mt-1">Available: <strong>₹{data.stats.pendingCommission}</strong></p>
               <button
                 type="button"
                 disabled={busy || data.stats.pendingCommission < data.stats.minCashout || !data.agent.agentUpi}
                 onClick={() => {
-                  if (confirm(`Request cashout of ₹${data.stats.pendingCommission} to ${data.agent.agentUpi}?`)) {
+                  if (confirm(`Cashout ₹${data.stats.pendingCommission} to ${data.agent.agentUpi}?`)) {
                     act({ action: "request_cashout" });
                   }
                 }}
@@ -214,60 +263,34 @@ export default function AgentPage() {
               >
                 Apply cashout
               </button>
-              {data.withdrawals?.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  {data.withdrawals.map((w: any) => (
-                    <div key={w.id} className="text-sm flex justify-between border-t border-border pt-2">
-                      <span>₹{w.amount} → {w.upiId}</span>
-                      <span className="font-medium">{w.status}</span>
-                    </div>
-                  ))}
+              {data.withdrawals?.map((w: any) => (
+                <div key={w.id} className="mt-2 text-sm flex justify-between border-t pt-2">
+                  <span>₹{w.amount} → {w.upiId}</span>
+                  <span>{w.status}</span>
                 </div>
-              )}
+              ))}
             </section>
 
             <section className="mt-10">
-              <h2 className="font-display text-lg font-bold text-ink mb-3">Referrals</h2>
+              <h2 className="font-display text-lg font-bold mb-3">Referrals</h2>
               {data.referrals?.length === 0 ? (
-                <p className="text-sm text-ink-muted">No referrals yet — share your link.</p>
-              ) : (
-                <div className="space-y-2">
-                  {data.referrals.map((r: any) => (
-                    <div key={r.id} className="bg-white border border-border rounded-xl p-4 flex justify-between text-sm shadow-card">
-                      <div>
-                        <p className="font-medium">{r.name || r.email}</p>
-                        <p className="text-xs text-ink-muted">{r.email}</p>
-                      </div>
-                      <div className="text-right">
-                        <p>{r.paymentStatus}</p>
-                        <p className="text-xs text-ink-muted">{r.plan || "—"}</p>
-                      </div>
-                    </div>
-                  ))}
+                <p className="text-sm text-ink-muted">Share your link to get referrals.</p>
+              ) : data.referrals.map((r: any) => (
+                <div key={r.id} className="bg-white border rounded-xl p-4 flex justify-between text-sm mb-2 shadow-card">
+                  <div><p className="font-medium">{r.name || r.email}</p><p className="text-xs text-ink-muted">{r.email}</p></div>
+                  <div className="text-right"><p>{r.paymentStatus}</p><p className="text-xs">{r.plan || "—"}</p></div>
                 </div>
-              )}
+              ))}
             </section>
 
             <section className="mt-10">
-              <h2 className="font-display text-lg font-bold text-ink mb-3">Commission log</h2>
-              {data.commissions?.length === 0 ? (
-                <p className="text-sm text-ink-muted">Commissions appear after referred users pay & admin approves.</p>
-              ) : (
-                <div className="space-y-2">
-                  {data.commissions.map((c: any) => (
-                    <div key={c.id} className="bg-white border border-border rounded-xl p-4 flex justify-between text-sm shadow-card">
-                      <div>
-                        <p className="font-medium">{c.user?.name || c.user?.email}</p>
-                        <p className="text-xs text-ink-muted">{c.plan} · {c.percent}%</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-brand-gradient">₹{c.amount}</p>
-                        <p className="text-xs">{c.status}</p>
-                      </div>
-                    </div>
-                  ))}
+              <h2 className="font-display text-lg font-bold mb-3">Commission log</h2>
+              {data.commissions?.map((c: any) => (
+                <div key={c.id} className="bg-white border rounded-xl p-4 flex justify-between text-sm mb-2 shadow-card">
+                  <div><p className="font-medium">{c.user?.name || c.user?.email}</p><p className="text-xs">{c.plan} · {c.percent}%</p></div>
+                  <div className="text-right"><p className="font-bold text-brand-gradient">₹{c.amount}</p><p className="text-xs">{c.status}</p></div>
                 </div>
-              )}
+              ))}
             </section>
           </>
         )}
