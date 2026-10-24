@@ -2,6 +2,16 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { normalizeRefCode } from "@/lib/referral";
+import { generateRegistrationId } from "@/lib/ids";
+
+async function uniquePublicId(): Promise<string> {
+  for (let i = 0; i < 8; i++) {
+    const id = generateRegistrationId();
+    const clash = await prisma.user.findUnique({ where: { publicId: id } });
+    if (!clash) return id;
+  }
+  return generateRegistrationId() + Date.now().toString(36).slice(-2).toUpperCase();
+}
 
 export async function POST(req: Request) {
   try {
@@ -50,6 +60,7 @@ export async function POST(req: Request) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
+    const publicId = await uniquePublicId();
 
     const user = await prisma.user.create({
       data: {
@@ -57,6 +68,7 @@ export async function POST(req: Request) {
         email: String(email).trim().toLowerCase(),
         password: hashedPassword,
         role: "USER",
+        publicId,
         referredById,
       },
     });
@@ -65,6 +77,7 @@ export async function POST(req: Request) {
       {
         user: {
           id: user.id,
+          publicId: user.publicId,
           name: user.name,
           email: user.email,
           referred: !!referredById,
