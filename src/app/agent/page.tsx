@@ -162,12 +162,37 @@ export default function AgentPage() {
 
   const step = data?.step || "kyc";
   const feeAmt = data?.feeAmount || fee?.amount || 199;
+  const paidMembers = data?.stats?.paidMembers || 0;
+  const milestoneNeed = data?.rewards?.milestoneRefs || 3;
+  const milestoneBonus = data?.rewards?.milestoneBonus || 69;
+  const milestonePct = Math.min(100, Math.round((paidMembers / milestoneNeed) * 100));
   const upiLink = fee?.upiId
     ? `upi://pay?pa=${encodeURIComponent(fee.upiId)}&pn=${encodeURIComponent(fee.upiName || "SaathiPro")}&am=${feeAmt}&cu=INR&tn=${encodeURIComponent("SaathiPro Agent Fee")}`
     : "";
   const qrUrl = upiLink
     ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiLink)}`
     : "";
+
+  const inviteCards = [
+    {
+      key: "seeker",
+      title: "Invite seeker",
+      reward: `${data?.agent?.commissionPct || 50}% of their plan`,
+      link: data?.agent?.inviteLinks?.seeker,
+    },
+    {
+      key: "provider",
+      title: "Invite Saathi (provider)",
+      reward: `${data?.agent?.commissionPct || 50}% of their plan`,
+      link: data?.agent?.inviteLinks?.provider,
+    },
+    {
+      key: "agent",
+      title: "Invite agent",
+      reward: `₹49 on KYC + 10% of their earnings`,
+      link: data?.agent?.inviteLinks?.registerAgent,
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-brand-soft">
@@ -312,14 +337,33 @@ export default function AgentPage() {
             <p className="text-ink-muted text-sm mt-1">
               Earn <strong className="text-accent">{data.agent.commissionPct}%</strong> on memberships
             </p>
+
             <div className="mt-8 bg-white border border-border rounded-2xl p-6 shadow-card">
               <p className="text-xs uppercase text-ink-muted font-semibold">Agent ID</p>
               <p className="font-display text-2xl font-bold text-brand-gradient mt-1">{data.agent.referralCode}</p>
-              <p className="mt-3 text-sm text-ink-muted break-all">{data.agent.shareLink}</p>
-              <button type="button" onClick={() => copy(data.agent.shareLink || "")} className="mt-4 btn-brand px-5 py-2.5 rounded-full text-sm">
-                {copied ? "Copied!" : "Copy share link"}
-              </button>
             </div>
+
+            {/* Milestone */}
+            <div className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-display font-bold text-ink">Milestone</h2>
+                <span className="text-sm font-semibold text-accent">
+                  {paidMembers}/{milestoneNeed} → ₹{milestoneBonus}
+                </span>
+              </div>
+              <p className="text-xs text-ink-muted mt-1">
+                {paidMembers >= milestoneNeed
+                  ? "Target hit — bonus credited when triggered"
+                  : `${milestoneNeed - paidMembers} more paid member(s) for ₹${milestoneBonus}`}
+              </p>
+              <div className="mt-3 h-2.5 rounded-full bg-cream-dark overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-brand-gradient transition-all"
+                  style={{ width: `${milestonePct}%` }}
+                />
+              </div>
+            </div>
+
             <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 ["Referrals", data.stats?.referrals],
@@ -333,6 +377,29 @@ export default function AgentPage() {
                 </div>
               ))}
             </div>
+
+            {/* 3 invite types */}
+            <section className="mt-10 space-y-3">
+              <h2 className="font-display text-lg font-bold text-ink">Invite & earn</h2>
+              <p className="text-xs text-ink-muted">
+                50% plan · ₹49 agent KYC · 10% sub-agent · milestone ₹{milestoneBonus}
+              </p>
+              {inviteCards.map((card) => (
+                <div key={card.key} className="bg-white border border-border rounded-2xl p-5 shadow-card">
+                  <p className="font-display font-bold text-ink">{card.title}</p>
+                  <p className="text-sm text-accent mt-1">{card.reward}</p>
+                  <p className="text-xs text-ink-muted break-all mt-2">{card.link || "—"}</p>
+                  <button
+                    type="button"
+                    onClick={() => copy(card.link || "")}
+                    className="mt-3 text-xs btn-brand px-4 py-2 rounded-full"
+                  >
+                    {copied ? "Copied!" : "Copy link"}
+                  </button>
+                </div>
+              ))}
+            </section>
+
             <section className="mt-10 bg-white border border-border rounded-2xl p-6 shadow-card">
               <h2 className="font-display text-lg font-bold">Payout UPI</h2>
               <div className="mt-4 flex flex-col sm:flex-row gap-2">
@@ -342,9 +409,10 @@ export default function AgentPage() {
                   className="btn-brand px-4 py-2.5 rounded-xl text-sm">Save</button>
               </div>
             </section>
+
             <section className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card">
               <h2 className="font-display text-lg font-bold">Cashout</h2>
-              <p className="text-sm text-ink-muted mt-1">Available ₹{data.stats?.pendingCommission}</p>
+              <p className="text-sm text-ink-muted mt-1">Available ₹{data.stats?.pendingCommission} · min ₹{data.stats?.minCashout || 100}</p>
               <button type="button" disabled={busy || (data.stats?.pendingCommission || 0) < (data.stats?.minCashout || 100) || !data.agent.agentUpi}
                 onClick={() => { if (confirm(`Cashout ₹${data.stats.pendingCommission}?`)) act({ action: "request_cashout" }); }}
                 className="mt-4 btn-brand px-6 py-3 rounded-full text-sm disabled:opacity-40">
