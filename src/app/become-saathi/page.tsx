@@ -5,18 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandHeader from "@/components/BrandHeader";
-
-const ALL_SERVICES = [
-  "Movie Partner", "Hanging Out", "Elder Care", "Clubbing", "Shopping Buddy",
-  "Coffee Partner", "Travel Partner", "Event Partner", "Medical Support",
-  "City Tour Partner", "Concert Partner", "Cafe & Food Partner",
-  "Professional Networking Partner", "Domestic Help",
-];
-
-const CITIES = [
-  "Delhi", "Mumbai", "Bangalore", "Pune", "Hyderabad", "Chennai",
-  "Kolkata", "Ahmedabad", "Jaipur", "Chandigarh", "Lucknow", "Indore",
-];
+import { SERVICE_CATALOG, CITY_LIST } from "@/lib/catalog";
 
 function compressImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -61,24 +50,45 @@ export default function BecomeSaathiPage() {
   const [needsPay, setNeedsPay] = useState(false);
 
   const toggleService = (svc: string) => {
-    setServices((prev) => prev.includes(svc) ? prev.filter((s) => s !== svc) : [...prev, svc]);
+    setServices((prev) =>
+      prev.includes(svc) ? prev.filter((s) => s !== svc) : [...prev, svc]
+    );
   };
 
   const onPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) { setError("Please choose an image"); return; }
-    try { setPhoto(await compressImage(file)); setError(""); }
-    catch { setError("Could not process image"); }
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image");
+      return;
+    }
+    try {
+      setPhoto(await compressImage(file));
+      setError("");
+    } catch {
+      setError("Could not process image");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!session?.user) { router.push("/login?callbackUrl=/become-saathi"); return; }
-    if (!services.length) { setError("Select at least one service"); return; }
-    if (!city) { setError("Select city"); return; }
-    if (bio.trim().length < 20) { setError("Bio min 20 characters"); return; }
+    if (!session?.user) {
+      router.push("/login?callbackUrl=/become-saathi");
+      return;
+    }
+    if (!services.length) {
+      setError("Select at least one service");
+      return;
+    }
+    if (!city) {
+      setError("Select city");
+      return;
+    }
+    if (bio.trim().length < 20) {
+      setError("Bio min 20 characters");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/become-saathi", {
@@ -94,12 +104,19 @@ export default function BecomeSaathiPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Failed"); setLoading(false); return; }
+      if (!res.ok) {
+        setError(data.error || "Failed");
+        setLoading(false);
+        return;
+      }
       setNeedsPay(!!data.needsPayment);
       setSuccess(true);
       setTimeout(() => router.push(data.needsPayment ? "/pricing" : "/dashboard"), 1800);
-    } catch { setError("Network error"); }
-    finally { setLoading(false); }
+    } catch {
+      setError("Network error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (status === "loading") {
@@ -176,8 +193,10 @@ export default function BecomeSaathiPage() {
               className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50"
             >
               <option value="">Select</option>
-              {CITIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
+              {CITY_LIST.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
               ))}
             </select>
           </div>
@@ -193,16 +212,18 @@ export default function BecomeSaathiPage() {
           <div>
             <label className="block text-sm font-medium text-ink mb-2">Services</label>
             <div className="flex flex-wrap gap-2">
-              {ALL_SERVICES.map((svc) => (
+              {SERVICE_CATALOG.map((svc) => (
                 <button
-                  key={svc}
+                  key={svc.id}
                   type="button"
-                  onClick={() => toggleService(svc)}
+                  onClick={() => toggleService(svc.label)}
                   className={`px-3 py-1.5 rounded-full text-sm ${
-                    services.includes(svc) ? "btn-brand" : "bg-white border border-border text-ink-muted"
+                    services.includes(svc.label)
+                      ? "btn-brand"
+                      : "bg-white border border-border text-ink-muted"
                   }`}
                 >
-                  {svc}
+                  {svc.emoji} {svc.label}
                 </button>
               ))}
             </div>
