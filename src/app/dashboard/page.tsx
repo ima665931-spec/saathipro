@@ -3,6 +3,17 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+const SERVICES = [
+  { title: "Movie Partner", emoji: "🎬", color: "from-violet-500 to-purple-600", href: "/find" },
+  { title: "Hanging Out", emoji: "☕", color: "from-pink-400 to-rose-500", href: "/find" },
+  { title: "Elder Care", emoji: "💚", color: "from-emerald-400 to-teal-500", href: "/find" },
+  { title: "Clubbing", emoji: "🎉", color: "from-fuchsia-500 to-pink-600", href: "/find" },
+  { title: "Shopping Buddy", emoji: "🛍️", color: "from-amber-400 to-orange-500", href: "/find" },
+  { title: "Coffee Partner", emoji: "💬", color: "from-rose-400 to-pink-500", href: "/find" },
+  { title: "Travel Partner", emoji: "✈️", color: "from-indigo-400 to-violet-500", href: "/find" },
+  { title: "Medical Support", emoji: "🏥", color: "from-sky-400 to-blue-500", href: "/find" },
+];
+
 export default async function DashboardPage() {
   const session = await auth();
 
@@ -14,20 +25,12 @@ export default async function DashboardPage() {
     where: { email: { equals: session.user.email, mode: "insensitive" } },
     include: {
       saathiProfile: true,
-      bookingsAsClient: {
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      },
-      bookingsAsSaathi: {
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      },
+      bookingsAsClient: { orderBy: { createdAt: "desc" }, take: 5 },
+      bookingsAsSaathi: { orderBy: { createdAt: "desc" }, take: 5 },
     },
   });
 
-  if (!dbUser) {
-    redirect("/login");
-  }
+  if (!dbUser) redirect("/login");
 
   const role = dbUser.role || "USER";
   const isSaathi = role === "SAATHI";
@@ -36,11 +39,7 @@ export default async function DashboardPage() {
   const clientBookings = dbUser.bookingsAsClient || [];
   const saathiBookings = dbUser.bookingsAsSaathi || [];
   const pay = dbUser.paymentStatus || "NONE";
-
-  // ₹499 only for people who applied as Saathi and are not verified yet
-  const appliedAsSaathi = !!profile || isSaathi;
-  const needsListingPay =
-    !isAdmin && appliedAsSaathi && pay !== "VERIFIED";
+  const needsPay = !isAdmin && pay !== "VERIFIED";
 
   const [clientCount, saathiCount] = await Promise.all([
     prisma.booking.count({ where: { clientId: dbUser.id } }),
@@ -49,71 +48,32 @@ export default async function DashboardPage() {
 
   const recentBookings = isSaathi
     ? [...saathiBookings, ...clientBookings]
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5)
     : clientBookings;
 
-  let servicesList: string[] = [];
-  if (profile?.services) {
-    try {
-      servicesList = JSON.parse(profile.services);
-    } catch {
-      servicesList = [];
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-cream">
-      <header className="bg-cream/90 backdrop-blur border-b border-border sticky top-0 z-50">
+    <div className="min-h-screen bg-brand-soft">
+      <header className="bg-white/90 backdrop-blur border-b border-border sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-ink flex items-center justify-center text-cream font-display font-semibold text-sm">
+              <div className="w-9 h-9 rounded-xl bg-brand-gradient flex items-center justify-center text-white font-display font-bold text-sm">
                 S
               </div>
-              <span className="font-display text-lg font-semibold text-ink tracking-tight">
-                SaathiPro
+              <span className="font-display text-lg font-bold text-ink">
+                Saathi<span className="text-pink">Pro</span>
               </span>
             </Link>
             <div className="flex items-center gap-3">
-              <Link
-                href="/find"
-                className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-ink"
-              >
-                Find
-              </Link>
-              <Link
-                href="/bookings"
-                className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-ink"
-              >
-                Bookings
-              </Link>
-              {needsListingPay && (
-                <Link
-                  href="/pay"
-                  className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-ink"
-                >
-                  Listing fee
-                </Link>
+              <Link href="/find" className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-accent">Find</Link>
+              <Link href="/bookings" className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-accent">Bookings</Link>
+              {needsPay && (
+                <Link href="/pay" className="text-sm font-semibold text-pink hover:underline">Pay ₹499</Link>
               )}
-              <span className="text-sm text-ink-muted hidden md:inline">
-                {dbUser.name || dbUser.email}
-              </span>
-              <form
-                action={async () => {
-                  "use server";
-                  await signOut({ redirectTo: "/" });
-                }}
-              >
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink transition"
-                >
-                  Logout
-                </button>
+              <span className="text-sm text-ink-muted hidden md:inline">{dbUser.name || dbUser.email}</span>
+              <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
+                <button type="submit" className="px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink">Logout</button>
               </form>
             </div>
           </div>
@@ -123,267 +83,130 @@ export default async function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <p className="text-xs font-semibold tracking-widest uppercase text-accent-light mb-2">
-              Account
-            </p>
-            <h1 className="font-display text-3xl font-semibold text-ink">
-              Dashboard
+            <p className="text-xs font-bold tracking-widest uppercase text-pink mb-1">Home</p>
+            <h1 className="font-display text-3xl font-bold text-ink">
+              Hey{dbUser.name ? `, ${dbUser.name.split(" ")[0]}` : ""} 👋
             </h1>
-            <p className="text-ink-muted mt-1 text-sm">
-              Welcome back
-              {dbUser.name ? `, ${dbUser.name.split(" ")[0]}` : ""}
-            </p>
+            <p className="text-ink-muted mt-1 text-sm">Pick a service & find your Saathi</p>
           </div>
-          <span
-            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-              isSaathi
-                ? "bg-ink text-cream"
-                : "bg-cream-dark text-ink border border-border"
-            }`}
-          >
+          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
+            isSaathi ? "bg-brand-gradient text-white" : "bg-white border border-border text-ink"
+          }`}>
             {isSaathi ? "Saathi" : "Member"}
           </span>
         </div>
 
-        {needsListingPay && (
-          <div className="mb-8 p-5 rounded-2xl border border-amber-100 bg-amber-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {needsPay && (
+          <div className="mb-8 p-5 rounded-2xl bg-brand-gradient text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-glow">
             <div>
-              <p className="font-display font-semibold text-amber-950">
-                {pay === "PENDING"
-                  ? "Listing fee under review"
-                  : "Pay ₹499 to go live on Find"}
+              <p className="font-display font-bold text-lg">
+                {pay === "PENDING" ? "Payment under review" : "Unlock full access — ₹499"}
               </p>
-              <p className="text-sm text-amber-900 mt-1">
+              <p className="text-sm text-white/90 mt-1">
                 {pay === "PENDING"
-                  ? "Admin is verifying payment. Your profile stays draft until then."
-                  : "One-time Saathi listing fee. Clients book free — this is only for professionals."}
+                  ? "Admin is verifying. Booking & listing unlock after approval."
+                  : "One-time fee for Find bookings + Become Saathi. Both need this."}
               </p>
             </div>
-            <Link
-              href="/pay"
-              className="shrink-0 px-5 py-2.5 bg-ink text-cream text-sm font-semibold rounded-full text-center"
-            >
-              {pay === "PENDING" ? "View status" : "Pay ₹499"}
+            <Link href="/pay" className="shrink-0 px-6 py-2.5 bg-white text-accent text-sm font-bold rounded-full text-center">
+              {pay === "PENDING" ? "View status" : "Pay ₹499 now"}
             </Link>
           </div>
         )}
 
-        {isSaathi && pay === "VERIFIED" && profile?.isActive && (
-          <div className="mb-8 p-4 rounded-2xl border border-emerald-100 bg-emerald-50 text-sm text-emerald-900">
-            Listing live on Find · clients can book you
+        {pay === "VERIFIED" && (
+          <div className="mb-6 p-4 rounded-2xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-900 font-medium">
+            ✓ Registration paid · booking & listing unlocked
           </div>
         )}
+
+        {/* Attractive services */}
+        <section className="mb-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-xl font-bold text-ink">Available services</h2>
+            <Link href="/find" className="text-sm font-semibold text-accent hover:underline">See all →</Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {SERVICES.map((s) => (
+              <Link
+                key={s.title}
+                href={needsPay ? "/pay" : s.href}
+                className="group relative overflow-hidden rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-soft transition"
+              >
+                <div className={`absolute top-0 right-0 w-16 h-16 rounded-bl-full bg-gradient-to-br ${s.color} opacity-15 group-hover:opacity-25`} />
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center text-lg`}>{
+                  s.emoji
+                }</div>
+                <p className="mt-3 font-semibold text-ink text-sm group-hover:text-accent">{s.title}</p>
+                <p className="text-[11px] text-ink-muted mt-0.5">{needsPay ? "Pay to unlock" : "Book now"}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
-            <p className="text-xs uppercase tracking-wide text-ink-muted">
-              My bookings
-            </p>
-            <p className="font-display text-2xl font-semibold text-ink mt-1">
-              {clientCount}
-            </p>
+            <p className="text-xs uppercase tracking-wide text-ink-muted">My bookings</p>
+            <p className="font-display text-2xl font-bold text-ink mt-1">{clientCount}</p>
           </div>
           {isSaathi && (
             <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
-              <p className="text-xs uppercase tracking-wide text-ink-muted">
-                Received
-              </p>
-              <p className="font-display text-2xl font-semibold text-ink mt-1">
-                {saathiCount}
-              </p>
+              <p className="text-xs uppercase tracking-wide text-ink-muted">Received</p>
+              <p className="font-display text-2xl font-bold text-ink mt-1">{saathiCount}</p>
             </div>
           )}
           <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
-            <p className="text-xs uppercase tracking-wide text-ink-muted">Role</p>
-            <p className="font-display text-lg font-semibold text-ink mt-1">
-              {role}
-            </p>
+            <p className="text-xs uppercase tracking-wide text-ink-muted">Payment</p>
+            <p className="font-display text-lg font-bold text-pink mt-1">{isAdmin ? "Admin" : pay}</p>
           </div>
-          {isSaathi && profile ? (
-            <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
-              <p className="text-xs uppercase tracking-wide text-ink-muted">
-                Rate
-              </p>
-              <p className="font-display text-2xl font-semibold text-ink mt-1">
-                ₹{profile.hourlyRate || "—"}
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
-              <p className="text-xs uppercase tracking-wide text-ink-muted">
-                Listing
-              </p>
-              <p className="font-display text-lg font-semibold text-ink mt-1">
-                {pay === "VERIFIED" ? "Paid" : "—"}
-              </p>
-            </div>
-          )}
+          <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
+            <p className="text-xs uppercase tracking-wide text-ink-muted">Role</p>
+            <p className="font-display text-lg font-bold text-ink mt-1">{role}</p>
+          </div>
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
-          <Link
-            href="/find"
-            className="bg-white rounded-2xl border border-border p-6 hover:shadow-soft transition group shadow-card"
-          >
-            <h3 className="font-display font-semibold text-ink group-hover:text-accent transition">
-              Find a Saathi
-            </h3>
-            <p className="text-sm text-ink-muted mt-1">Browse & book free</p>
+          <Link href={needsPay ? "/pay" : "/find"} className="bg-white rounded-2xl border border-border p-6 hover:shadow-soft transition shadow-card">
+            <h3 className="font-display font-bold text-ink">Find a Saathi</h3>
+            <p className="text-sm text-ink-muted mt-1">{needsPay ? "Unlock with ₹499" : "Browse & book"}</p>
           </Link>
-
-          <Link
-            href="/bookings"
-            className="bg-white rounded-2xl border border-border p-6 hover:shadow-soft transition group shadow-card"
-          >
-            <h3 className="font-display font-semibold text-ink group-hover:text-accent transition">
-              My bookings
-            </h3>
+          <Link href="/bookings" className="bg-white rounded-2xl border border-border p-6 hover:shadow-soft transition shadow-card">
+            <h3 className="font-display font-bold text-ink">My bookings</h3>
             <p className="text-sm text-ink-muted mt-1">{clientCount} total</p>
           </Link>
-
-          {isSaathi ? (
-            <Link
-              href="/become-saathi"
-              className="bg-white rounded-2xl border border-border p-6 hover:shadow-soft transition group shadow-card"
-            >
-              <h3 className="font-display font-semibold text-ink group-hover:text-accent transition">
-                Edit profile
-              </h3>
-              <p className="text-sm text-ink-muted mt-1">
-                {profile?.isActive ? "Live on Find" : profile?.city || "Draft"}
-              </p>
-            </Link>
-          ) : (
-            <Link
-              href="/become-saathi"
-              className="bg-ink rounded-2xl p-6 text-cream hover:bg-accent transition"
-            >
-              <h3 className="font-display font-semibold">Become a Saathi</h3>
-              <p className="text-sm text-cream/70 mt-1">₹499 listing · then earn</p>
-            </Link>
-          )}
-        </div>
-
-        <div className="bg-white rounded-2xl border border-border p-6 mb-8 shadow-card">
-          <h3 className="font-display text-lg font-semibold text-ink mb-4">
-            Your profile
-          </h3>
-          <div className="grid sm:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-ink-muted text-xs uppercase tracking-wide">
-                Name
-              </span>
-              <p className="font-medium text-ink mt-0.5">{dbUser.name || "—"}</p>
-            </div>
-            <div>
-              <span className="text-ink-muted text-xs uppercase tracking-wide">
-                Email
-              </span>
-              <p className="font-medium text-ink mt-0.5">{dbUser.email}</p>
-            </div>
-            <div>
-              <span className="text-ink-muted text-xs uppercase tracking-wide">
-                Role
-              </span>
-              <p className="font-medium text-ink mt-0.5">{role}</p>
-            </div>
-            {appliedAsSaathi && (
-              <div>
-                <span className="text-ink-muted text-xs uppercase tracking-wide">
-                  Listing fee
-                </span>
-                <p className="font-medium text-ink mt-0.5">{pay}</p>
-              </div>
-            )}
-            {isSaathi && profile && (
-              <>
-                <div>
-                  <span className="text-ink-muted text-xs uppercase tracking-wide">
-                    City
-                  </span>
-                  <p className="font-medium text-ink mt-0.5">
-                    {profile.city || "—"}
-                  </p>
-                </div>
-                <div className="sm:col-span-2">
-                  <span className="text-ink-muted text-xs uppercase tracking-wide">
-                    Bio
-                  </span>
-                  <p className="font-medium text-ink mt-0.5">{profile.bio || "—"}</p>
-                </div>
-                {servicesList.length > 0 && (
-                  <div className="sm:col-span-2">
-                    <span className="text-ink-muted text-xs uppercase tracking-wide">
-                      Services
-                    </span>
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {servicesList.map((s) => (
-                        <span
-                          key={s}
-                          className="text-xs bg-cream-dark text-ink-muted px-2 py-0.5 rounded-full border border-border"
-                        >
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+          <Link href="/become-saathi" className="rounded-2xl p-6 text-white bg-brand-gradient shadow-glow hover:opacity-95 transition">
+            <h3 className="font-display font-bold">{isSaathi ? "Edit Saathi profile" : "Become a Saathi"}</h3>
+            <p className="text-sm text-white/80 mt-1">Earn up to ₹2,000/hr</p>
+          </Link>
         </div>
 
         <div className="bg-white rounded-2xl border border-border p-6 shadow-card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display text-lg font-semibold text-ink">
-              Recent bookings
-            </h3>
-            <Link
-              href="/bookings"
-              className="text-sm font-medium text-ink-muted hover:text-ink"
-            >
-              View all →
-            </Link>
+            <h3 className="font-display text-lg font-bold text-ink">Recent bookings</h3>
+            <Link href="/bookings" className="text-sm font-medium text-accent">View all →</Link>
           </div>
-
           {recentBookings.length === 0 ? (
             <div className="text-center py-10 text-ink-muted text-sm">
               <p>No bookings yet</p>
-              <Link
-                href="/find"
-                className="inline-block mt-4 text-ink font-medium hover:underline"
-              >
-                Book your first session →
+              <Link href={needsPay ? "/pay" : "/find"} className="inline-block mt-4 text-pink font-semibold hover:underline">
+                {needsPay ? "Pay ₹499 to unlock →" : "Book your first session →"}
               </Link>
             </div>
           ) : (
             <div className="space-y-3">
               {recentBookings.map((b) => (
-                <div
-                  key={b.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-border last:border-0"
-                >
+                <div key={b.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-border last:border-0">
                   <div>
                     <p className="font-medium text-ink">{b.saathiName}</p>
-                    <p className="text-sm text-ink-muted">
-                      {b.service} · {b.date} · {b.time}
-                    </p>
+                    <p className="text-sm text-ink-muted">{b.service} · {b.date} · {b.time}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span
-                      className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                        b.status === "CONFIRMED"
-                          ? "bg-emerald-50 text-emerald-800"
-                          : b.status === "CANCELLED"
-                          ? "bg-red-50 text-red-700"
-                          : "bg-amber-50 text-amber-800"
-                      }`}
-                    >
-                      {b.status}
-                    </span>
-                    <span className="font-display font-semibold text-ink">
-                      ₹{b.amount}
-                    </span>
+                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                      b.status === "CONFIRMED" ? "bg-emerald-50 text-emerald-800"
+                        : b.status === "CANCELLED" ? "bg-red-50 text-red-700"
+                        : "bg-amber-50 text-amber-800"
+                    }`}>{b.status}</span>
+                    <span className="font-display font-bold text-ink">₹{b.amount}</span>
                   </div>
                 </div>
               ))}
