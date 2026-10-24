@@ -19,8 +19,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const client = await prisma.user.findUnique({
-      where: { email: session.user.email },
+    const client = await prisma.user.findFirst({
+      where: { email: { equals: session.user.email, mode: "insensitive" } },
     });
     if (!client) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -36,6 +36,12 @@ export async function POST(req: Request) {
     }
     if (booking.clientId !== client.id) {
       return NextResponse.json({ error: "Not your booking" }, { status: 403 });
+    }
+    if (booking.status === "CANCELLED") {
+      return NextResponse.json(
+        { error: "Cannot review a cancelled booking" },
+        { status: 400 }
+      );
     }
     if (booking.review) {
       return NextResponse.json(

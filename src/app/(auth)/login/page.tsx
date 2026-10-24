@@ -37,10 +37,40 @@ function LoginForm() {
         } else {
           setError("Invalid email or password");
         }
-      } else {
-        router.push(callbackUrl);
-        router.refresh();
+        setLoading(false);
+        return;
       }
+
+      // If user has no active plan, nudge to pricing (unless they were going to pay/agent)
+      const stay =
+        callbackUrl.startsWith("/pay") ||
+        callbackUrl.startsWith("/pricing") ||
+        callbackUrl.startsWith("/agent") ||
+        callbackUrl.startsWith("/admin");
+
+      if (!stay) {
+        try {
+          const payRes = await fetch("/api/payments");
+          if (payRes.ok) {
+            const d = await payRes.json();
+            if (!d.active && d.paymentStatus !== "PENDING") {
+              router.push("/pricing");
+              router.refresh();
+              return;
+            }
+            if (!d.active && d.paymentStatus === "PENDING") {
+              router.push("/pay");
+              router.refresh();
+              return;
+            }
+          }
+        } catch {
+          /* fall through to callback */
+        }
+      }
+
+      router.push(callbackUrl);
+      router.refresh();
     } catch {
       setError("Something went wrong");
     } finally {

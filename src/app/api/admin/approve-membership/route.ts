@@ -23,6 +23,9 @@ export async function POST(req: Request) {
     if (pay.type === "AGENT_ENTRY") {
       return NextResponse.json({ error: "Use agent fee approve" }, { status: 400 });
     }
+    if (pay.status === "APPROVED") {
+      return NextResponse.json({ error: "Already approved" }, { status: 400 });
+    }
 
     const planId: PlanId = isValidPlanId(pay.plan) ? pay.plan : "MONTHLY";
     const user = await prisma.user.findUnique({ where: { id: pay.userId } });
@@ -43,6 +46,7 @@ export async function POST(req: Request) {
         planExpiresAt: expires,
       },
     });
+    // Activate listing if they already submitted Saathi profile
     await prisma.saathiProfile.updateMany({
       where: { userId: pay.userId },
       data: { isActive: true },

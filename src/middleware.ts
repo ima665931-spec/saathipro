@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
-const PROTECTED = [
+const PROTECTED_PREFIXES = [
   "/dashboard",
   "/bookings",
   "/pay",
@@ -13,19 +13,18 @@ const PROTECTED = [
 export default auth((req) => {
   const path = req.nextUrl.pathname;
 
-  // Admin login is separate; only gate /admin root (not /admin/login)
+  // Admin: protect everything except /admin/login
   if (path === "/admin" || path.startsWith("/admin/")) {
-    if (path.startsWith("/admin/login")) {
+    if (path === "/admin/login" || path.startsWith("/admin/login/")) {
       return NextResponse.next();
     }
     if (!req.auth) {
-      const url = new URL("/admin/login", req.nextUrl.origin);
-      return NextResponse.redirect(url);
+      return NextResponse.redirect(new URL("/admin/login", req.nextUrl.origin));
     }
     return NextResponse.next();
   }
 
-  const needsAuth = PROTECTED.some(
+  const needsAuth = PROTECTED_PREFIXES.some(
     (p) => path === p || path.startsWith(`${p}/`)
   );
 
@@ -40,11 +39,17 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
+    "/dashboard",
     "/dashboard/:path*",
+    "/bookings",
     "/bookings/:path*",
+    "/pay",
     "/pay/:path*",
+    "/become-saathi",
     "/become-saathi/:path*",
+    "/agent",
     "/agent/:path*",
+    "/book",
     "/book/:path*",
     "/admin",
     "/admin/:path*",
