@@ -51,6 +51,8 @@ function PayInner() {
   const [paymentStatus, setPaymentStatus] = useState("NONE");
   const [planExpiresAt, setPlanExpiresAt] = useState<string | null>(null);
   const [publicId, setPublicId] = useState<string | null>(null);
+  const [creditBalance, setCreditBalance] = useState(0);
+  const [useCredit, setUseCredit] = useState(true);
   const [active, setActive] = useState(false);
   const [utr, setUtr] = useState("");
   const [submittedUtr, setSubmittedUtr] = useState("");
@@ -61,6 +63,9 @@ function PayInner() {
   const [done, setDone] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+
+  const creditApply = useCredit && creditBalance > 0 ? Math.min(creditBalance, FEE) : 0;
+  const amountDue = Math.max(0, FEE - creditApply);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -79,6 +84,7 @@ function PayInner() {
           setPaymentStatus(d.paymentStatus || "NONE");
           setPlanExpiresAt(d.planExpiresAt || null);
           setPublicId(d.publicId || null);
+          setCreditBalance(d.creditBalance || 0);
           setActive(!!d.active);
           if (d.lastUtr) setSubmittedUtr(d.lastUtr);
           if (d.paymentStatus === "VERIFIED" && d.active) setDone(true);
@@ -108,7 +114,7 @@ function PayInner() {
   }, [paymentStatus, planId]);
 
   const upiLink = upiId
-    ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${FEE}&cu=INR&tn=${encodeURIComponent(`SaathiPro ${planMeta.name}`)}`
+    ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(upiName)}&am=${amountDue}&cu=INR&tn=${encodeURIComponent(`SaathiPro ${planMeta.name}`)}`
     : "";
 
   const qrUrl = upiLink
@@ -118,7 +124,7 @@ function PayInner() {
   const fastTg = telegramPaymentUrl({
     publicId,
     plan: planMeta.name,
-    amount: FEE,
+    amount: amountDue,
     utr: submittedUtr || utr || null,
     name: session?.user?.name,
     email: session?.user?.email,
@@ -157,26 +163,30 @@ function PayInner() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const digits = utr.replace(/\D/g, "");
-    if (digits.length !== 12) {
-      setError("UTR must be exactly 12 digits");
-      return;
-    }
-    if (!shot) {
-      setError("Upload payment screenshot");
-      return;
+    if (amountDue > 0) {
+      const digits = utr.replace(/\D/g, "");
+      if (digits.length !== 12) {
+        setError("UTR must be exactly 12 digits");
+        return;
+      }
+      if (!shot) {
+        setError("Upload payment screenshot");
+        return;
+      }
     }
     setSubmitting(true);
     try {
+      const digits = utr.replace(/\D/g, "");
       const res = await fetch("/api/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          utr: digits,
-          screenshot: shot,
+          utr: amountDue > 0 ? digits : undefined,
+          screenshot: amountDue > 0 ? shot : undefined,
           upiPoolId,
           assignmentId,
           plan: planId,
+          useCredit: useCredit && creditBalance > 0,
         }),
       });
       const data = await res.json();
@@ -186,7 +196,7 @@ function PayInner() {
         return;
       }
       if (data.publicId) setPublicId(data.publicId);
-      setSubmittedUtr(digits);
+      if (digits) setSubmittedUtr(digits);
       setDone(true);
       setPaymentStatus("PENDING");
     } catch {
@@ -223,7 +233,6 @@ function PayInner() {
                 {copiedId ? "Copied ✓" : "Copy ID"}
               </button>
             </div>
-            <p className="text-[11px] text-ink-muted mt-2">Admin search + Telegram — always keep this ID.</p>
           </div>
         )}
 
@@ -245,28 +254,39 @@ function PayInner() {
         ) : (
           <>
             <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">Membership</p>
-            <h1 className="font-display text-3xl font-bold text-ink">Pay ₹{FEE}</h1>
+            <h1 className="font-display text-3xl font-bold text-ink">Pay ₹{amountDue}</h1>
             <p className="mt-2 text-ink-muted text-sm">
-              <strong className="text-ink">{planMeta.name}</strong> · {planMeta.days} days.{" "}
+              <strong className="text-ink">{planMeta.name}</strong> · ₹{FEE}
+              {creditApply > 0 && (
+                <span className="text-accent font-medium"> − ₹{creditApply} credit</span>
+              )}
+              {" · "}
               <Link href="/pricing" className="text-accent underline">Change plan</Link>
             </p>
+
+            {creditBalance > 0 && paymentStatus !== "PENDING" && !done && (
+              <label className="mt-4 flex items-center gap-3 p-4 bg-white border border-border rounded-2xl shadow-card cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={useCredit}
+                  onChange={(e) => setUseCredit(e.target.checked)}
+                  className="w-4 h-4 accent-pink"
+                />
+                <span className="text-sm">
+                  Use <strong className="text-accent">₹{Math.min(creditBalance, FEE)}</strong> referral credit
+                  <span className="block text-xs text-ink-muted">Balance ₹{creditBalance}</span>
+                </span>
+              </label>
+            )}
 
             {(paymentStatus === "PENDING" || done) && (
               <div className="mt-8 p-6 bg-amber-50 border border-amber-100 rounded-2xl text-center space-y-3">
                 <p className="font-display text-lg font-semibold text-amber-900">Under review</p>
                 <p className="text-sm text-amber-800">
                   Reg ID: <strong className="font-mono">{publicId || "—"}</strong>
-                  {submittedUtr && (
-                    <> · UTR: <strong className="font-mono">{submittedUtr}</strong></>
-                  )}
                 </p>
-                <p className="text-xs text-amber-800/80">Speed up with Telegram — one tap sends Reg ID + UTR to admin.</p>
-                <a
-                  href={fastTg}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center gap-2 btn-brand px-6 py-3 rounded-full text-sm"
-                >
+                <a href={fastTg} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 btn-brand px-6 py-3 rounded-full text-sm">
                   ✈ Fast approve on Telegram
                 </a>
                 <div>
@@ -277,53 +297,63 @@ function PayInner() {
 
             {paymentStatus !== "PENDING" && !done && (
               <>
-                <div className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card text-center">
-                  {!upiId ? (
-                    <p className="text-sm text-red-600">{error || "No UPI in pool. Admin must add UPIs."}</p>
-                  ) : (
+                {amountDue > 0 && (
+                  <div className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card text-center">
+                    {!upiId ? (
+                      <p className="text-sm text-red-600">{error || "No UPI in pool. Admin must add UPIs."}</p>
+                    ) : (
+                      <>
+                        <p className="text-xs uppercase tracking-wide text-ink-muted mb-3">Pay exactly ₹{amountDue}</p>
+                        {qrUrl && <img src={qrUrl} alt="QR" className="mx-auto rounded-xl border" width={240} height={240} />}
+                        <p className="mt-4 font-mono text-sm font-semibold break-all">{upiId}</p>
+                        <p className="mt-3 font-display text-3xl font-bold text-brand-gradient">₹{amountDue}</p>
+                        <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+                          <a href={upiLink} className="btn-brand inline-block px-6 py-2.5 text-sm rounded-full">Open UPI app</a>
+                          <button type="button" onClick={copyUpi} className="px-6 py-2.5 border border-border text-sm rounded-full">
+                            {copied ? "Copied!" : "Copy UPI ID"}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                <form onSubmit={submit} className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card space-y-4">
+                  <h2 className="font-display font-semibold text-ink">
+                    {amountDue > 0 ? "After you pay" : "Confirm with credit"}
+                  </h2>
+                  {error && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl">{error}</div>}
+                  {amountDue > 0 && (
                     <>
-                      <p className="text-xs uppercase tracking-wide text-ink-muted mb-3">Pay exactly ₹{FEE}</p>
-                      {qrUrl && <img src={qrUrl} alt="QR" className="mx-auto rounded-xl border" width={240} height={240} />}
-                      <p className="mt-4 font-mono text-sm font-semibold break-all">{upiId}</p>
-                      <p className="text-xs text-ink-muted">{upiName}</p>
-                      <p className="mt-3 font-display text-3xl font-bold text-brand-gradient">₹{FEE}</p>
-                      <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
-                        <a href={upiLink} className="btn-brand inline-block px-6 py-2.5 text-sm rounded-full">Open UPI app</a>
-                        <button type="button" onClick={copyUpi} className="px-6 py-2.5 border border-border text-sm rounded-full">
-                          {copied ? "Copied!" : "Copy UPI ID"}
+                      <div>
+                        <label className="block text-sm font-medium text-ink mb-1">UTR (exactly 12 digits)</label>
+                        <input
+                          value={utr}
+                          onChange={(e) => setUtr(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                          inputMode="numeric"
+                          maxLength={12}
+                          placeholder="123456789012"
+                          className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50 text-sm font-mono"
+                          required
+                        />
+                        <p className="text-xs text-ink-muted mt-1">{utr.length}/12</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-ink mb-1">Screenshot</label>
+                        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+                        <button type="button" onClick={() => fileRef.current?.click()} className="w-full py-3 border border-dashed border-border rounded-xl text-sm text-ink-muted">
+                          {shot ? "Change screenshot" : "Upload screenshot"}
                         </button>
+                        {shot && <img src={shot} alt="" className="mt-2 max-h-40 rounded-lg mx-auto border" />}
                       </div>
                     </>
                   )}
-                </div>
-
-                <form onSubmit={submit} className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card space-y-4">
-                  <h2 className="font-display font-semibold text-ink">After you pay</h2>
-                  {error && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl">{error}</div>}
-                  <div>
-                    <label className="block text-sm font-medium text-ink mb-1">UTR (exactly 12 digits)</label>
-                    <input
-                      value={utr}
-                      onChange={(e) => setUtr(e.target.value.replace(/\D/g, "").slice(0, 12))}
-                      inputMode="numeric"
-                      pattern="\d{12}"
-                      maxLength={12}
-                      placeholder="123456789012"
-                      className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50 text-sm font-mono"
-                      required
-                    />
-                    <p className="text-xs text-ink-muted mt-1">{utr.length}/12 digits</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-ink mb-1">Screenshot</label>
-                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
-                    <button type="button" onClick={() => fileRef.current?.click()} className="w-full py-3 border border-dashed border-border rounded-xl text-sm text-ink-muted">
-                      {shot ? "Change screenshot" : "Upload screenshot"}
-                    </button>
-                    {shot && <img src={shot} alt="" className="mt-2 max-h-40 rounded-lg mx-auto border" />}
-                  </div>
-                  <button type="submit" disabled={submitting || !upiId || utr.length !== 12} className="w-full py-3.5 btn-brand rounded-xl disabled:opacity-50">
-                    {submitting ? "Submitting…" : "Submit for verification"}
+                  <button
+                    type="submit"
+                    disabled={submitting || (amountDue > 0 && (!upiId || utr.length !== 12 || !shot))}
+                    className="w-full py-3.5 btn-brand rounded-xl disabled:opacity-50"
+                  >
+                    {submitting ? "Submitting…" : amountDue > 0 ? "Submit for verification" : "Submit (credit only)"}
                   </button>
                 </form>
               </>
