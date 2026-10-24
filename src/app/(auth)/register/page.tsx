@@ -14,18 +14,24 @@ function RegisterForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [ref, setRef] = useState("");
+  const [inviteType, setInviteType] = useState("seeker");
 
   useEffect(() => {
     const fromUrl = searchParams.get("ref") || "";
+    const type = searchParams.get("type") || "seeker";
+    if (type === "agent" || type === "provider" || type === "seeker") setInviteType(type);
     if (fromUrl) {
       setRef(fromUrl);
       try {
         localStorage.setItem("saathi_ref", fromUrl);
+        localStorage.setItem("saathi_ref_type", type);
       } catch { /* */ }
     } else {
       try {
         const saved = localStorage.getItem("saathi_ref") || "";
+        const st = localStorage.getItem("saathi_ref_type") || "seeker";
         if (saved) setRef(saved);
+        if (st === "agent" || st === "provider" || st === "seeker") setInviteType(st);
       } catch { /* */ }
     }
   }, [searchParams]);
@@ -39,7 +45,13 @@ function RegisterForm() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, ref: ref || undefined }),
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          ref: ref || undefined,
+          type: inviteType,
+        }),
       });
 
       const data = await res.json();
@@ -61,8 +73,11 @@ function RegisterForm() {
       } else {
         try {
           localStorage.removeItem("saathi_ref");
+          localStorage.removeItem("saathi_ref_type");
         } catch { /* */ }
-        router.push("/pricing");
+        if (inviteType === "agent") router.push("/agent");
+        else if (inviteType === "provider") router.push("/become-saathi");
+        else router.push("/pricing");
         router.refresh();
       }
     } catch {
@@ -83,9 +98,13 @@ function RegisterForm() {
         </Link>
         <h1 className="mt-8 font-display text-3xl font-bold text-ink">Create account</h1>
         <p className="mt-2 text-ink-muted text-sm">
-          Next: choose a membership plan
+          {inviteType === "agent" && "Join as partner agent"}
+          {inviteType === "provider" && "Become a Saathi provider"}
+          {inviteType === "seeker" && "Next: choose a membership plan"}
           {ref ? (
-            <span className="block mt-1 text-accent font-medium text-xs">Invited via code {ref.toUpperCase()}</span>
+            <span className="block mt-1 text-accent font-medium text-xs">
+              Invited · {ref.toUpperCase()} · {inviteType}
+            </span>
           ) : null}
         </p>
       </div>
@@ -97,7 +116,7 @@ function RegisterForm() {
 
         <button
           type="button"
-          onClick={() => signIn("google", { callbackUrl: "/pricing" })}
+          onClick={() => signIn("google", { callbackUrl: inviteType === "agent" ? "/agent" : inviteType === "provider" ? "/become-saathi" : "/pricing" })}
           className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-border rounded-xl hover:bg-cream transition font-medium text-ink"
         >
           Continue with Google
