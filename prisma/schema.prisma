@@ -9,7 +9,6 @@ datasource db {
 
 model User {
   id            String    @id @default(cuid())
-  /// Public Registration ID e.g. SP7K2M9A — for admin search / TG
   publicId      String?   @unique
   name          String?
   email         String    @unique
@@ -22,10 +21,11 @@ model User {
   paymentStatus String    @default("NONE")
   plan          String?
   planExpiresAt DateTime?
-  /// Agent ID + referral code e.g. AG4X9P2Q
   referralCode  String?   @unique
   commissionPct Int       @default(50)
   referredById  String?
+  /// agent | seeker | provider — how they were invited
+  referredAs    String?
   agentUpi      String?
   aadhaar       String?
   aadhaarPhoto  String?
