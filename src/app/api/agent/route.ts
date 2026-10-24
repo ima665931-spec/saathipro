@@ -73,10 +73,11 @@ export async function GET() {
   });
 
   const hasKyc = kycComplete(user);
-  const isAgent = user.role === "AGENT" || user.role === "ADMIN";
+  const kycApproved = user.agentStatus === "APPROVED";
+  const isAgentRole = user.role === "AGENT" || user.role === "ADMIN";
 
-  // Full agent hub
-  if (isAgent && hasKyc && user.agentStatus === "APPROVED") {
+  // Full hub: KYC approved + fee paid
+  if (hasKyc && kycApproved && feePaid) {
     try {
       const [referrals, commissions, withdrawals] = await Promise.all([
         prisma.user.findMany({
@@ -142,14 +143,20 @@ export async function GET() {
     }
   }
 
-  // Step machine for non-full agents
-  let step: string = "pay_fee";
-  if (feePending && !feePaid) step = "fee_pending";
-  else if (feePaid || isAgent) {
-    if (user.agentStatus === "PENDING" && hasKyc) step = "kyc_pending";
-    else if (user.agentStatus === "REJECTED") step = "kyc_rejected";
-    else if (!hasKyc) step = "kyc";
-    else step = "kyc_pending";
+  // Order: 1 KYC → 2 KYC review → 3 Pay fee (LAST) → 4 fee review → hub
+  let step = "kyc";
+  if (!hasKyc) {
+    step = user.agentStatus === "REJECTED" ? "kyc_rejected" : "kyc";
+  } else if (user.agentStatus === "PENDING" || user.agentStatus === "NONE") {
+    step = "kyc_pending";
+  } else if (user.agentStatus === "REJECTED") {
+    step = "kyc_rejected";
+  } else if (kycApproved && feePending && !feePaid) {
+    step = "fee_pending";
+  } else if (kycApproved && !feePaid) {
+    step = "pay_fee";
+  } else {
+    step = "kyc_pending";
   }
 
   const agentId = user.referralCode;
@@ -165,7 +172,7 @@ export async function GET() {
 
   return NextResponse.json({
     step,
-    isAgent,
+    isAgent: isAgentRole,
     needsKyc: !hasKyc,
     kycComplete: hasKyc,
     feeStatus: feePaid ? "PAID" : feePending ? "PENDING" : "NONE",
@@ -197,17 +204,7 @@ export async function PATCH(req: Request) {
     const { action } = body;
 
     if (action === "apply_agent" || action === "complete_kyc") {
-      // Must have paid agent fee (unless already AGENT from old flow)
-      const feePaid = await prisma.payment.findFirst({
-        where: { userId: user.id, type: AGENT_ENTRY_TYPE, status: "APPROVED" },
-      });
-      if (!feePaid && user.role !== "AGENT" && user.role !== "ADMIN") {
-        return NextResponse.json(
-          { error: "Pay ₹199 agent entry fee first" },
-          { status: 400 }
-        );
-      }
-
+      // Fee is LAST — no fee required to submit KYC
       if (user.agentStatus === "PENDING" && action === "apply_agent" && kycComplete(user)) {
         return NextResponse.json({ error: "KYC already pending" }, { status: 400 });
       }
@@ -235,7 +232,6 @@ export async function PATCH(req: Request) {
         }
       }
 
-      // Already approved agent completing docs
       if (user.role === "AGENT" || user.role === "ADMIN") {
         await prisma.user.update({
           where: { id: user.id },
@@ -281,11 +277,19 @@ export async function PATCH(req: Request) {
       });
     }
 
-    if (user.role !== "AGENT" && user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Agents only" }, { status: 403 });
+    // Hub actions need full agent
+    const feePaid = await prisma.payment.findFirst({
+      where: { userId: user.id, type: AGENT_ENTRY_TYPE, status: "APPROVED" },
+    });
+    if (
+      (user.role !== "AGENT" && user.role !== "ADMIN") ||
+      user.agentStatus !== "APPROVED" ||
+      !feePaid
+    ) {
+      return NextResponse.json({ error: "Complete KYC + fee first" }, { status: 403 });
     }
 
-    if (!kycComplete(user) && action !== "complete_kyc") {
+    if (!kycComplete(user)) {
       return NextResponse.json({ error: "Complete KYC first" }, { status: 400 });
     }
 
