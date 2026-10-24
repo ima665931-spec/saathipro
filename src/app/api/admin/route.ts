@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { computeExpiry, isValidPlanId, type PlanId } from "@/lib/plans";
+import { commissionAmount, generateReferralCode, normalizeRefCode } from "@/lib/referral";
 
 export async function GET(req: Request) {
   const gate = await requireAdmin();
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
     if (section === "stats") {
       const [
         users, saathis, bookings, reviews, revenue, banned, verified,
-        activeBookings, pendingPay, upiCount, upiTotal,
+        activeBookings, pendingPay, upiCount, upiTotal, agents, pendingComm,
       ] = await Promise.all([
         prisma.user.count(),
         prisma.saathiProfile.count(),
@@ -30,6 +31,8 @@ export async function GET(req: Request) {
         prisma.payment.count({ where: { status: "PENDING" } }),
         prisma.upiPool.count({ where: { isActive: true } }),
         prisma.upiPool.count(),
+        prisma.user.count({ where: { role: "AGENT" } }),
+        prisma.commission.aggregate({ where: { status: "PENDING" }, _sum: { amount: true } }),
       ]);
 
       return NextResponse.json({
@@ -37,8 +40,46 @@ export async function GET(req: Request) {
           users, saathis, bookings, reviews,
           revenue: revenue._sum.amount || 0,
           banned, verified, activeBookings, pendingPay, upiCount, upiTotal,
+          agents,
+          pendingCommission: pendingComm._sum.amount || 0,
         },
       });
+    }
+
+    if (section === "agents") {
+      const agents = await prisma.user.findMany({
+        where: { role: "AGENT" },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        select: {
+          id: true, name: true, email: true, referralCode: true, commissionPct: true,
+          isBanned: true, createdAt: true,
+          _count: { select: { referrals: true, commissionsEarned: true } },
+        },
+      });
+      const withMoney = await Promise.all(
+        agents.map(async (a) => {
+          const [pending, paid] = await Promise.all([
+            prisma.commission.aggregate({ where: { agentId: a.id, status: "PENDING" }, _sum: { amount: true } }),
+            prisma.commission.aggregate({ where: { agentId: a.id, status: "PAID" }, _sum: { amount: true } }),
+          ]);
+          return {
+            ...a,
+            pendingPay: pending._sum.amount || 0,
+            paidTotal: paid._sum.amount || 0,
+          };
+        })
+      );
+      const commissions = await prisma.commission.findMany({
+        where: { status: "PENDING" },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        include: {
+          agent: { select: { name: true, email: true, referralCode: true } },
+          user: { select: { name: true, email: true } },
+        },
+      });
+      return NextResponse.json({ agents: withMoney, pendingCommissions: commissions });
     }
 
     if (section === "users") {
@@ -55,7 +96,8 @@ export async function GET(req: Request) {
         take: 100,
         select: {
           id: true, name: true, email: true, role: true, phone: true,
-          isBanned: true, paymentStatus: true, plan: true, planExpiresAt: true, createdAt: true,
+          isBanned: true, paymentStatus: true, plan: true, planExpiresAt: true,
+          referralCode: true, referredById: true, createdAt: true,
           saathiProfile: { select: { id: true, city: true, isVerified: true, isActive: true } },
           _count: { select: { bookingsAsClient: true, bookingsAsSaathi: true, reviewsGiven: true } },
         },
@@ -80,10 +122,7 @@ export async function GET(req: Request) {
         where: status ? { status } : undefined,
         orderBy: { createdAt: "desc" },
         take: 100,
-        include: {
-          client: { select: { name: true, email: true } },
-          review: true,
-        },
+        include: { client: { select: { name: true, email: true } }, review: true },
       });
       return NextResponse.json({ bookings });
     }
@@ -108,7 +147,8 @@ export async function GET(req: Request) {
         include: {
           user: {
             select: {
-              id: true, name: true, email: true, paymentStatus: true, plan: true, planExpiresAt: true,
+              id: true, name: true, email: true, paymentStatus: true, plan: true,
+              planExpiresAt: true, referredById: true,
             },
           },
           upiPool: { select: { upiId: true, displayName: true } },
@@ -143,6 +183,7 @@ export async function PATCH(req: Request) {
     const {
       action, userId, saathiUserId, bookingId, reviewId, paymentId, role, rate,
       upiId, upiBulk, displayName, dailyLimit, priority, poolId, isActive,
+      commissionId, commissionPct, referralCode,
     } = body;
 
     switch (action) {
@@ -155,7 +196,7 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ success: true });
       }
       case "set_role": {
-        if (!["USER", "SAATHI", "ADMIN"].includes(role)) {
+        if (!["USER", "SAATHI", "ADMIN", "AGENT"].includes(role)) {
           return NextResponse.json({ error: "Invalid role" }, { status: 400 });
         }
         await prisma.user.update({ where: { id: userId }, data: { role } });
@@ -167,6 +208,69 @@ export async function PATCH(req: Request) {
         }
         await prisma.user.delete({ where: { id: userId } });
         return NextResponse.json({ success: true });
+      }
+
+      case "promote_to_agent": {
+        const u = await prisma.user.findUnique({ where: { id: userId } });
+        if (!u) return NextResponse.json({ error: "User not found" }, { status: 404 });
+        let code = u.referralCode || generateReferralCode(u.name);
+        // ensure unique
+        for (let i = 0; i < 5; i++) {
+          const clash = await prisma.user.findFirst({ where: { referralCode: code, NOT: { id: userId } } });
+          if (!clash) break;
+          code = generateReferralCode(u.name);
+        }
+        const pct = Number(commissionPct) > 0 ? Number(commissionPct) : 20;
+        await prisma.user.update({
+          where: { id: userId },
+          data: { role: "AGENT", referralCode: code, commissionPct: pct },
+        });
+        return NextResponse.json({ success: true, referralCode: code });
+      }
+
+      case "set_agent_code": {
+        if (!userId || !referralCode) {
+          return NextResponse.json({ error: "userId + referralCode required" }, { status: 400 });
+        }
+        const code = normalizeRefCode(String(referralCode));
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            referralCode: code,
+            ...(Number(commissionPct) > 0 && { commissionPct: Number(commissionPct) }),
+          },
+        });
+        return NextResponse.json({ success: true, referralCode: code });
+      }
+
+      case "demote_agent": {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { role: "USER" },
+        });
+        return NextResponse.json({ success: true });
+      }
+
+      case "mark_commission_paid": {
+        if (!commissionId) {
+          return NextResponse.json({ error: "commissionId required" }, { status: 400 });
+        }
+        await prisma.commission.update({
+          where: { id: commissionId },
+          data: { status: "PAID", paidAt: new Date() },
+        });
+        return NextResponse.json({ success: true });
+      }
+
+      case "mark_all_agent_commissions_paid": {
+        if (!userId) {
+          return NextResponse.json({ error: "userId (agent) required" }, { status: 400 });
+        }
+        const r = await prisma.commission.updateMany({
+          where: { agentId: userId, status: "PENDING" },
+          data: { status: "PAID", paidAt: new Date() },
+        });
+        return NextResponse.json({ success: true, updated: r.count });
       }
 
       case "verify_saathi": {
@@ -249,11 +353,37 @@ export async function PATCH(req: Request) {
             planExpiresAt: expires,
           },
         });
-        // Activate saathi listing if they applied
         await prisma.saathiProfile.updateMany({
           where: { userId: pay.userId },
           data: { isActive: true },
         });
+
+        // Create agent commission if referred
+        if (user?.referredById) {
+          const agent = await prisma.user.findUnique({ where: { id: user.referredById } });
+          if (agent && agent.role === "AGENT" && !agent.isBanned) {
+            const pct = agent.commissionPct || 20;
+            const amt = commissionAmount(pay.amount, pct);
+            const existing = await prisma.commission.findFirst({
+              where: { paymentId: pay.id, agentId: agent.id },
+            });
+            if (!existing && amt > 0) {
+              await prisma.commission.create({
+                data: {
+                  agentId: agent.id,
+                  userId: user.id,
+                  paymentId: pay.id,
+                  amount: amt,
+                  percent: pct,
+                  planPrice: pay.amount,
+                  plan: planId,
+                  status: "PENDING",
+                },
+              });
+            }
+          }
+        }
+
         return NextResponse.json({ success: true, plan: planId, planExpiresAt: expires });
       }
 
@@ -349,7 +479,7 @@ export async function PATCH(req: Request) {
     console.error("admin PATCH:", err);
     const code = (err as { code?: string })?.code;
     if (code === "P2002") {
-      return NextResponse.json({ error: "This UPI already exists" }, { status: 400 });
+      return NextResponse.json({ error: "Duplicate code or UPI" }, { status: 400 });
     }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
