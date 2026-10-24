@@ -21,10 +21,11 @@ model User {
   paymentStatus String    @default("NONE")
   plan          String?
   planExpiresAt DateTime?
+  /// Bill credit from user referrals (₹49 each) — use on next plan pay
+  creditBalance Int       @default(0)
   referralCode  String?   @unique
   commissionPct Int       @default(50)
   referredById  String?
-  /// agent | seeker | provider — how they were invited
   referredAs    String?
   agentUpi      String?
   aadhaar       String?
@@ -145,6 +146,8 @@ model Payment {
   screenshot String?
   status     String   @default("PENDING")
   note       String?
+  /// Credit applied from user referral balance
+  creditUsed Int      @default(0)
   upiPoolId  String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
