@@ -47,6 +47,7 @@ export async function GET(req: Request) {
 
     const publicId = await ensurePublicId(user.id, user.publicId);
     const active = hasActivePlan(user);
+    const lastPending = user.payments.find((p) => p.status === "PENDING" && p.type === "MEMBERSHIP");
 
     const base = {
       publicId,
@@ -55,6 +56,7 @@ export async function GET(req: Request) {
       planExpiresAt: user.planExpiresAt,
       amount: plan.price,
       selectedPlan: plan,
+      lastUtr: lastPending?.utr || null,
       payments: user.payments.map((p) => ({
         id: p.id,
         amount: p.amount,
@@ -107,7 +109,6 @@ export async function GET(req: Request) {
           upiName: "",
           upiPoolId: null,
           error: "No UPI available in pool",
-          payments: [],
         });
       }
 
