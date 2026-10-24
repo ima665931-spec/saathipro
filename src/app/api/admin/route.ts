@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
+import { computeExpiry, isValidPlanId, type PlanId } from "@/lib/plans";
 
 export async function GET(req: Request) {
   const gate = await requireAdmin();
@@ -15,26 +16,14 @@ export async function GET(req: Request) {
   try {
     if (section === "stats") {
       const [
-        users,
-        saathis,
-        bookings,
-        reviews,
-        revenue,
-        banned,
-        verified,
-        activeBookings,
-        pendingPay,
-        upiCount,
-        upiTotal,
+        users, saathis, bookings, reviews, revenue, banned, verified,
+        activeBookings, pendingPay, upiCount, upiTotal,
       ] = await Promise.all([
         prisma.user.count(),
         prisma.saathiProfile.count(),
         prisma.booking.count(),
         prisma.review.count(),
-        prisma.booking.aggregate({
-          where: { status: { not: "CANCELLED" } },
-          _sum: { amount: true },
-        }),
+        prisma.booking.aggregate({ where: { status: { not: "CANCELLED" } }, _sum: { amount: true } }),
         prisma.user.count({ where: { isBanned: true } }),
         prisma.saathiProfile.count({ where: { isVerified: true } }),
         prisma.booking.count({ where: { status: "CONFIRMED" } }),
@@ -45,17 +34,9 @@ export async function GET(req: Request) {
 
       return NextResponse.json({
         stats: {
-          users,
-          saathis,
-          bookings,
-          reviews,
+          users, saathis, bookings, reviews,
           revenue: revenue._sum.amount || 0,
-          banned,
-          verified,
-          activeBookings,
-          pendingPay,
-          upiCount,
-          upiTotal,
+          banned, verified, activeBookings, pendingPay, upiCount, upiTotal,
         },
       });
     }
@@ -73,24 +54,10 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "desc" },
         take: 100,
         select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          phone: true,
-          isBanned: true,
-          paymentStatus: true,
-          createdAt: true,
-          saathiProfile: {
-            select: { id: true, city: true, isVerified: true, isActive: true },
-          },
-          _count: {
-            select: {
-              bookingsAsClient: true,
-              bookingsAsSaathi: true,
-              reviewsGiven: true,
-            },
-          },
+          id: true, name: true, email: true, role: true, phone: true,
+          isBanned: true, paymentStatus: true, plan: true, planExpiresAt: true, createdAt: true,
+          saathiProfile: { select: { id: true, city: true, isVerified: true, isActive: true } },
+          _count: { select: { bookingsAsClient: true, bookingsAsSaathi: true, reviewsGiven: true } },
         },
       });
       return NextResponse.json({ users });
@@ -101,15 +68,7 @@ export async function GET(req: Request) {
         orderBy: { createdAt: "desc" },
         take: 100,
         include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              isBanned: true,
-              image: true,
-            },
-          },
+          user: { select: { id: true, name: true, email: true, isBanned: true, image: true } },
         },
       });
       return NextResponse.json({ saathis: profiles });
@@ -149,10 +108,7 @@ export async function GET(req: Request) {
         include: {
           user: {
             select: {
-              id: true,
-              name: true,
-              email: true,
-              paymentStatus: true,
+              id: true, name: true, email: true, paymentStatus: true, plan: true, planExpiresAt: true,
             },
           },
           upiPool: { select: { upiId: true, displayName: true } },
@@ -185,99 +141,56 @@ export async function PATCH(req: Request) {
   try {
     const body = await req.json();
     const {
-      action,
-      userId,
-      saathiUserId,
-      bookingId,
-      reviewId,
-      paymentId,
-      role,
-      rate,
-      upiId,
-      upiBulk,
-      displayName,
-      dailyLimit,
-      priority,
-      poolId,
-      isActive,
+      action, userId, saathiUserId, bookingId, reviewId, paymentId, role, rate,
+      upiId, upiBulk, displayName, dailyLimit, priority, poolId, isActive,
     } = body;
 
     switch (action) {
       case "ban_user": {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { isBanned: true },
-        });
+        await prisma.user.update({ where: { id: userId }, data: { isBanned: true } });
         return NextResponse.json({ success: true });
       }
       case "unban_user": {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { isBanned: false },
-        });
+        await prisma.user.update({ where: { id: userId }, data: { isBanned: false } });
         return NextResponse.json({ success: true });
       }
       case "set_role": {
         if (!["USER", "SAATHI", "ADMIN"].includes(role)) {
           return NextResponse.json({ error: "Invalid role" }, { status: 400 });
         }
-        await prisma.user.update({
-          where: { id: userId },
-          data: { role },
-        });
+        await prisma.user.update({ where: { id: userId }, data: { role } });
         return NextResponse.json({ success: true });
       }
       case "delete_user": {
         if (userId === gate.user!.id) {
-          return NextResponse.json(
-            { error: "Cannot delete yourself" },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: "Cannot delete yourself" }, { status: 400 });
         }
         await prisma.user.delete({ where: { id: userId } });
         return NextResponse.json({ success: true });
       }
 
       case "verify_saathi": {
-        await prisma.saathiProfile.update({
-          where: { userId: saathiUserId },
-          data: { isVerified: true },
-        });
+        await prisma.saathiProfile.update({ where: { userId: saathiUserId }, data: { isVerified: true } });
         return NextResponse.json({ success: true });
       }
       case "unverify_saathi": {
-        await prisma.saathiProfile.update({
-          where: { userId: saathiUserId },
-          data: { isVerified: false },
-        });
+        await prisma.saathiProfile.update({ where: { userId: saathiUserId }, data: { isVerified: false } });
         return NextResponse.json({ success: true });
       }
       case "activate_saathi": {
-        await prisma.saathiProfile.update({
-          where: { userId: saathiUserId },
-          data: { isActive: true },
-        });
+        await prisma.saathiProfile.update({ where: { userId: saathiUserId }, data: { isActive: true } });
         return NextResponse.json({ success: true });
       }
       case "deactivate_saathi": {
-        await prisma.saathiProfile.update({
-          where: { userId: saathiUserId },
-          data: { isActive: false },
-        });
+        await prisma.saathiProfile.update({ where: { userId: saathiUserId }, data: { isActive: false } });
         return NextResponse.json({ success: true });
       }
       case "set_saathi_rate": {
-        await prisma.saathiProfile.update({
-          where: { userId: saathiUserId },
-          data: { hourlyRate: Number(rate) },
-        });
+        await prisma.saathiProfile.update({ where: { userId: saathiUserId }, data: { hourlyRate: Number(rate) } });
         return NextResponse.json({ success: true });
       }
       case "promote_to_saathi": {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { role: "SAATHI" },
-        });
+        await prisma.user.update({ where: { id: userId }, data: { role: "SAATHI" } });
         await prisma.saathiProfile.upsert({
           where: { userId },
           create: {
@@ -295,58 +208,57 @@ export async function PATCH(req: Request) {
       }
 
       case "cancel_booking": {
-        await prisma.booking.update({
-          where: { id: bookingId },
-          data: { status: "CANCELLED" },
-        });
+        await prisma.booking.update({ where: { id: bookingId }, data: { status: "CANCELLED" } });
         return NextResponse.json({ success: true });
       }
       case "confirm_booking": {
-        await prisma.booking.update({
-          where: { id: bookingId },
-          data: { status: "CONFIRMED" },
-        });
+        await prisma.booking.update({ where: { id: bookingId }, data: { status: "CONFIRMED" } });
         return NextResponse.json({ success: true });
       }
       case "complete_booking": {
-        await prisma.booking.update({
-          where: { id: bookingId },
-          data: { status: "COMPLETED" },
-        });
+        await prisma.booking.update({ where: { id: bookingId }, data: { status: "COMPLETED" } });
         return NextResponse.json({ success: true });
       }
       case "delete_booking": {
         await prisma.booking.delete({ where: { id: bookingId } });
         return NextResponse.json({ success: true });
       }
-
       case "delete_review": {
         await prisma.review.delete({ where: { id: reviewId } });
         return NextResponse.json({ success: true });
       }
 
       case "approve_payment": {
-        const pay = await prisma.payment.findUnique({
-          where: { id: paymentId },
-        });
+        const pay = await prisma.payment.findUnique({ where: { id: paymentId } });
         if (!pay) {
           return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
+        const planId: PlanId = isValidPlanId(pay.plan) ? pay.plan : "MONTHLY";
+        const user = await prisma.user.findUnique({ where: { id: pay.userId } });
+        const expires = computeExpiry(planId, user?.planExpiresAt);
+
         await prisma.payment.update({
           where: { id: paymentId },
           data: { status: "APPROVED" },
         });
         await prisma.user.update({
           where: { id: pay.userId },
-          data: { paymentStatus: "VERIFIED" },
+          data: {
+            paymentStatus: "VERIFIED",
+            plan: planId,
+            planExpiresAt: expires,
+          },
         });
-        return NextResponse.json({ success: true });
+        // Activate saathi listing if they applied
+        await prisma.saathiProfile.updateMany({
+          where: { userId: pay.userId },
+          data: { isActive: true },
+        });
+        return NextResponse.json({ success: true, plan: planId, planExpiresAt: expires });
       }
 
       case "reject_payment": {
-        const pay = await prisma.payment.findUnique({
-          where: { id: paymentId },
-        });
+        const pay = await prisma.payment.findUnique({ where: { id: paymentId } });
         if (!pay) {
           return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
@@ -363,15 +275,9 @@ export async function PATCH(req: Request) {
 
       case "add_upi": {
         if (!upiId || typeof upiId !== "string" || !upiId.includes("@")) {
-          return NextResponse.json(
-            { error: "Valid UPI ID required (e.g. name@ybl)" },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: "Valid UPI ID required" }, { status: 400 });
         }
-        const lim =
-          Number(dailyLimit) >= 0 && !Number.isNaN(Number(dailyLimit))
-            ? Number(dailyLimit)
-            : 50;
+        const lim = Number(dailyLimit) >= 0 && !Number.isNaN(Number(dailyLimit)) ? Number(dailyLimit) : 50;
         const created = await prisma.upiPool.create({
           data: {
             upiId: upiId.trim().toLowerCase(),
@@ -386,62 +292,29 @@ export async function PATCH(req: Request) {
 
       case "bulk_add_upi": {
         const raw = String(upiBulk || upiId || "");
-        const lines = raw
-          .split(/[\n,;]+/)
-          .map((s) => s.trim().toLowerCase())
-          .filter((s) => s.includes("@"));
-
+        const lines = raw.split(/[\n,;]+/).map((s) => s.trim().toLowerCase()).filter((s) => s.includes("@"));
         if (lines.length === 0) {
-          return NextResponse.json(
-            { error: "Paste UPI IDs (one per line)" },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: "Paste UPI IDs" }, { status: 400 });
         }
-
-        const lim =
-          Number(dailyLimit) >= 0 && !Number.isNaN(Number(dailyLimit))
-            ? Number(dailyLimit)
-            : 50;
+        const lim = Number(dailyLimit) >= 0 && !Number.isNaN(Number(dailyLimit)) ? Number(dailyLimit) : 50;
         const name = displayName?.trim() || "SaathiPro";
-
-        let added = 0;
-        let skipped = 0;
-
+        let added = 0, skipped = 0;
         for (const id of lines) {
           try {
-            await prisma.upiPool.create({
-              data: {
-                upiId: id,
-                displayName: name,
-                dailyLimit: lim,
-                isActive: true,
-              },
-            });
+            await prisma.upiPool.create({ data: { upiId: id, displayName: name, dailyLimit: lim, isActive: true } });
             added++;
-          } catch {
-            skipped++;
-          }
+          } catch { skipped++; }
         }
-
-        return NextResponse.json({
-          success: true,
-          added,
-          skipped,
-          message: `Added ${added}, skipped ${skipped} (duplicates/invalid)`,
-        });
+        return NextResponse.json({ success: true, added, skipped, message: `Added ${added}, skipped ${skipped}` });
       }
 
       case "update_upi": {
-        if (!poolId) {
-          return NextResponse.json({ error: "poolId required" }, { status: 400 });
-        }
+        if (!poolId) return NextResponse.json({ error: "poolId required" }, { status: 400 });
         await prisma.upiPool.update({
           where: { id: poolId },
           data: {
             ...(displayName !== undefined && { displayName }),
-            ...(dailyLimit !== undefined && {
-              dailyLimit: Number(dailyLimit),
-            }),
+            ...(dailyLimit !== undefined && { dailyLimit: Number(dailyLimit) }),
             ...(priority !== undefined && { priority: Number(priority) }),
             ...(typeof isActive === "boolean" && { isActive }),
           },
@@ -450,35 +323,21 @@ export async function PATCH(req: Request) {
       }
 
       case "toggle_upi": {
-        if (!poolId) {
-          return NextResponse.json({ error: "poolId required" }, { status: 400 });
-        }
+        if (!poolId) return NextResponse.json({ error: "poolId required" }, { status: 400 });
         const cur = await prisma.upiPool.findUnique({ where: { id: poolId } });
-        if (!cur) {
-          return NextResponse.json({ error: "Not found" }, { status: 404 });
-        }
-        await prisma.upiPool.update({
-          where: { id: poolId },
-          data: { isActive: !cur.isActive },
-        });
+        if (!cur) return NextResponse.json({ error: "Not found" }, { status: 404 });
+        await prisma.upiPool.update({ where: { id: poolId }, data: { isActive: !cur.isActive } });
         return NextResponse.json({ success: true });
       }
 
       case "reset_upi_count": {
-        if (!poolId) {
-          return NextResponse.json({ error: "poolId required" }, { status: 400 });
-        }
-        await prisma.upiPool.update({
-          where: { id: poolId },
-          data: { usedToday: 0, lastResetAt: new Date() },
-        });
+        if (!poolId) return NextResponse.json({ error: "poolId required" }, { status: 400 });
+        await prisma.upiPool.update({ where: { id: poolId }, data: { usedToday: 0, lastResetAt: new Date() } });
         return NextResponse.json({ success: true });
       }
 
       case "delete_upi": {
-        if (!poolId) {
-          return NextResponse.json({ error: "poolId required" }, { status: 400 });
-        }
+        if (!poolId) return NextResponse.json({ error: "poolId required" }, { status: 400 });
         await prisma.upiPool.delete({ where: { id: poolId } });
         return NextResponse.json({ success: true });
       }
@@ -490,10 +349,7 @@ export async function PATCH(req: Request) {
     console.error("admin PATCH:", err);
     const code = (err as { code?: string })?.code;
     if (code === "P2002") {
-      return NextResponse.json(
-        { error: "This UPI already exists" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "This UPI already exists" }, { status: 400 });
     }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
