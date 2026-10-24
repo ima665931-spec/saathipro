@@ -19,7 +19,8 @@ export default function AdminPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [upiList, setUpiList] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
-  const [pendingCommissions, setPendingCommissions] = useState<any[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -50,7 +51,8 @@ export default function AdminPage() {
       if (section === "upi") setUpiList(data.upiList || []);
       if (section === "agents") {
         setAgents(data.agents || []);
-        setPendingCommissions(data.pendingCommissions || []);
+        setApplications(data.applications || []);
+        setWithdrawals(data.withdrawals || []);
       }
     } catch {
       setError("Network error");
@@ -152,9 +154,10 @@ export default function AdminPage() {
         {!loading && tab === "stats" && stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              ["Users", stats.users], ["Agents", stats.agents], ["Pending commission ₹", stats.pendingCommission],
-              ["Pending payments", stats.pendingPay], ["Active UPIs", stats.upiCount], ["Bookings", stats.bookings],
-              ["Saathis", stats.saathis], ["Banned", stats.banned],
+              ["Users", stats.users], ["Agents", stats.agents],
+              ["Agent apps", stats.agentApps], ["Cashouts pending", stats.pendingWithdrawals],
+              ["Commission ₹", stats.pendingCommission], ["Pending payments", stats.pendingPay],
+              ["Bookings", stats.bookings], ["Banned", stats.banned],
             ].map(([label, val]) => (
               <div key={String(label)} className="bg-white border border-border rounded-2xl p-5 shadow-card">
                 <p className="text-xs uppercase tracking-wide text-ink-muted">{label}</p>
@@ -165,44 +168,83 @@ export default function AdminPage() {
         )}
 
         {!loading && tab === "agents" && (
-          <div className="space-y-8">
-            <p className="text-sm text-ink-muted">Promote users from Users tab. Agents share <code className="bg-cream-dark px-1">/register?ref=CODE</code></p>
+          <div className="space-y-10">
+            {/* KYC applications */}
             <div className="space-y-3">
-              <h2 className="font-display font-bold text-ink">Agents ({agents.length})</h2>
+              <h2 className="font-display font-bold text-ink">Agent applications (KYC)</h2>
+              <p className="text-xs text-ink-muted">Mobile + Aadhaar required. Approve → 50% commission + referral code.</p>
+              {applications.map((a) => (
+                <div key={a.id} className="bg-white border border-border rounded-2xl p-4 shadow-card">
+                  <div className="flex flex-wrap justify-between gap-3">
+                    <div className="text-sm">
+                      <p className="font-medium text-ink">{a.name} · {a.email}</p>
+                      <p className="text-ink-muted mt-1">Phone: <strong>{a.phone}</strong></p>
+                      <p className="text-ink-muted">Aadhaar: <strong className="font-mono">{a.aadhaar}</strong></p>
+                      <p className="text-ink-muted">UPI: {a.agentUpi || "—"}</p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Btn onClick={() => act({ action: "approve_agent_application", userId: a.id, commissionPct: 50 })} label="Approve agent" />
+                      <Btn onClick={() => act({ action: "reject_agent_application", userId: a.id })} label="Reject" danger />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {applications.length === 0 && <p className="text-sm text-ink-muted">No pending applications</p>}
+            </div>
+
+            {/* Cashouts */}
+            <div className="space-y-3">
+              <h2 className="font-display font-bold text-ink">Cashout requests</h2>
+              <p className="text-xs text-ink-muted">Pay to the UPI shown, then mark Paid.</p>
+              {withdrawals.filter((w) => w.status === "PENDING").map((w) => (
+                <div key={w.id} className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-card">
+                  <div className="flex flex-wrap justify-between gap-3">
+                    <div className="text-sm">
+                      <p className="font-medium">{w.agent?.name} · {w.agent?.email}</p>
+                      <p className="mt-1">Pay <strong className="text-lg text-brand-gradient">₹{w.amount}</strong> to</p>
+                      <p className="font-mono font-bold text-ink">{w.upiId}</p>
+                      <p className="text-xs text-ink-muted mt-1">Phone: {w.phone || w.agent?.phone} · Aadhaar: {w.aadhaar}</p>
+                      <p className="text-xs text-ink-muted">Code: {w.agent?.referralCode}</p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Btn onClick={() => act({ action: "pay_withdrawal", withdrawalId: w.id })} label="Mark paid" />
+                      <Btn onClick={() => act({ action: "reject_withdrawal", withdrawalId: w.id })} label="Reject" danger />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {withdrawals.filter((w) => w.status === "PENDING").length === 0 && (
+                <p className="text-sm text-ink-muted">No pending cashouts</p>
+              )}
+              {withdrawals.filter((w) => w.status !== "PENDING").slice(0, 10).map((w) => (
+                <div key={w.id} className="bg-white border border-border rounded-xl p-3 text-sm flex justify-between">
+                  <span>{w.agent?.name} · ₹{w.amount} · {w.upiId}</span>
+                  <span className="font-medium">{w.status}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Agent list */}
+            <div className="space-y-3">
+              <h2 className="font-display font-bold text-ink">Active agents ({agents.length})</h2>
               {agents.map((a) => (
                 <div key={a.id} className="bg-white border border-border rounded-2xl p-4 shadow-card">
                   <div className="flex flex-wrap justify-between gap-3">
                     <div>
                       <p className="font-medium text-ink">{a.name} · <span className="font-mono text-accent">{a.referralCode}</span></p>
-                      <p className="text-sm text-ink-muted">{a.email}</p>
+                      <p className="text-sm text-ink-muted">{a.email} · {a.phone}</p>
                       <p className="text-xs text-ink-muted mt-1">
-                        Refs: {a._count?.referrals ?? 0} · Pending ₹{a.pendingPay} · Paid ₹{a.paidTotal} · {a.commissionPct}%
+                        UPI: {a.agentUpi || "—"} · Aadhaar: {a.aadhaar || "—"}
+                      </p>
+                      <p className="text-xs text-ink-muted">
+                        Refs: {a._count?.referrals ?? 0} · Available ₹{a.pendingPay} · Locked ₹{a.lockedPay} · Paid ₹{a.paidTotal} · {a.commissionPct}%
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      <Btn onClick={() => act({ action: "mark_all_agent_commissions_paid", userId: a.id })} label="Pay all pending" />
-                      <Btn onClick={() => act({ action: "demote_agent", userId: a.id })} label="Demote" danger />
-                    </div>
+                    <Btn onClick={() => act({ action: "demote_agent", userId: a.id })} label="Demote" danger />
                   </div>
                 </div>
               ))}
-              {agents.length === 0 && <p className="text-sm text-ink-muted">No agents yet — open Users and Promote to agent.</p>}
-            </div>
-            <div className="space-y-3">
-              <h2 className="font-display font-bold text-ink">Pending commissions</h2>
-              {pendingCommissions.map((c) => (
-                <div key={c.id} className="bg-white border border-border rounded-xl p-3 flex justify-between text-sm shadow-card">
-                  <div>
-                    <p className="font-medium">{c.agent?.name} ← {c.user?.email}</p>
-                    <p className="text-xs text-ink-muted">{c.plan} · {c.percent}%</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-brand-gradient">₹{c.amount}</span>
-                    <Btn onClick={() => act({ action: "mark_commission_paid", commissionId: c.id })} label="Paid" />
-                  </div>
-                </div>
-              ))}
-              {pendingCommissions.length === 0 && <p className="text-sm text-ink-muted">No pending commissions</p>}
+              {agents.length === 0 && <p className="text-sm text-ink-muted">No agents yet</p>}
             </div>
           </div>
         )}
@@ -210,7 +252,7 @@ export default function AdminPage() {
         {!loading && tab === "upi" && (
           <div className="space-y-6">
             <div className="bg-white border border-border rounded-2xl p-5 shadow-card space-y-4">
-              <h2 className="font-display font-bold text-ink">UPI Pool</h2>
+              <h2 className="font-display font-bold text-ink">UPI Pool (platform collection)</h2>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input value={newUpi} onChange={(e) => setNewUpi(e.target.value)} placeholder="name@ybl" className="flex-1 px-3 py-2 border border-border rounded-xl text-sm" />
                 <input value={newName} onChange={(e) => setNewName(e.target.value)} className="sm:w-36 px-3 py-2 border border-border rounded-xl text-sm" />
@@ -268,7 +310,7 @@ export default function AdminPage() {
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {u.role !== "AGENT" && (
-                    <Btn onClick={() => act({ action: "promote_to_agent", userId: u.id, commissionPct: 20 })} label="→ Agent" />
+                    <Btn onClick={() => act({ action: "promote_to_agent", userId: u.id, commissionPct: 50 })} label="→ Agent" />
                   )}
                   <Btn onClick={() => act({ action: u.isBanned ? "unban_user" : "ban_user", userId: u.id })} label={u.isBanned ? "Unban" : "Ban"} danger={!u.isBanned} />
                 </div>
