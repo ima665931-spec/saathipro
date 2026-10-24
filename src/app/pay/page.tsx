@@ -7,12 +7,43 @@ import Link from "next/link";
 import { getPlan, isValidPlanId, type PlanId } from "@/lib/plans";
 import { telegramPaymentUrl } from "@/lib/telegram";
 
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+  }
+}
+
 function TelegramIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
     </svg>
   );
+}
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+    const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(true));
+      existing.addEventListener("error", () => resolve(false));
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.async = true;
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
+  });
 }
 
 function compressImage(file: File): Promise<string> {
@@ -67,10 +98,13 @@ function PayInner() {
   const [shot, setShot] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [rzpLoading, setRzpLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+  const [razorpayEnabled, setRazorpayEnabled] = useState(false);
+  const [showUpi, setShowUpi] = useState(false);
 
   const creditApply = useCredit && creditBalance > 0 ? Math.min(creditBalance, FEE) : 0;
   const amountDue = Math.max(0, FEE - creditApply);
@@ -94,10 +128,12 @@ function PayInner() {
           setPublicId(d.publicId || null);
           setCreditBalance(d.creditBalance || 0);
           setActive(!!d.active);
+          setRazorpayEnabled(!!d.razorpayEnabled);
+          if (!d.razorpayEnabled) setShowUpi(true);
           if (d.lastUtr) setSubmittedUtr(d.lastUtr);
           if (d.paymentStatus === "VERIFIED" && d.active) setDone(true);
           if (d.paymentStatus === "PENDING") setDone(true);
-          if (d.error) setError(d.error);
+          if (d.error && !d.razorpayEnabled) setError(d.error);
         })
         .finally(() => setLoading(false));
     }
@@ -165,6 +201,93 @@ function PayInner() {
       setError("");
     } catch {
       setError("Could not read image");
+    }
+  };
+
+  const payWithRazorpay = async () => {
+    setError("");
+    setRzpLoading(true);
+    try {
+      const orderRes = await fetch("/api/payments/razorpay/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: planId,
+          useCredit: useCredit && creditBalance > 0,
+        }),
+      });
+      const order = await orderRes.json();
+      if (!orderRes.ok) {
+        setError(order.error || "Could not start payment");
+        setRzpLoading(false);
+        return;
+      }
+
+      const ok = await loadRazorpayScript();
+      if (!ok || !window.Razorpay) {
+        setError("Could not load Razorpay. Try UPI below or refresh.");
+        setRzpLoading(false);
+        return;
+      }
+
+      const rzp = new window.Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency || "INR",
+        name: "SaathiPro",
+        description: `${planMeta.name} membership`,
+        order_id: order.orderId,
+        prefill: {
+          name: order.prefill?.name || session?.user?.name || "",
+          email: order.prefill?.email || session?.user?.email || "",
+          contact: order.prefill?.contact || "",
+        },
+        notes: {
+          plan: planId,
+          paymentId: order.paymentId,
+        },
+        theme: { color: "#7c3aed" },
+        handler: async (response: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          try {
+            const verifyRes = await fetch("/api/payments/razorpay/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                paymentId: order.paymentId,
+              }),
+            });
+            const data = await verifyRes.json();
+            if (!verifyRes.ok) {
+              setError(data.error || "Payment verification failed. Contact support with Reg ID.");
+              setRzpLoading(false);
+              return;
+            }
+            setPaymentStatus("VERIFIED");
+            setActive(true);
+            if (data.planExpiresAt) setPlanExpiresAt(data.planExpiresAt);
+            setDone(true);
+          } catch {
+            setError("Network error while verifying payment");
+          } finally {
+            setRzpLoading(false);
+          }
+        },
+        modal: {
+          ondismiss: () => setRzpLoading(false),
+        },
+      });
+
+      rzp.open();
+    } catch {
+      setError("Network error");
+      setRzpLoading(false);
     }
   };
 
@@ -287,7 +410,7 @@ function PayInner() {
               </label>
             )}
 
-            {(paymentStatus === "PENDING" || done) && (
+            {(paymentStatus === "PENDING" || done) && !active && (
               <div className="mt-8 p-6 bg-amber-50 border border-amber-100 rounded-2xl text-center space-y-3">
                 <p className="font-display text-lg font-semibold text-amber-900">Under review</p>
                 <p className="text-sm text-amber-800">
@@ -310,13 +433,46 @@ function PayInner() {
 
             {paymentStatus !== "PENDING" && !done && (
               <>
-                {amountDue > 0 && (
+                {error && (
+                  <div className="mt-4 p-3 bg-red-50 text-red-700 text-sm rounded-xl">{error}</div>
+                )}
+
+                {amountDue > 0 && razorpayEnabled && (
+                  <div className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card text-center space-y-4">
+                    <p className="text-xs uppercase tracking-wide text-ink-muted">Instant payment</p>
+                    <p className="font-display text-3xl font-bold text-brand-gradient">₹{amountDue}</p>
+                    <button
+                      type="button"
+                      onClick={payWithRazorpay}
+                      disabled={rzpLoading}
+                      className="w-full py-3.5 btn-brand rounded-xl disabled:opacity-50 text-sm font-semibold"
+                    >
+                      {rzpLoading ? "Opening Razorpay…" : "Pay securely with Razorpay"}
+                    </button>
+                    <p className="text-[11px] text-ink-muted">UPI · Cards · Netbanking · Wallets</p>
+                    {upiId && (
+                      <button
+                        type="button"
+                        onClick={() => setShowUpi((v) => !v)}
+                        className="text-xs text-accent underline"
+                      >
+                        {showUpi ? "Hide manual UPI" : "Pay via manual UPI instead"}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {amountDue > 0 && (showUpi || !razorpayEnabled) && (
                   <div className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card text-center">
                     {!upiId ? (
-                      <p className="text-sm text-red-600">{error || "No UPI in pool. Admin must add UPIs."}</p>
+                      <p className="text-sm text-red-600">
+                        {razorpayEnabled
+                          ? "Manual UPI not available right now. Use Razorpay above."
+                          : error || "No UPI in pool. Admin must add UPIs or configure Razorpay."}
+                      </p>
                     ) : (
                       <>
-                        <p className="text-xs uppercase tracking-wide text-ink-muted mb-3">Pay exactly ₹{amountDue}</p>
+                        <p className="text-xs uppercase tracking-wide text-ink-muted mb-3">Manual UPI · Pay exactly ₹{amountDue}</p>
                         {qrUrl && <img src={qrUrl} alt="QR" className="mx-auto rounded-xl border" width={240} height={240} />}
                         <p className="mt-4 font-mono text-sm font-semibold break-all">{upiId}</p>
                         <p className="mt-3 font-display text-3xl font-bold text-brand-gradient">₹{amountDue}</p>
@@ -331,44 +487,45 @@ function PayInner() {
                   </div>
                 )}
 
-                <form onSubmit={submit} className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card space-y-4">
-                  <h2 className="font-display font-semibold text-ink">
-                    {amountDue > 0 ? "After you pay" : "Confirm with credit"}
-                  </h2>
-                  {error && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl">{error}</div>}
-                  {amountDue > 0 && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-ink mb-1">UTR (exactly 12 digits)</label>
-                        <input
-                          value={utr}
-                          onChange={(e) => setUtr(e.target.value.replace(/\D/g, "").slice(0, 12))}
-                          inputMode="numeric"
-                          maxLength={12}
-                          placeholder="123456789012"
-                          className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50 text-sm font-mono"
-                          required
-                        />
-                        <p className="text-xs text-ink-muted mt-1">{utr.length}/12</p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-ink mb-1">Screenshot</label>
-                        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
-                        <button type="button" onClick={() => fileRef.current?.click()} className="w-full py-3 border border-dashed border-border rounded-xl text-sm text-ink-muted">
-                          {shot ? "Change screenshot" : "Upload screenshot"}
-                        </button>
-                        {shot && <img src={shot} alt="" className="mt-2 max-h-40 rounded-lg mx-auto border" />}
-                      </div>
-                    </>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={submitting || (amountDue > 0 && (!upiId || utr.length !== 12 || !shot))}
-                    className="w-full py-3.5 btn-brand rounded-xl disabled:opacity-50"
-                  >
-                    {submitting ? "Submitting…" : amountDue > 0 ? "Submit for verification" : "Submit (credit only)"}
-                  </button>
-                </form>
+                {(amountDue === 0 || showUpi || !razorpayEnabled) && (
+                  <form onSubmit={submit} className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card space-y-4">
+                    <h2 className="font-display font-semibold text-ink">
+                      {amountDue > 0 ? "After manual UPI pay" : "Confirm with credit"}
+                    </h2>
+                    {amountDue > 0 && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-ink mb-1">UTR (exactly 12 digits)</label>
+                          <input
+                            value={utr}
+                            onChange={(e) => setUtr(e.target.value.replace(/\D/g, "").slice(0, 12))}
+                            inputMode="numeric"
+                            maxLength={12}
+                            placeholder="123456789012"
+                            className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50 text-sm font-mono"
+                            required
+                          />
+                          <p className="text-xs text-ink-muted mt-1">{utr.length}/12</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-ink mb-1">Screenshot</label>
+                          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+                          <button type="button" onClick={() => fileRef.current?.click()} className="w-full py-3 border border-dashed border-border rounded-xl text-sm text-ink-muted">
+                            {shot ? "Change screenshot" : "Upload screenshot"}
+                          </button>
+                          {shot && <img src={shot} alt="" className="mt-2 max-h-40 rounded-lg mx-auto border" />}
+                        </div>
+                      </>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={submitting || (amountDue > 0 && (!upiId || utr.length !== 12 || !shot))}
+                      className="w-full py-3.5 btn-brand rounded-xl disabled:opacity-50"
+                    >
+                      {submitting ? "Submitting…" : amountDue > 0 ? "Submit for verification" : "Submit (credit only)"}
+                    </button>
+                  </form>
+                )}
               </>
             )}
           </>
