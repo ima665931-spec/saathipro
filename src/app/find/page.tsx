@@ -14,18 +14,18 @@ const CITIES = [
   "Chennai", "Kolkata", "Ahmedabad", "Jaipur",
 ];
 
-const DUMMY_SAATHIS = [
-  { id: "1", name: "Priya Sharma", city: "Delhi", services: ["Movie Partner", "Coffee Partner", "Hanging Out"], rate: 1500, rating: 4.9, reviews: 128, bio: "Friendly and professional. Love movies and deep conversations.", image: null as string | null, verified: true },
-  { id: "2", name: "Anjali Mehta", city: "Mumbai", services: ["Clubbing", "Event Partner", "Hanging Out"], rate: 2000, rating: 4.8, reviews: 94, bio: "Nightlife expert. Safe and fun companion for parties and events.", image: null, verified: true },
-  { id: "3", name: "Sneha Reddy", city: "Bangalore", services: ["Elder Care", "Medical Support", "Shopping Buddy"], rate: 1200, rating: 5.0, reviews: 67, bio: "Patient and caring. Experienced in elder care and hospital visits.", image: null, verified: true },
-  { id: "4", name: "Kavita Patel", city: "Pune", services: ["Travel Partner", "City Tour Partner", "Coffee Partner"], rate: 1800, rating: 4.7, reviews: 52, bio: "Love exploring cities. Great for local tours and travel companionship.", image: null, verified: true },
-  { id: "5", name: "Riya Kapoor", city: "Delhi", services: ["Shopping Buddy", "Cafe & Food Partner", "Hanging Out"], rate: 1400, rating: 4.8, reviews: 89, bio: "Fashion and food enthusiast. Perfect shopping and cafe buddy.", image: null, verified: true },
-  { id: "6", name: "Neha Singh", city: "Mumbai", services: ["Movie Partner", "Concert Partner", "Event Partner"], rate: 1600, rating: 4.9, reviews: 113, bio: "Movie buff and music lover. Always up for a good film or concert.", image: null, verified: true },
-  { id: "7", name: "Pooja Iyer", city: "Bangalore", services: ["Professional Networking Partner", "Coffee Partner", "Hanging Out"], rate: 1500, rating: 4.6, reviews: 41, bio: "Startup enthusiast. Great for brainstorming and professional chats.", image: null, verified: true },
-  { id: "8", name: "Meera Joshi", city: "Hyderabad", services: ["Elder Care", "Domestic Help", "Shopping Buddy"], rate: 1100, rating: 4.9, reviews: 76, bio: "Warm and reliable. Specialized in senior care and daily support.", image: null, verified: true },
-];
-
-type Saathi = (typeof DUMMY_SAATHIS)[0];
+type Saathi = {
+  id: string;
+  name: string;
+  city: string;
+  services: string[];
+  rate: number;
+  rating: number;
+  reviews: number;
+  bio: string;
+  image: string | null;
+  verified: boolean;
+};
 
 function avatarUrl(name: string, image: string | null) {
   if (image && (image.startsWith("data:image/") || image.startsWith("https://"))) return image;
@@ -36,7 +36,7 @@ export default function FindPage() {
   const [selectedService, setSelectedService] = useState("All");
   const [selectedCity, setSelectedCity] = useState("All Cities");
   const [search, setSearch] = useState("");
-  const [list, setList] = useState<Saathi[]>(DUMMY_SAATHIS);
+  const [list, setList] = useState<Saathi[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,12 +44,17 @@ export default function FindPage() {
       .then((r) => r.json())
       .then((data) => {
         const fromDb: Saathi[] = (data.saathis || []).filter(
-          (s: Saathi) => s.name && s.bio && s.bio.length >= 20 && Array.isArray(s.services) && s.services.length > 0
+          (s: Saathi) =>
+            s.id &&
+            s.name &&
+            s.bio &&
+            s.bio.length >= 20 &&
+            Array.isArray(s.services) &&
+            s.services.length > 0
         );
-        const dummyIds = new Set(DUMMY_SAATHIS.map((d) => d.id));
-        setList([...DUMMY_SAATHIS, ...fromDb.filter((s) => !dummyIds.has(s.id))]);
+        setList(fromDb);
       })
-      .catch(() => {})
+      .catch(() => setList([]))
       .finally(() => setLoading(false));
   }, []);
 
@@ -128,15 +133,20 @@ export default function FindPage() {
 
         {filtered.length === 0 && !loading ? (
           <div className="text-center py-20">
-            <h3 className="font-display text-xl font-bold text-ink">No matches</h3>
-            <p className="text-ink-muted mt-2">Try different filters</p>
-            <button
-              type="button"
-              onClick={() => { setSelectedService("All"); setSelectedCity("All Cities"); setSearch(""); }}
-              className="mt-6 btn-brand px-6 py-2.5 rounded-full"
-            >
-              Clear filters
-            </button>
+            <h3 className="font-display text-xl font-bold text-ink">No Saathis yet</h3>
+            <p className="text-ink-muted mt-2">Real verified profiles will appear here once providers go live.</p>
+            <div className="mt-6 flex flex-wrap gap-3 justify-center">
+              <button
+                type="button"
+                onClick={() => { setSelectedService("All"); setSelectedCity("All Cities"); setSearch(""); }}
+                className="btn-brand px-6 py-2.5 rounded-full"
+              >
+                Clear filters
+              </button>
+              <Link href="/become-saathi" className="px-6 py-2.5 rounded-full border border-border text-sm font-medium hover:border-accent/40">
+                Become a Saathi
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
