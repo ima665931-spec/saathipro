@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { normalizeRefCode } from "@/lib/referral";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, password } = body;
+    const { name, email, password, ref } = body;
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     }
 
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email: String(email).trim().toLowerCase() },
     });
 
     if (existingUser) {
@@ -32,14 +33,31 @@ export async function POST(req: Request) {
       );
     }
 
+    let referredById: string | null = null;
+    if (ref && typeof ref === "string") {
+      const code = normalizeRefCode(ref);
+      if (code) {
+        const agent = await prisma.user.findFirst({
+          where: {
+            referralCode: { equals: code, mode: "insensitive" },
+            role: "AGENT",
+            isBanned: false,
+          },
+          select: { id: true },
+        });
+        if (agent) referredById = agent.id;
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
 
     const user = await prisma.user.create({
       data: {
         name,
-        email,
+        email: String(email).trim().toLowerCase(),
         password: hashedPassword,
         role: "USER",
+        referredById,
       },
     });
 
@@ -49,6 +67,7 @@ export async function POST(req: Request) {
           id: user.id,
           name: user.name,
           email: user.email,
+          referred: !!referredById,
         },
       },
       { status: 201 }
