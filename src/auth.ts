@@ -5,6 +5,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { generateRegistrationId } from "@/lib/ids";
+import { authConfig } from "@/auth.config";
 
 /** Only keep small http(s) avatar URLs — base64 blows cookie size → 494 */
 function safeImage(url?: string | null): string | null {
@@ -93,19 +94,16 @@ providers.push(
 );
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
   },
-  trustHost: true,
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
   providers,
   callbacks: {
+    ...authConfig.callbacks,
     async signIn({ user, account }) {
       const email = user.email;
       if (!email) return false;
@@ -122,7 +120,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           await ensurePublicId(dbUser.id, dbUser.publicId);
         }
       } catch {
-        /* allow if DB hiccup on first Google create */
         if (account?.provider === "credentials") return false;
       }
       return true;
@@ -163,7 +160,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
-      // Refresh ban status / role every request for existing sessions
       if (token.id) {
         try {
           const dbUser = await prisma.user.findUnique({
