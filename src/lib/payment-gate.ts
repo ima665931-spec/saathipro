@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
 
 /**
- * ₹499 is a Saathi listing / onboarding fee — NOT required to book as a client.
- * Use this before activating a Saathi profile publicly.
+ * One-time ₹499 registration fee for every member
+ * (clients who book + Saathis who list).
  */
-export async function requireSaathiPayment(email: string): Promise<
+export async function requirePaidAccess(email: string): Promise<
   | {
       ok: true;
       user: { id: string; email: string; role: string; paymentStatus: string };
@@ -13,7 +13,12 @@ export async function requireSaathiPayment(email: string): Promise<
       ok: false;
       status: number;
       error: string;
-      code: "UNAUTHORIZED" | "NOT_FOUND" | "PAYMENT_REQUIRED" | "PENDING" | "BANNED";
+      code:
+        | "UNAUTHORIZED"
+        | "NOT_FOUND"
+        | "PAYMENT_REQUIRED"
+        | "PENDING"
+        | "BANNED";
     }
 > {
   const user = await prisma.user.findFirst({
@@ -61,7 +66,7 @@ export async function requireSaathiPayment(email: string): Promise<
     return {
       ok: false,
       status: 402,
-      error: "Saathi fee under review. Listing goes live after admin approval.",
+      error: "Payment under review. Access unlocks after admin approval.",
       code: "PENDING",
     };
   }
@@ -69,7 +74,7 @@ export async function requireSaathiPayment(email: string): Promise<
   return {
     ok: false,
     status: 402,
-    error: "Pay ₹499 Saathi listing fee to go live on Find.",
+    error: "Pay ₹499 registration fee to unlock booking & listing.",
     code: "PAYMENT_REQUIRED",
   };
 }
