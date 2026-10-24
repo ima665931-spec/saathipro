@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { normalizeRefCode } from "@/lib/referral";
+import { normalizeRefCode, isInviteType } from "@/lib/referral";
 import { generateRegistrationId } from "@/lib/ids";
 
 async function uniquePublicId(): Promise<string> {
@@ -16,7 +16,7 @@ async function uniquePublicId(): Promise<string> {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, password, ref } = body;
+    const { name, email, password, ref, type } = body;
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -44,14 +44,16 @@ export async function POST(req: Request) {
     }
 
     let referredById: string | null = null;
+    const referredAs = isInviteType(type) ? type : isInviteType(ref) ? undefined : "seeker";
+
     if (ref && typeof ref === "string") {
       const code = normalizeRefCode(ref);
       if (code) {
         const agent = await prisma.user.findFirst({
           where: {
             referralCode: { equals: code, mode: "insensitive" },
-            role: "AGENT",
             isBanned: false,
+            OR: [{ role: "AGENT" }, { agentStatus: "APPROVED" }],
           },
           select: { id: true },
         });
@@ -70,6 +72,7 @@ export async function POST(req: Request) {
         role: "USER",
         publicId,
         referredById,
+        referredAs: referredById ? (isInviteType(type) ? type : "seeker") : null,
       },
     });
 
@@ -81,6 +84,7 @@ export async function POST(req: Request) {
           name: user.name,
           email: user.email,
           referred: !!referredById,
+          referredAs: user.referredAs,
         },
       },
       { status: 201 }
