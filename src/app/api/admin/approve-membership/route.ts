@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { computeExpiry, isValidPlanId, type PlanId } from "@/lib/plans";
-import { grantMembershipCommissions } from "@/lib/rewards";
+import { grantMembershipCommissions, applyPaymentCredit } from "@/lib/rewards";
 
 export async function POST(req: Request) {
   const gate = await requireAdmin();
@@ -28,6 +28,9 @@ export async function POST(req: Request) {
     const user = await prisma.user.findUnique({ where: { id: pay.userId } });
     const expires = computeExpiry(planId, user?.planExpiresAt);
 
+    // Full plan price for commission calc (before credit)
+    const planPriceForCommission = pay.amount + (pay.creditUsed || 0);
+
     await prisma.payment.update({
       where: { id: paymentId },
       data: { status: "APPROVED" },
@@ -46,10 +49,16 @@ export async function POST(req: Request) {
     });
 
     try {
+      await applyPaymentCredit(pay.id);
+    } catch (e) {
+      console.error("apply credit", e);
+    }
+
+    try {
       await grantMembershipCommissions({
         userId: pay.userId,
         paymentId: pay.id,
-        amount: pay.amount,
+        amount: planPriceForCommission || pay.amount,
         planId,
       });
     } catch (e) {
