@@ -18,6 +18,9 @@ model User {
   phone         String?
   isBanned      Boolean   @default(false)
   paymentStatus String    @default("NONE")
+  /// WEEKLY | MONTHLY | HALF_YEAR | YEARLY
+  plan          String?
+  planExpiresAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -120,7 +123,9 @@ model Payment {
   id         String   @id @default(cuid())
   userId     String
   amount     Int      @default(499)
-  type       String   @default("REGISTRATION")
+  type       String   @default("MEMBERSHIP")
+  /// WEEKLY | MONTHLY | HALF_YEAR | YEARLY
+  plan       String?
   utr        String?
   screenshot String?
   status     String   @default("PENDING")
@@ -133,13 +138,11 @@ model Payment {
   upiPool UpiPool? @relation(fields: [upiPoolId], references: [id], onDelete: SetNull)
 }
 
-/// Multiple collection UPIs — rotate when daily limit hit
 model UpiPool {
   id           String   @id @default(cuid())
   upiId        String   @unique
   displayName  String   @default("SaathiPro")
   isActive     Boolean  @default(true)
-  /// Max successful/pending assigns per day (0 = unlimited)
   dailyLimit   Int      @default(50)
   usedToday    Int      @default(0)
   lastResetAt  DateTime @default(now())
