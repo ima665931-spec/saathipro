@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getPlan, isValidPlanId, type PlanId } from "@/lib/plans";
+import { telegramPaymentUrl } from "@/lib/telegram";
 
 function compressImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -34,7 +35,7 @@ function compressImage(file: File): Promise<string> {
 }
 
 function PayInner() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const planParam = searchParams.get("plan");
@@ -52,6 +53,7 @@ function PayInner() {
   const [publicId, setPublicId] = useState<string | null>(null);
   const [active, setActive] = useState(false);
   const [utr, setUtr] = useState("");
+  const [submittedUtr, setSubmittedUtr] = useState("");
   const [shot, setShot] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -78,6 +80,7 @@ function PayInner() {
           setPlanExpiresAt(d.planExpiresAt || null);
           setPublicId(d.publicId || null);
           setActive(!!d.active);
+          if (d.lastUtr) setSubmittedUtr(d.lastUtr);
           if (d.paymentStatus === "VERIFIED" && d.active) setDone(true);
           if (d.paymentStatus === "PENDING") setDone(true);
           if (d.error) setError(d.error);
@@ -111,6 +114,16 @@ function PayInner() {
   const qrUrl = upiLink
     ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiLink)}`
     : "";
+
+  const fastTg = telegramPaymentUrl({
+    publicId,
+    plan: planMeta.name,
+    amount: FEE,
+    utr: submittedUtr || utr || null,
+    name: session?.user?.name,
+    email: session?.user?.email,
+    kind: "MEMBERSHIP",
+  });
 
   const copyUpi = async () => {
     if (!upiId) return;
@@ -173,6 +186,7 @@ function PayInner() {
         return;
       }
       if (data.publicId) setPublicId(data.publicId);
+      setSubmittedUtr(digits);
       setDone(true);
       setPaymentStatus("PENDING");
     } catch {
@@ -201,11 +215,15 @@ function PayInner() {
 
       <main className="max-w-lg mx-auto px-4 py-10">
         {publicId && (
-          <div className="mb-4 p-3 bg-white border border-border rounded-xl flex items-center justify-between text-sm shadow-card">
-            <span>Registration ID: <strong className="font-mono text-accent">{publicId}</strong></span>
-            <button type="button" onClick={copyRegId} className="text-xs font-medium text-accent">
-              {copiedId ? "Copied" : "Copy"}
-            </button>
+          <div className="mb-4 p-4 bg-white border-2 border-pink/30 rounded-2xl shadow-card">
+            <p className="text-xs uppercase tracking-wide text-ink-muted font-semibold">Your Registration ID</p>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <strong className="font-mono text-lg text-brand-gradient">{publicId}</strong>
+              <button type="button" onClick={copyRegId} className="shrink-0 text-xs font-semibold btn-brand px-3 py-1.5 rounded-full">
+                {copiedId ? "Copied ✓" : "Copy ID"}
+              </button>
+            </div>
+            <p className="text-[11px] text-ink-muted mt-2">Admin search + Telegram — always keep this ID.</p>
           </div>
         )}
 
@@ -234,12 +252,26 @@ function PayInner() {
             </p>
 
             {(paymentStatus === "PENDING" || done) && (
-              <div className="mt-8 p-6 bg-amber-50 border border-amber-100 rounded-2xl text-center">
+              <div className="mt-8 p-6 bg-amber-50 border border-amber-100 rounded-2xl text-center space-y-3">
                 <p className="font-display text-lg font-semibold text-amber-900">Under review</p>
-                <p className="text-sm text-amber-800 mt-1">
-                  Save your Registration ID <strong className="font-mono">{publicId}</strong> for support.
+                <p className="text-sm text-amber-800">
+                  Reg ID: <strong className="font-mono">{publicId || "—"}</strong>
+                  {submittedUtr && (
+                    <> · UTR: <strong className="font-mono">{submittedUtr}</strong></>
+                  )}
                 </p>
-                <Link href="/dashboard" className="inline-block mt-4 text-sm font-medium text-accent underline">Dashboard</Link>
+                <p className="text-xs text-amber-800/80">Speed up with Telegram — one tap sends Reg ID + UTR to admin.</p>
+                <a
+                  href={fastTg}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 btn-brand px-6 py-3 rounded-full text-sm"
+                >
+                  ✈ Fast approve on Telegram
+                </a>
+                <div>
+                  <Link href="/dashboard" className="text-sm font-medium text-accent underline">Dashboard</Link>
+                </div>
               </div>
             )}
 
