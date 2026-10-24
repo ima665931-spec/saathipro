@@ -1,18 +1,15 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import BrandHeader from "@/components/BrandHeader";
-
-const SERVICES = [
-  "All", "Movie Partner", "Hanging Out", "Elder Care", "Clubbing",
-  "Shopping Buddy", "Coffee Partner", "Travel Partner", "Event Partner", "Medical Support",
-];
-
-const CITIES = [
-  "All Cities", "Delhi", "Mumbai", "Bangalore", "Pune", "Hyderabad",
-  "Chennai", "Kolkata", "Ahmedabad", "Jaipur",
-];
+import {
+  SERVICE_CATALOG,
+  CITY_LIST,
+  SORT_OPTIONS,
+  type SortId,
+} from "@/lib/catalog";
 
 type Saathi = {
   id: string;
@@ -32,45 +29,89 @@ function avatarUrl(name: string, image: string | null) {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7c3aed&color=fff&size=256&font-size=0.4&bold=true`;
 }
 
-export default function FindPage() {
-  const [selectedService, setSelectedService] = useState("All");
-  const [selectedCity, setSelectedCity] = useState("All Cities");
-  const [search, setSearch] = useState("");
-  const [list, setList] = useState<Saathi[]>([]);
-  const [loading, setLoading] = useState(true);
+function FindInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  useEffect(() => {
-    fetch("/api/saathis")
+  const [selectedService, setSelectedService] = useState(
+    searchParams.get("service") || "All"
+  );
+  const [selectedCity, setSelectedCity] = useState(
+    searchParams.get("city") || "All Cities"
+  );
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+  const [searchDraft, setSearchDraft] = useState(searchParams.get("q") || "");
+  const [sort, setSort] = useState<SortId>((searchParams.get("sort") as SortId) || "newest");
+  const [verifiedOnly, setVerifiedOnly] = useState(searchParams.get("verified") === "1");
+  const [minRate, setMinRate] = useState(searchParams.get("minRate") || "");
+  const [maxRate, setMaxRate] = useState(searchParams.get("maxRate") || "");
+  const [list, setList] = useState<Saathi[]>([]);
+  const [citiesFromDb, setCitiesFromDb] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+
+  const cityOptions = Array.from(
+    new Set(["All Cities", ...CITY_LIST, ...citiesFromDb])
+  );
+
+  const load = useCallback(() => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (selectedService && selectedService !== "All") params.set("service", selectedService);
+    if (selectedCity && selectedCity !== "All Cities") params.set("city", selectedCity);
+    if (search.trim()) params.set("q", search.trim());
+    if (sort && sort !== "newest") params.set("sort", sort);
+    if (verifiedOnly) params.set("verified", "1");
+    if (minRate) params.set("minRate", minRate);
+    if (maxRate) params.set("maxRate", maxRate);
+
+    // Sync URL without full navigation noise
+    const qs = params.toString();
+    router.replace(qs ? `/find?${qs}` : "/find", { scroll: false });
+
+    fetch(`/api/saathis?${params.toString()}`)
       .then((r) => r.json())
       .then((data) => {
-        const fromDb: Saathi[] = (data.saathis || []).filter(
-          (s: Saathi) =>
-            s.id &&
-            s.name &&
-            s.bio &&
-            s.bio.length >= 20 &&
-            Array.isArray(s.services) &&
-            s.services.length > 0
-        );
-        setList(fromDb);
+        setList(data.saathis || []);
+        setTotal(data.meta?.total ?? (data.saathis || []).length);
+        if (Array.isArray(data.meta?.cities)) setCitiesFromDb(data.meta.cities);
       })
-      .catch(() => setList([]))
+      .catch(() => {
+        setList([]);
+        setTotal(0);
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedService, selectedCity, search, sort, verifiedOnly, minRate, maxRate, router]);
 
-  const filtered = useMemo(() => {
-    return list.filter((s) => {
-      const matchService = selectedService === "All" || s.services.includes(selectedService);
-      const matchCity = selectedCity === "All Cities" || s.city === selectedCity;
-      const q = search.toLowerCase();
-      const matchSearch =
-        !q ||
-        s.name.toLowerCase().includes(q) ||
-        s.bio.toLowerCase().includes(q) ||
-        s.services.some((svc) => svc.toLowerCase().includes(q));
-      return matchService && matchCity && matchSearch;
-    });
-  }, [list, selectedService, selectedCity, search]);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Debounce search draft → search
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchDraft.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchDraft]);
+
+  const clearFilters = () => {
+    setSelectedService("All");
+    setSelectedCity("All Cities");
+    setSearch("");
+    setSearchDraft("");
+    setSort("newest");
+    setVerifiedOnly(false);
+    setMinRate("");
+    setMaxRate("");
+  };
+
+  const hasFilters =
+    selectedService !== "All" ||
+    selectedCity !== "All Cities" ||
+    !!search ||
+    verifiedOnly ||
+    !!minRate ||
+    !!maxRate ||
+    sort !== "newest";
 
   return (
     <div className="min-h-screen bg-brand-soft">
@@ -83,15 +124,15 @@ export default function FindPage() {
             Find a <span className="text-brand-gradient">Saathi</span>
           </h1>
           <p className="mt-3 text-ink-muted text-lg max-w-xl">
-            Verified companions for movies, care, hangouts & more — across India.
+            Filter by city, service & budget — verified companions across India.
           </p>
 
           <div className="mt-8 flex flex-col lg:flex-row gap-3">
             <input
               type="text"
-              placeholder="Search name or service…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name, city or service…"
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
               className="flex-1 px-5 py-3.5 rounded-xl border border-border bg-white focus:outline-none focus:ring-2 focus:ring-accent/40 text-ink shadow-card"
             />
             <select
@@ -99,25 +140,110 @@ export default function FindPage() {
               onChange={(e) => setSelectedCity(e.target.value)}
               className="px-5 py-3.5 rounded-xl border border-border bg-white focus:outline-none focus:ring-2 focus:ring-accent/40 text-ink min-w-[160px]"
             >
-              {CITIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
+              {cityOptions.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortId)}
+              className="px-5 py-3.5 rounded-xl border border-border bg-white focus:outline-none focus:ring-2 focus:ring-accent/40 text-ink min-w-[160px]"
+            >
+              {SORT_OPTIONS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
               ))}
             </select>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-2">
-            {SERVICES.map((svc) => (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-2 text-sm text-ink-muted cursor-pointer">
+              <input
+                type="checkbox"
+                checked={verifiedOnly}
+                onChange={(e) => setVerifiedOnly(e.target.checked)}
+                className="accent-pink w-4 h-4"
+              />
+              Verified only
+            </label>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-ink-muted">₹</span>
+              <input
+                type="number"
+                min={0}
+                placeholder="Min"
+                value={minRate}
+                onChange={(e) => setMinRate(e.target.value.replace(/\D/g, ""))}
+                className="w-20 px-2 py-1.5 rounded-lg border border-border bg-white text-ink"
+              />
+              <span className="text-ink-muted">–</span>
+              <input
+                type="number"
+                min={0}
+                placeholder="Max"
+                value={maxRate}
+                onChange={(e) => setMaxRate(e.target.value.replace(/\D/g, ""))}
+                className="w-20 px-2 py-1.5 rounded-lg border border-border bg-white text-ink"
+              />
+              <span className="text-ink-muted">/hr</span>
+            </div>
+            {hasFilters && (
               <button
-                key={svc}
                 type="button"
-                onClick={() => setSelectedService(svc)}
+                onClick={clearFilters}
+                className="text-sm font-medium text-accent underline"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedService("All")}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+                selectedService === "All"
+                  ? "btn-brand shadow-soft"
+                  : "bg-white text-ink-muted border border-border hover:border-accent/40 hover:text-accent"
+              }`}
+            >
+              All
+            </button>
+            {SERVICE_CATALOG.map((svc) => (
+              <button
+                key={svc.id}
+                type="button"
+                onClick={() => setSelectedService(svc.label)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                  selectedService === svc
+                  selectedService === svc.label
                     ? "btn-brand shadow-soft"
                     : "bg-white text-ink-muted border border-border hover:border-accent/40 hover:text-accent"
                 }`}
               >
-                {svc}
+                <span className="mr-1">{svc.emoji}</span>
+                {svc.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Quick city chips */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {["Delhi", "Mumbai", "Bangalore", "Pune", "Hyderabad", "Noida", "Gurgaon"].map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setSelectedCity(selectedCity === c ? "All Cities" : c)}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
+                  selectedCity === c
+                    ? "border-accent text-accent bg-pink-soft"
+                    : "border-border text-ink-muted hover:border-accent/40"
+                }`}
+              >
+                {c}
               </button>
             ))}
           </div>
@@ -126,38 +252,53 @@ export default function FindPage() {
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <p className="text-sm text-ink-muted mb-6">
-          {loading ? "Loading…" : (
-            <><span className="font-bold text-accent">{filtered.length}</span> available</>
+          {loading ? (
+            "Loading…"
+          ) : (
+            <>
+              <span className="font-bold text-accent">{total}</span> available
+              {selectedCity !== "All Cities" && (
+                <> in <strong className="text-ink">{selectedCity}</strong></>
+              )}
+              {selectedService !== "All" && (
+                <> · <strong className="text-ink">{selectedService}</strong></>
+              )}
+            </>
           )}
         </p>
 
-        {filtered.length === 0 && !loading ? (
+        {list.length === 0 && !loading ? (
           <div className="text-center py-20">
-            <h3 className="font-display text-xl font-bold text-ink">No Saathis yet</h3>
-            <p className="text-ink-muted mt-2">Real verified profiles will appear here once providers go live.</p>
+            <h3 className="font-display text-xl font-bold text-ink">No matches</h3>
+            <p className="text-ink-muted mt-2 max-w-md mx-auto">
+              Try another city or service. New Saathis appear here when their membership is active.
+            </p>
             <div className="mt-6 flex flex-wrap gap-3 justify-center">
-              <button
-                type="button"
-                onClick={() => { setSelectedService("All"); setSelectedCity("All Cities"); setSearch(""); }}
-                className="btn-brand px-6 py-2.5 rounded-full"
-              >
+              <button type="button" onClick={clearFilters} className="btn-brand px-6 py-2.5 rounded-full">
                 Clear filters
               </button>
-              <Link href="/become-saathi" className="px-6 py-2.5 rounded-full border border-border text-sm font-medium hover:border-accent/40">
+              <Link
+                href="/become-saathi"
+                className="px-6 py-2.5 rounded-full border border-border text-sm font-medium hover:border-accent/40"
+              >
                 Become a Saathi
               </Link>
             </div>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {filtered.map((saathi) => (
+            {list.map((saathi) => (
               <article
                 key={saathi.id}
                 className="bg-white rounded-2xl border border-border overflow-hidden shadow-card hover:shadow-soft transition flex flex-col"
               >
                 <Link href={`/saathi/${saathi.id}`} className="block">
                   <div className="aspect-[4/3] bg-gradient-to-br from-violet-100 to-pink-100 relative overflow-hidden">
-                    <img src={avatarUrl(saathi.name, saathi.image)} alt={saathi.name} className="w-full h-full object-cover" />
+                    <img
+                      src={avatarUrl(saathi.name, saathi.image)}
+                      alt={saathi.name}
+                      className="w-full h-full object-cover"
+                    />
                     {saathi.verified && (
                       <span className="absolute top-3 right-3 bg-brand-gradient text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-sm">
                         ✓ Verified
@@ -169,29 +310,49 @@ export default function FindPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <Link href={`/saathi/${saathi.id}`}>
-                        <h3 className="font-display font-bold text-lg text-ink hover:text-accent">{saathi.name}</h3>
+                        <h3 className="font-display font-bold text-lg text-ink hover:text-accent">
+                          {saathi.name}
+                        </h3>
                       </Link>
                       <p className="text-sm text-ink-muted">{saathi.city}</p>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-bold text-gold">★ {saathi.rating}</div>
-                      <p className="text-xs text-ink-muted">{saathi.reviews > 0 ? `${saathi.reviews} reviews` : "New"}</p>
+                      <p className="text-xs text-ink-muted">
+                        {saathi.reviews > 0 ? `${saathi.reviews} reviews` : "New"}
+                      </p>
                     </div>
                   </div>
                   <p className="mt-3 text-sm text-ink-muted line-clamp-2 flex-1">{saathi.bio}</p>
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {saathi.services.slice(0, 2).map((svc) => (
-                      <span key={svc} className="text-[11px] bg-pink-soft text-pink px-2 py-0.5 rounded-full font-medium">{svc}</span>
+                    {saathi.services.slice(0, 3).map((svc) => (
+                      <button
+                        key={svc}
+                        type="button"
+                        onClick={() => setSelectedService(svc)}
+                        className="text-[11px] bg-pink-soft text-pink px-2 py-0.5 rounded-full font-medium hover:opacity-80"
+                      >
+                        {svc}
+                      </button>
                     ))}
                   </div>
                   <div className="mt-5 flex items-center justify-between pt-4 border-t border-border">
                     <div>
-                      <span className="font-display text-xl font-bold text-brand-gradient">₹{saathi.rate}</span>
+                      <span className="font-display text-xl font-bold text-brand-gradient">
+                        ₹{saathi.rate}
+                      </span>
                       <span className="text-sm text-ink-muted">/hr</span>
                     </div>
                     <div className="flex gap-2">
-                      <Link href={`/saathi/${saathi.id}`} className="px-3 py-2 text-sm font-medium text-ink-muted border border-border rounded-full hover:border-accent/40">Profile</Link>
-                      <Link href={`/book/${saathi.id}`} className="btn-brand px-4 py-2 text-sm rounded-full">Book</Link>
+                      <Link
+                        href={`/saathi/${saathi.id}`}
+                        className="px-3 py-2 text-sm font-medium text-ink-muted border border-border rounded-full hover:border-accent/40"
+                      >
+                        Profile
+                      </Link>
+                      <Link href={`/book/${saathi.id}`} className="btn-brand px-4 py-2 text-sm rounded-full">
+                        Book
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -204,8 +365,11 @@ export default function FindPage() {
       <section className="border-t border-border bg-brand-gradient text-white py-14">
         <div className="max-w-2xl mx-auto px-4 text-center">
           <h2 className="font-display text-2xl font-bold">Become a Saathi</h2>
-          <p className="mt-2 text-white/85">Flexible hours · set your rates · earn up to ₹2,000/hr</p>
-          <Link href="/become-saathi" className="inline-block mt-6 px-8 py-3 bg-white text-accent font-bold rounded-full hover:bg-pink-soft transition">
+          <p className="mt-2 text-white/85">Flexible hours · set your rates · earn on your schedule</p>
+          <Link
+            href="/become-saathi"
+            className="inline-block mt-6 px-8 py-3 bg-white text-accent font-bold rounded-full hover:bg-pink-soft transition"
+          >
             Apply now
           </Link>
         </div>
@@ -215,5 +379,19 @@ export default function FindPage() {
         © 2026 Saathi<span className="text-pink font-semibold">Pro</span>
       </footer>
     </div>
+  );
+}
+
+export default function FindPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-brand-soft text-sm text-ink-muted">
+          Loading…
+        </div>
+      }
+    >
+      <FindInner />
+    </Suspense>
   );
 }
