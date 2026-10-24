@@ -101,7 +101,7 @@ export default function PayPage() {
     upiId
       ? `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(
           upiName
-        )}&am=${FEE}&cu=INR&tn=${encodeURIComponent("SaathiPro Listing Fee")}`
+        )}&am=${FEE}&cu=INR&tn=${encodeURIComponent("SaathiPro Registration Fee")}`
       : "";
 
   const qrUrl = upiLink
@@ -173,18 +173,18 @@ export default function PayPage() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-cream text-ink-muted text-sm">
+      <div className="min-h-screen flex items-center justify-center bg-brand-soft text-ink-muted text-sm">
         Loading…
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-cream">
-      <header className="border-b border-border bg-cream/90 backdrop-blur sticky top-0 z-40">
+    <div className="min-h-screen bg-brand-soft">
+      <header className="border-b border-border bg-white/90 backdrop-blur sticky top-0 z-40">
         <div className="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/" className="font-display font-semibold text-ink">
-            SaathiPro
+          <Link href="/" className="font-display font-bold text-ink">
+            Saathi<span className="text-pink">Pro</span>
           </Link>
           <Link href="/dashboard" className="text-sm text-ink-muted">
             Dashboard
@@ -195,22 +195,19 @@ export default function PayPage() {
       <main className="max-w-lg mx-auto px-4 py-10">
         {paymentStatus === "VERIFIED" ? (
           <div className="mt-6 text-center">
-            <div className="mx-auto w-20 h-20 rounded-full bg-ink text-cream flex items-center justify-center text-3xl shadow-soft animate-pulse">
+            <div className="mx-auto w-20 h-20 rounded-full bg-brand-gradient text-white flex items-center justify-center text-3xl shadow-glow">
               ✓
             </div>
-            <h1 className="mt-6 font-display text-3xl font-semibold text-ink">
-              You're live
+            <h1 className="mt-6 font-display text-3xl font-bold text-ink">
+              You're in
             </h1>
             <p className="mt-2 text-ink-muted text-sm max-w-sm mx-auto">
-              ₹{FEE} listing fee verified. Your Saathi profile can appear on
-              Find. Clients book free — you earn on sessions.
+              ₹{FEE} verified. Full access unlocked — book Saathis or list
+              yourself as one.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-              <Link
-                href="/become-saathi"
-                className="px-8 py-3.5 bg-ink text-cream rounded-full text-sm font-semibold hover:bg-accent"
-              >
-                Edit profile
+              <Link href="/find" className="btn-brand px-8 py-3.5 rounded-full text-sm">
+                Find a Saathi
               </Link>
               <Link
                 href="/dashboard"
@@ -222,16 +219,15 @@ export default function PayPage() {
           </div>
         ) : (
           <>
-            <p className="text-xs font-semibold tracking-widest uppercase text-accent-light mb-2">
-              Saathi listing fee
+            <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">
+              Registration fee
             </p>
-            <h1 className="font-display text-3xl font-semibold text-ink">
+            <h1 className="font-display text-3xl font-bold text-ink">
               Pay ₹{FEE}
             </h1>
             <p className="mt-2 text-ink-muted text-sm">
-              One-time fee to list as a Saathi on Find. Clients never pay this —
-              only professionals who want to earn. Scan QR or open UPI, pay
-              exactly ₹{FEE}, then submit proof.
+              One-time membership for everyone. Unlocks Find bookings and Become
+              Saathi. Pay exactly ₹{FEE}, then submit proof.
             </p>
 
             {(paymentStatus === "PENDING" || done) && (
@@ -240,13 +236,10 @@ export default function PayPage() {
                   Under review
                 </p>
                 <p className="text-sm text-amber-800 mt-1">
-                  Admin is checking UTR + screenshot. Listing goes live after
+                  Admin is checking UTR + screenshot. Access unlocks after
                   approval.
                 </p>
-                <Link
-                  href="/dashboard"
-                  className="inline-block mt-4 text-sm font-medium text-ink underline"
-                >
+                <Link href="/dashboard" className="inline-block mt-4 text-sm font-medium text-accent underline">
                   Go to dashboard
                 </Link>
               </div>
@@ -255,22 +248,15 @@ export default function PayPage() {
             {paymentStatus !== "PENDING" && !done && (
               <>
                 <div className="mt-6 flex gap-2 text-xs text-ink-muted">
-                  <span className="px-2.5 py-1 rounded-full bg-ink text-cream font-medium">
-                    1. Pay
-                  </span>
-                  <span className="px-2.5 py-1 rounded-full bg-white border border-border">
-                    2. Upload proof
-                  </span>
-                  <span className="px-2.5 py-1 rounded-full bg-white border border-border">
-                    3. Admin verify
-                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-brand-gradient text-white font-medium">1. Pay</span>
+                  <span className="px-2.5 py-1 rounded-full bg-white border border-border">2. Upload proof</span>
+                  <span className="px-2.5 py-1 rounded-full bg-white border border-border">3. Admin verify</span>
                 </div>
 
                 <div className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card text-center">
                   {!upiId ? (
                     <p className="text-sm text-red-600">
-                      {error ||
-                        "No UPI available. Admin must add IDs in Admin → UPI Pool."}
+                      {error || "No UPI available. Admin must add IDs in Admin → UPI Pool."}
                     </p>
                   ) : (
                     <>
@@ -278,33 +264,14 @@ export default function PayPage() {
                         Pay exactly ₹{FEE} to this UPI
                       </p>
                       {qrUrl && (
-                        <img
-                          src={qrUrl}
-                          alt="UPI QR for ₹499"
-                          className="mx-auto rounded-xl border border-border bg-white"
-                          width={240}
-                          height={240}
-                        />
+                        <img src={qrUrl} alt="UPI QR" className="mx-auto rounded-xl border border-border bg-white" width={240} height={240} />
                       )}
-                      <p className="mt-4 font-mono text-sm font-semibold text-ink break-all">
-                        {upiId}
-                      </p>
+                      <p className="mt-4 font-mono text-sm font-semibold text-ink break-all">{upiId}</p>
                       <p className="text-xs text-ink-muted mt-0.5">{upiName}</p>
-                      <p className="mt-3 font-display text-3xl font-semibold text-ink">
-                        ₹{FEE}
-                      </p>
+                      <p className="mt-3 font-display text-3xl font-bold text-brand-gradient">₹{FEE}</p>
                       <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
-                        <a
-                          href={upiLink}
-                          className="inline-block px-6 py-2.5 bg-ink text-cream text-sm font-semibold rounded-full hover:bg-accent"
-                        >
-                          Open UPI app
-                        </a>
-                        <button
-                          type="button"
-                          onClick={copyUpi}
-                          className="inline-block px-6 py-2.5 border border-border text-sm font-medium rounded-full hover:bg-cream-dark"
-                        >
+                        <a href={upiLink} className="btn-brand inline-block px-6 py-2.5 text-sm rounded-full">Open UPI app</a>
+                        <button type="button" onClick={copyUpi} className="inline-block px-6 py-2.5 border border-border text-sm font-medium rounded-full hover:bg-cream-dark">
                           {copied ? "Copied!" : "Copy UPI ID"}
                         </button>
                       </div>
@@ -312,61 +279,22 @@ export default function PayPage() {
                   )}
                 </div>
 
-                <form
-                  onSubmit={submit}
-                  className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card space-y-4"
-                >
-                  <h2 className="font-display font-semibold text-ink">
-                    2. After you pay
-                  </h2>
-                  {error && (
-                    <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl">
-                      {error}
-                    </div>
-                  )}
+                <form onSubmit={submit} className="mt-6 bg-white border border-border rounded-2xl p-6 shadow-card space-y-4">
+                  <h2 className="font-display font-semibold text-ink">2. After you pay</h2>
+                  {error && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl">{error}</div>}
                   <div>
-                    <label className="block text-sm font-medium text-ink mb-1">
-                      UTR / Transaction ID
-                    </label>
-                    <input
-                      value={utr}
-                      onChange={(e) => setUtr(e.target.value)}
-                      placeholder="From UPI success screen"
-                      className="w-full px-4 py-3 border border-border rounded-xl bg-cream/30 text-ink text-sm"
-                      required
-                    />
+                    <label className="block text-sm font-medium text-ink mb-1">UTR / Transaction ID</label>
+                    <input value={utr} onChange={(e) => setUtr(e.target.value)} placeholder="From UPI success screen" className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50 text-ink text-sm" required />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-ink mb-1">
-                      Payment screenshot
-                    </label>
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={onFile}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileRef.current?.click()}
-                      className="w-full py-3 border border-dashed border-border rounded-xl text-sm text-ink-muted hover:bg-cream-dark"
-                    >
+                    <label className="block text-sm font-medium text-ink mb-1">Payment screenshot</label>
+                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+                    <button type="button" onClick={() => fileRef.current?.click()} className="w-full py-3 border border-dashed border-border rounded-xl text-sm text-ink-muted hover:bg-cream-dark">
                       {shot ? "Change screenshot" : "Upload screenshot"}
                     </button>
-                    {shot && (
-                      <img
-                        src={shot}
-                        alt="Screenshot"
-                        className="mt-2 max-h-40 rounded-lg mx-auto border border-border"
-                      />
-                    )}
+                    {shot && <img src={shot} alt="Screenshot" className="mt-2 max-h-40 rounded-lg mx-auto border border-border" />}
                   </div>
-                  <button
-                    type="submit"
-                    disabled={submitting || !upiId}
-                    className="w-full py-3.5 bg-ink text-cream font-semibold rounded-xl hover:bg-accent disabled:opacity-50"
-                  >
+                  <button type="submit" disabled={submitting || !upiId} className="w-full py-3.5 btn-brand rounded-xl disabled:opacity-50">
                     {submitting ? "Submitting…" : "Submit for verification"}
                   </button>
                 </form>
@@ -374,9 +302,7 @@ export default function PayPage() {
             )}
 
             {paymentStatus === "REJECTED" && (
-              <p className="mt-4 text-sm text-red-600 text-center">
-                Previous payment rejected. Pay again and resubmit.
-              </p>
+              <p className="mt-4 text-sm text-red-600 text-center">Previous payment rejected. Pay again and resubmit.</p>
             )}
           </>
         )}
