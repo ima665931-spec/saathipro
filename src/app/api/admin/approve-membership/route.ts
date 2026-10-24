@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
-import { computeExpiry, isValidPlanId, type PlanId } from "@/lib/plans";
-import { grantMembershipCommissions, applyPaymentCredit } from "@/lib/rewards";
+import { activateMembershipPayment } from "@/lib/activate-membership";
 
 export async function POST(req: Request) {
   const gate = await requireAdmin();
@@ -23,53 +22,18 @@ export async function POST(req: Request) {
     if (pay.type === "AGENT_ENTRY") {
       return NextResponse.json({ error: "Use agent fee approve" }, { status: 400 });
     }
-    if (pay.status === "APPROVED") {
-      return NextResponse.json({ error: "Already approved" }, { status: 400 });
+
+    const result = await activateMembershipPayment(paymentId);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error || "Failed" }, { status: 400 });
     }
 
-    const planId: PlanId = isValidPlanId(pay.plan) ? pay.plan : "MONTHLY";
-    const user = await prisma.user.findUnique({ where: { id: pay.userId } });
-    const expires = computeExpiry(planId, user?.planExpiresAt);
-
-    // Full plan price for commission calc (before credit)
-    const planPriceForCommission = pay.amount + (pay.creditUsed || 0);
-
-    await prisma.payment.update({
-      where: { id: paymentId },
-      data: { status: "APPROVED" },
+    return NextResponse.json({
+      success: true,
+      already: result.already || false,
+      plan: result.plan,
+      planExpiresAt: result.planExpiresAt,
     });
-    await prisma.user.update({
-      where: { id: pay.userId },
-      data: {
-        paymentStatus: "VERIFIED",
-        plan: planId,
-        planExpiresAt: expires,
-      },
-    });
-    // Activate listing if they already submitted Saathi profile
-    await prisma.saathiProfile.updateMany({
-      where: { userId: pay.userId },
-      data: { isActive: true },
-    });
-
-    try {
-      await applyPaymentCredit(pay.id);
-    } catch (e) {
-      console.error("apply credit", e);
-    }
-
-    try {
-      await grantMembershipCommissions({
-        userId: pay.userId,
-        paymentId: pay.id,
-        amount: planPriceForCommission || pay.amount,
-        planId,
-      });
-    } catch (e) {
-      console.error("commissions", e);
-    }
-
-    return NextResponse.json({ success: true, plan: planId, planExpiresAt: expires });
   } catch (err) {
     console.error("approve-membership:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

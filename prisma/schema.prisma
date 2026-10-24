@@ -137,20 +137,24 @@ model Review {
 }
 
 model Payment {
-  id         String   @id @default(cuid())
-  userId     String
-  amount     Int      @default(499)
-  type       String   @default("MEMBERSHIP")
-  plan       String?
-  utr        String?
-  screenshot String?
-  status     String   @default("PENDING")
-  note       String?
+  id                String   @id @default(cuid())
+  userId            String
+  amount            Int      @default(499)
+  type              String   @default("MEMBERSHIP")
+  plan              String?
+  utr               String?
+  screenshot        String?
+  status            String   @default("PENDING")
+  note              String?
   /// Credit applied from user referral balance
-  creditUsed Int      @default(0)
-  upiPoolId  String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  creditUsed        Int      @default(0)
+  /// UPI | RAZORPAY | CREDIT
+  method            String?
+  razorpayOrderId   String?  @unique
+  razorpayPaymentId String?  @unique
+  upiPoolId         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   upiPool     UpiPool?     @relation(fields: [upiPoolId], references: [id], onDelete: SetNull)
