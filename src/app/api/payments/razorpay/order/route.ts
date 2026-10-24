@@ -8,27 +8,13 @@ import {
   isRazorpayConfigured,
   rupeesToPaise,
 } from "@/lib/razorpay";
-import { generateRegistrationId } from "@/lib/ids";
-
-async function ensurePublicId(userId: string, current?: string | null) {
-  if (current) return current;
-  for (let i = 0; i < 8; i++) {
-    const id = generateRegistrationId();
-    try {
-      await prisma.user.update({ where: { id: userId }, data: { publicId: id } });
-      return id;
-    } catch {
-      /* clash */
-    }
-  }
-  return null;
-}
+import { ensureSessionUser } from "@/lib/session-user";
 
 export async function POST(req: Request) {
   try {
     if (!isRazorpayConfigured()) {
       return NextResponse.json(
-        { error: "Razorpay is not configured" },
+        { error: "Razorpay is not configured. Add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in Vercel env." },
         { status: 503 }
       );
     }
@@ -38,11 +24,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findFirst({
-      where: { email: { equals: session.user.email, mode: "insensitive" } },
-    });
+    const user = await ensureSessionUser(session);
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Could not load account. Sign out and login again." },
+        { status: 404 }
+      );
     }
     if (user.isBanned) {
       return NextResponse.json({ error: "Account suspended" }, { status: 403 });
@@ -68,7 +55,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const publicId = await ensurePublicId(user.id, user.publicId);
     const rzp = getRazorpay();
     if (!rzp) {
       return NextResponse.json({ error: "Razorpay unavailable" }, { status: 503 });
@@ -76,7 +62,6 @@ export async function POST(req: Request) {
 
     const amountPaise = rupeesToPaise(amountDue);
 
-    // Persist payment row first so receipt maps to our id
     const payment = await prisma.payment.create({
       data: {
         userId: user.id,
@@ -98,7 +83,7 @@ export async function POST(req: Request) {
         paymentId: payment.id,
         userId: user.id,
         plan: planId,
-        publicId: publicId || "",
+        publicId: user.publicId || "",
       },
     });
 
@@ -116,7 +101,7 @@ export async function POST(req: Request) {
       plan: planId,
       amountRupees: amountDue,
       creditUsed,
-      publicId,
+      publicId: user.publicId,
       prefill: {
         name: user.name || "",
         email: user.email,

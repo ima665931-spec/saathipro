@@ -3,25 +3,15 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { pickUpi, bumpUpiUsage } from "@/lib/upi-pool";
 import { getPlan, isValidPlanId, hasActivePlan, type PlanId } from "@/lib/plans";
-import { generateRegistrationId, isValidUtr12, normalizeUtr12 } from "@/lib/ids";
+import { isValidUtr12, normalizeUtr12 } from "@/lib/ids";
 import { isRazorpayConfigured, getRazorpayKeyId } from "@/lib/razorpay";
+import {
+  ensureSessionUser,
+  ensureSessionUserWithPayments,
+} from "@/lib/session-user";
 
 const MAX_SHOT = 500_000;
 const ASSIGN_TTL_MS = 6 * 60 * 60 * 1000;
-
-async function ensurePublicId(userId: string, current?: string | null) {
-  if (current) return current;
-  for (let i = 0; i < 8; i++) {
-    const id = generateRegistrationId();
-    try {
-      await prisma.user.update({ where: { id: userId }, data: { publicId: id } });
-      return id;
-    } catch {
-      /* unique clash */
-    }
-  }
-  return null;
-}
 
 export async function GET(req: Request) {
   try {
@@ -35,20 +25,19 @@ export async function GET(req: Request) {
     const planId: PlanId = isValidPlanId(planParam) ? planParam : "MONTHLY";
     const plan = getPlan(planId);
 
-    const user = await prisma.user.findFirst({
-      where: { email: { equals: session.user.email, mode: "insensitive" } },
-      include: {
-        payments: { orderBy: { createdAt: "desc" }, take: 5 },
-      },
-    });
-
+    const user = await ensureSessionUserWithPayments(session);
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Could not load account. Sign out and login again." },
+        { status: 404 }
+      );
     }
 
-    const publicId = await ensurePublicId(user.id, user.publicId);
+    const publicId = user.publicId;
     const active = hasActivePlan(user);
-    const lastPending = user.payments.find((p) => p.status === "PENDING" && p.type === "MEMBERSHIP");
+    const lastPending = user.payments.find(
+      (p) => p.status === "PENDING" && p.type === "MEMBERSHIP"
+    );
     const creditBalance = user.creditBalance || 0;
     const maxCredit = Math.min(creditBalance, plan.price);
     const amountDue = Math.max(0, plan.price - maxCredit);
@@ -100,47 +89,20 @@ export async function GET(req: Request) {
       });
     }
 
-    // UPI assignment still available as fallback
     const since = new Date(Date.now() - ASSIGN_TTL_MS);
     let assignment = await prisma.payment.findFirst({
       where: {
         userId: user.id,
         status: "ASSIGNED",
         plan: planId,
-        method: { not: "RAZORPAY" },
+        OR: [{ method: null }, { method: "UPI" }, { method: { not: "RAZORPAY" } }],
         createdAt: { gte: since },
       },
       orderBy: { createdAt: "desc" },
       include: { upiPool: true },
     });
 
-    if (!assignment && !razorpayEnabled) {
-      const picked = await pickUpi();
-      if (!picked) {
-        return NextResponse.json({
-          ...base,
-          upiId: "",
-          upiName: "",
-          upiPoolId: null,
-          error: "No UPI available in pool",
-        });
-      }
-
-      assignment = await prisma.payment.create({
-        data: {
-          userId: user.id,
-          amount: plan.price,
-          type: "MEMBERSHIP",
-          plan: planId,
-          status: "ASSIGNED",
-          method: "UPI",
-          upiPoolId: picked.id,
-          note: picked.upiId,
-        },
-        include: { upiPool: true },
-      });
-    } else if (!assignment && razorpayEnabled) {
-      // Prefer Razorpay; still allow UPI if pool has entries
+    if (!assignment) {
       const picked = await pickUpi();
       if (picked) {
         assignment = await prisma.payment.create({
@@ -166,6 +128,10 @@ export async function GET(req: Request) {
       upiPoolId: assignment?.upiPoolId || null,
       assignmentId: assignment?.id || null,
       active: false,
+      error:
+        !assignment && !razorpayEnabled
+          ? "No UPI available in pool. Add UPIs in admin or set Razorpay keys."
+          : undefined,
     });
   } catch (err) {
     console.error("payment GET:", err);
@@ -180,14 +146,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findFirst({
-      where: { email: { equals: session.user.email, mode: "insensitive" } },
-    });
+    const user = await ensureSessionUser(session);
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Could not load account. Sign out and login again." },
+        { status: 404 }
+      );
     }
 
-    const publicId = await ensurePublicId(user.id, user.publicId);
+    const publicId = user.publicId;
 
     const body = await req.json();
     const { utr, screenshot, assignmentId, upiPoolId, plan: planRaw, useCredit } = body;
@@ -220,21 +187,28 @@ export async function POST(req: Request) {
     let payment;
 
     if (assignmentId) {
-      payment = await prisma.payment.update({
-        where: { id: assignmentId },
-        data: {
-          utr: utrNorm,
-          screenshot: shot,
-          status: "PENDING",
-          amount: amountDue,
-          plan: planId,
-          type: "MEMBERSHIP",
-          method: amountDue > 0 ? "UPI" : "CREDIT",
-          creditUsed,
-          note: creditUsed ? `CREDIT:${creditUsed}` : undefined,
-        },
+      const existing = await prisma.payment.findFirst({
+        where: { id: assignmentId, userId: user.id },
       });
-    } else {
+      if (existing) {
+        payment = await prisma.payment.update({
+          where: { id: assignmentId },
+          data: {
+            utr: utrNorm,
+            screenshot: shot,
+            status: "PENDING",
+            amount: amountDue,
+            plan: planId,
+            type: "MEMBERSHIP",
+            method: amountDue > 0 ? "UPI" : "CREDIT",
+            creditUsed,
+            note: creditUsed ? `CREDIT:${creditUsed}` : undefined,
+          },
+        });
+      }
+    }
+
+    if (!payment) {
       payment = await prisma.payment.create({
         data: {
           userId: user.id,

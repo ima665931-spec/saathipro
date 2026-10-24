@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyPaymentSignature, isRazorpayConfigured } from "@/lib/razorpay";
 import { activateMembershipPayment } from "@/lib/activate-membership";
+import { ensureSessionUser } from "@/lib/session-user";
 
 export async function POST(req: Request) {
   try {
@@ -15,11 +16,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findFirst({
-      where: { email: { equals: session.user.email, mode: "insensitive" } },
-    });
+    const user = await ensureSessionUser(session);
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Could not load account. Sign out and login again." },
+        { status: 404 }
+      );
     }
 
     const body = await req.json();
@@ -36,7 +38,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid payment signature" }, { status: 400 });
     }
 
-    // Idempotent: already processed this Razorpay payment
     const byRzpPay = await prisma.payment.findFirst({
       where: { razorpayPaymentId: paymentId },
     });
