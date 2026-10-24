@@ -7,6 +7,7 @@ import {
   isValidAadhaar,
   isValidPhone,
   isValidUpi,
+  buildInviteLinks,
 } from "@/lib/referral";
 import { AGENT_ENTRY_FEE, AGENT_ENTRY_TYPE, telegramKycUrl } from "@/lib/agent-fee";
 import { generateAgentId } from "@/lib/ids";
@@ -76,7 +77,6 @@ export async function GET() {
   const kycApproved = user.agentStatus === "APPROVED";
   const isAgentRole = user.role === "AGENT" || user.role === "ADMIN";
 
-  // Full hub: KYC approved + fee paid
   if (hasKyc && kycApproved && feePaid) {
     try {
       const [referrals, commissions, withdrawals] = await Promise.all([
@@ -86,7 +86,7 @@ export async function GET() {
           take: 100,
           select: {
             id: true, name: true, email: true, paymentStatus: true,
-            plan: true, planExpiresAt: true, createdAt: true,
+            plan: true, planExpiresAt: true, referredAs: true, createdAt: true,
           },
         }),
         prisma.commission.findMany({
@@ -124,6 +124,16 @@ export async function GET() {
           shareLink: user.referralCode
             ? `${origin.replace(/\/$/, "")}/register?ref=${user.referralCode}`
             : null,
+          inviteLinks: user.referralCode
+            ? buildInviteLinks(origin, user.referralCode)
+            : null,
+        },
+        rewards: {
+          planCommissionPct: user.commissionPct ?? DEFAULT_COMMISSION_PCT,
+          agentKycBonus: 49,
+          subAgentPct: 10,
+          milestoneRefs: 3,
+          milestoneBonus: 69,
         },
         stats: {
           referrals: referrals.length,
@@ -143,7 +153,6 @@ export async function GET() {
     }
   }
 
-  // Order: 1 KYC → 2 KYC review → 3 Pay fee (LAST) → 4 fee review → hub
   let step = "kyc";
   if (!hasKyc) {
     step = user.agentStatus === "REJECTED" ? "kyc_rejected" : "kyc";
@@ -204,7 +213,6 @@ export async function PATCH(req: Request) {
     const { action } = body;
 
     if (action === "apply_agent" || action === "complete_kyc") {
-      // Fee is LAST — no fee required to submit KYC
       if (user.agentStatus === "PENDING" && action === "apply_agent" && kycComplete(user)) {
         return NextResponse.json({ error: "KYC already pending" }, { status: 400 });
       }
@@ -277,7 +285,6 @@ export async function PATCH(req: Request) {
       });
     }
 
-    // Hub actions need full agent
     const feePaid = await prisma.payment.findFirst({
       where: { userId: user.id, type: AGENT_ENTRY_TYPE, status: "APPROVED" },
     });
