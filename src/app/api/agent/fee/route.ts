@@ -58,6 +58,16 @@ export async function GET() {
     });
   }
 
+  // Only show UPI if KYC already approved
+  if (user.agentStatus !== "APPROVED") {
+    return NextResponse.json({
+      feeStatus: "LOCKED",
+      amount: AGENT_ENTRY_FEE,
+      agentId: user.referralCode,
+      error: "Complete KYC approval first — fee is the last step",
+    });
+  }
+
   const picked = await pickUpi();
   if (!picked) {
     return NextResponse.json({
@@ -81,8 +91,13 @@ export async function GET() {
 export async function POST(req: Request) {
   const user = await sessionUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (user.role === "AGENT") {
-    return NextResponse.json({ error: "Already an agent" }, { status: 400 });
+
+  // Fee is LAST — only after admin approved KYC
+  if (user.agentStatus !== "APPROVED") {
+    return NextResponse.json(
+      { error: "KYC must be approved before paying entry fee" },
+      { status: 400 }
+    );
   }
 
   const existing = await prisma.payment.findFirst({
