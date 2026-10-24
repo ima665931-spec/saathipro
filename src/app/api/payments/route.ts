@@ -48,6 +48,9 @@ export async function GET(req: Request) {
     const publicId = await ensurePublicId(user.id, user.publicId);
     const active = hasActivePlan(user);
     const lastPending = user.payments.find((p) => p.status === "PENDING" && p.type === "MEMBERSHIP");
+    const creditBalance = user.creditBalance || 0;
+    const maxCredit = Math.min(creditBalance, plan.price);
+    const amountDue = Math.max(0, plan.price - maxCredit);
 
     const base = {
       publicId,
@@ -55,6 +58,9 @@ export async function GET(req: Request) {
       plan: user.plan,
       planExpiresAt: user.planExpiresAt,
       amount: plan.price,
+      creditBalance,
+      maxCredit,
+      amountDue,
       selectedPlan: plan,
       lastUtr: lastPending?.utr || null,
       payments: user.payments.map((p) => ({
@@ -63,6 +69,7 @@ export async function GET(req: Request) {
         plan: p.plan,
         status: p.status,
         utr: p.utr,
+        creditUsed: p.creditUsed,
         createdAt: p.createdAt,
       })),
     };
@@ -157,25 +164,33 @@ export async function POST(req: Request) {
     const publicId = await ensurePublicId(user.id, user.publicId);
 
     const body = await req.json();
-    const { utr, screenshot, assignmentId, upiPoolId, plan: planRaw } = body;
+    const { utr, screenshot, assignmentId, upiPoolId, plan: planRaw, useCredit } = body;
     const planId: PlanId = isValidPlanId(planRaw) ? planRaw : "MONTHLY";
     const plan = getPlan(planId);
 
-    if (!utr || !isValidUtr12(String(utr))) {
-      return NextResponse.json(
-        { error: "UTR must be exactly 12 digits" },
-        { status: 400 }
-      );
-    }
-    const utrNorm = normalizeUtr12(String(utr));
+    const creditBalance = user.creditBalance || 0;
+    const creditUsed =
+      useCredit && creditBalance > 0 ? Math.min(creditBalance, plan.price) : 0;
+    const amountDue = Math.max(0, plan.price - creditUsed);
 
-    if (!screenshot || typeof screenshot !== "string" || !screenshot.startsWith("data:image/")) {
-      return NextResponse.json({ error: "Payment screenshot required" }, { status: 400 });
+    // Full credit covers plan — still need admin verify (screenshot optional if amount 0)
+    if (amountDue > 0) {
+      if (!utr || !isValidUtr12(String(utr))) {
+        return NextResponse.json(
+          { error: "UTR must be exactly 12 digits" },
+          { status: 400 }
+        );
+      }
+      if (!screenshot || typeof screenshot !== "string" || !screenshot.startsWith("data:image/")) {
+        return NextResponse.json({ error: "Payment screenshot required" }, { status: 400 });
+      }
+      if (screenshot.length > MAX_SHOT) {
+        return NextResponse.json({ error: "Screenshot too large" }, { status: 400 });
+      }
     }
 
-    if (screenshot.length > MAX_SHOT) {
-      return NextResponse.json({ error: "Screenshot too large" }, { status: 400 });
-    }
+    const utrNorm = utr ? normalizeUtr12(String(utr)) : null;
+    const shot = screenshot && String(screenshot).startsWith("data:image/") ? String(screenshot) : null;
 
     let payment;
 
@@ -184,24 +199,28 @@ export async function POST(req: Request) {
         where: { id: assignmentId },
         data: {
           utr: utrNorm,
-          screenshot,
+          screenshot: shot,
           status: "PENDING",
-          amount: plan.price,
+          amount: amountDue,
           plan: planId,
           type: "MEMBERSHIP",
+          creditUsed,
+          note: creditUsed ? `CREDIT:${creditUsed}` : undefined,
         },
       });
     } else {
       payment = await prisma.payment.create({
         data: {
           userId: user.id,
-          amount: plan.price,
+          amount: amountDue,
           type: "MEMBERSHIP",
           plan: planId,
           utr: utrNorm,
-          screenshot,
+          screenshot: shot,
           status: "PENDING",
           upiPoolId: upiPoolId || null,
+          creditUsed,
+          note: creditUsed ? `CREDIT:${creditUsed}` : null,
         },
       });
     }
@@ -211,7 +230,9 @@ export async function POST(req: Request) {
       data: { paymentStatus: "PENDING" },
     });
 
-    await bumpUpiUsage(payment.upiPoolId || upiPoolId);
+    if (amountDue > 0) {
+      await bumpUpiUsage(payment.upiPoolId || upiPoolId);
+    }
 
     return NextResponse.json({
       success: true,
@@ -219,6 +240,8 @@ export async function POST(req: Request) {
       plan: planId,
       publicId,
       utr: utrNorm,
+      creditUsed,
+      amountDue,
     });
   } catch (err) {
     console.error("payment POST:", err);
