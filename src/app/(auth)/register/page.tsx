@@ -14,17 +14,21 @@ function RegisterForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [ref, setRef] = useState("");
-  const [inviteType, setInviteType] = useState("seeker");
+  /** seeker | provider only — agents are a separate app */
+  const [inviteType, setInviteType] = useState<"seeker" | "provider">("seeker");
 
   useEffect(() => {
     const fromUrl = searchParams.get("ref") || "";
     const type = searchParams.get("type") || "seeker";
-    if (type === "agent" || type === "provider" || type === "seeker") setInviteType(type);
+    // Ignore agent — main app only seeker/provider
+    if (type === "provider") setInviteType("provider");
+    else setInviteType("seeker");
+
     if (fromUrl) {
       setRef(fromUrl);
       try {
         localStorage.setItem("saathi_ref", fromUrl);
-        localStorage.setItem("saathi_ref_type", type);
+        localStorage.setItem("saathi_ref_type", type === "provider" ? "provider" : "seeker");
       } catch {
         /* */
       }
@@ -33,20 +37,14 @@ function RegisterForm() {
         const saved = localStorage.getItem("saathi_ref") || "";
         const st = localStorage.getItem("saathi_ref_type") || "seeker";
         if (saved) setRef(saved);
-        if (st === "agent" || st === "provider" || st === "seeker") setInviteType(st);
+        if (st === "provider") setInviteType("provider");
       } catch {
         /* */
       }
     }
   }, [searchParams]);
 
-  // Everyone goes through onboarding except agent/provider shortcuts
-  const postAuthPath =
-    inviteType === "agent"
-      ? "/agent"
-      : inviteType === "provider"
-        ? "/become-saathi"
-        : "/onboarding";
+  const postAuthPath = inviteType === "provider" ? "/become-saathi" : "/onboarding";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,12 +113,12 @@ function RegisterForm() {
         </Link>
         <h1 className="mt-8 font-display text-3xl font-bold text-ink">Create account</h1>
         <p className="mt-2 text-ink-muted text-sm">
-          {inviteType === "agent" && "Join as partner agent"}
-          {inviteType === "provider" && "Become a Saathi provider"}
-          {inviteType === "seeker" && "Next: choose a plan & pay — then book"}
+          {inviteType === "provider"
+            ? "Next: set up your Saathi provider profile"
+            : "Next: choose a plan & start booking"}
           {ref ? (
             <span className="block mt-1 text-accent font-medium text-xs">
-              Invited · {ref.toUpperCase()} · {inviteType}
+              Invite code · {ref.toUpperCase()}
             </span>
           ) : null}
         </p>
@@ -133,6 +131,27 @@ function RegisterForm() {
           </div>
         )}
 
+        <div className="mb-5 grid grid-cols-2 gap-2 p-1 bg-cream rounded-xl">
+          <button
+            type="button"
+            onClick={() => setInviteType("seeker")}
+            className={`py-2.5 rounded-lg text-sm font-semibold transition ${
+              inviteType === "seeker" ? "btn-brand" : "text-ink-muted"
+            }`}
+          >
+            I want a Saathi
+          </button>
+          <button
+            type="button"
+            onClick={() => setInviteType("provider")}
+            className={`py-2.5 rounded-lg text-sm font-semibold transition ${
+              inviteType === "provider" ? "btn-brand" : "text-ink-muted"
+            }`}
+          >
+            I am a Saathi
+          </button>
+        </div>
+
         <button
           type="button"
           onClick={() => signIn("google", { callbackUrl: postAuthPath })}
@@ -140,9 +159,6 @@ function RegisterForm() {
         >
           Continue with Google
         </button>
-        <p className="text-[11px] text-ink-muted text-center mt-2">
-          Email signup recommended for referral tracking
-        </p>
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">

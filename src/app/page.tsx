@@ -17,19 +17,19 @@ const services = [
 const faqs = [
   {
     q: "What is SaathiPro?",
-    a: "India's colorful social companion platform. Book verified Saathis for movies, care, hangouts and more — safe, professional, consent-first.",
+    a: "India's social companion platform. Book verified Saathis for movies, care, hangouts and more — safe, professional, consent-first. For seekers and providers only.",
   },
   {
     q: "How much does membership cost?",
-    a: "Weekly ₹299 · Monthly ₹499 · Half-year ₹999 · Yearly ₹1499. Pay via UPI; admin verifies. Longer plans save more.",
+    a: "Weekly ₹299 · Monthly ₹499 · Half-year ₹999 · Yearly ₹1499. Pay instantly via Razorpay (UPI / cards).",
   },
   {
     q: "How do I book?",
-    a: "Register, pick a plan, pay, then browse Find a Saathi, choose date & duration, confirm.",
+    a: "Register as seeker → choose a plan → pay → Find a Saathi → book date & time → chat if needed.",
   },
   {
-    q: "Can I earn as an agent?",
-    a: "Yes. Complete KYC, pay ₹199 entry, then earn 50% on referred memberships. Invite seekers, providers, or other agents.",
+    q: "Can I become a Saathi?",
+    a: "Yes. Register, complete your provider profile, keep membership active, and go live on Find.",
   },
   {
     q: "Is it safe?",
@@ -61,7 +61,7 @@ export default function Home() {
               <a href="#services" className="hover:text-accent transition">Services</a>
               <Link href="/pricing" className="hover:text-accent transition">Pricing</Link>
               <Link href="/find" className="hover:text-accent transition">Find Saathi</Link>
-              <Link href="/agent" className="hover:text-accent transition">Partner</Link>
+              <Link href="/become-saathi" className="hover:text-accent transition">Become Saathi</Link>
             </nav>
             <div className="flex items-center gap-2 sm:gap-3">
               <Link href="/login" className="text-sm font-semibold text-ink-muted hover:text-ink px-3 py-2">
@@ -83,7 +83,7 @@ export default function Home() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28">
           <div className="max-w-3xl mx-auto text-center">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-border text-xs font-semibold text-accent shadow-card">
-              🏆 India's colorful companion platform
+              🏆 Seekers & providers · professional companionship
             </span>
             <h1 className="mt-6 font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-ink leading-[1.12] tracking-tight text-balance">
               Find your perfect{" "}
@@ -120,26 +120,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Three distinct banners — no mixing */}
       <section className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid md:grid-cols-3 gap-4">
-          <Link href="/pricing" className="group rounded-2xl p-6 bg-white border border-border shadow-card hover:shadow-soft transition">
-            <p className="text-xs font-bold uppercase tracking-widest text-pink">Pricing</p>
-            <h3 className="mt-2 font-display text-xl font-bold text-ink group-hover:text-accent">Membership plans</h3>
-            <p className="mt-2 text-sm text-ink-muted">Weekly ₹299 · Monthly ₹499 · Half ₹999 · Year ₹1499</p>
-            <span className="mt-4 inline-block text-sm font-semibold text-accent">See plans →</span>
+        <div className="grid md:grid-cols-2 gap-4">
+          <Link href="/register" className="group rounded-2xl p-6 bg-white border border-border shadow-card hover:shadow-soft transition">
+            <p className="text-xs font-bold uppercase tracking-widest text-pink">Seekers</p>
+            <h3 className="mt-2 font-display text-xl font-bold text-ink group-hover:text-accent">I need a Saathi</h3>
+            <p className="mt-2 text-sm text-ink-muted">Register → plan → pay → find & book</p>
+            <span className="mt-4 inline-block text-sm font-semibold text-accent">Get started →</span>
           </Link>
           <Link href="/become-saathi" className="group rounded-2xl p-6 bg-brand-gradient text-white shadow-glow hover:opacity-95 transition">
-            <p className="text-xs font-bold uppercase tracking-widest text-white/80">Partner</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-white/80">Providers</p>
             <h3 className="mt-2 font-display text-xl font-bold">Become a Saathi</h3>
             <p className="mt-2 text-sm text-white/90">Earn up to ₹2,000/hr · set your rates & hours</p>
             <span className="mt-4 inline-block text-sm font-semibold">Apply now →</span>
-          </Link>
-          <Link href="/agent" className="group rounded-2xl p-6 bg-white border-2 border-pink/40 shadow-card hover:shadow-soft transition">
-            <p className="text-xs font-bold uppercase tracking-widest text-pink">Referral</p>
-            <h3 className="mt-2 font-display text-xl font-bold text-ink group-hover:text-accent">Agent partner</h3>
-            <p className="mt-2 text-sm text-ink-muted">50% commission · ₹49 KYC bonus · invite network</p>
-            <span className="mt-4 inline-block text-sm font-semibold text-accent">Agent hub →</span>
           </Link>
         </div>
       </section>
@@ -230,7 +223,7 @@ export default function Home() {
       <section className="py-14 bg-white border-t border-border text-center">
         <div className="max-w-xl mx-auto px-4">
           <h2 className="font-display text-2xl font-bold text-ink">Ready to meet your Saathi?</h2>
-          <p className="mt-2 text-ink-muted">Plans from ₹299 · full access after verification</p>
+          <p className="mt-2 text-ink-muted">Plans from ₹299 · instant unlock with Razorpay</p>
           <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/register" className="btn-brand px-8 py-3.5 rounded-full shadow-glow">Create account</Link>
             <Link href="/pricing" className="px-8 py-3.5 border-2 border-accent/40 text-accent font-semibold rounded-full hover:bg-pink-soft/50 transition">View pricing</Link>
@@ -243,12 +236,11 @@ export default function Home() {
           <p className="font-display font-bold text-ink mb-1">
             Saathi<span className="text-pink">Pro</span>
           </p>
-          <p>Colorful companionship across India · Not a dating service</p>
+          <p>Seekers & providers across India · Not a dating service</p>
           <div className="mt-4 flex flex-wrap justify-center gap-6">
             <Link href="/find" className="hover:text-accent">Find</Link>
             <Link href="/pricing" className="hover:text-accent">Pricing</Link>
             <Link href="/become-saathi" className="hover:text-accent">Become Saathi</Link>
-            <Link href="/agent" className="hover:text-accent">Agent</Link>
             <Link href="/login" className="hover:text-accent">Login</Link>
           </div>
         </div>

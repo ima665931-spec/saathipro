@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { normalizeRefCode, isInviteType } from "@/lib/referral";
 import { generateRegistrationId } from "@/lib/ids";
+import { isAgentRole, agentBlockedMessage } from "@/lib/account-type";
 
 async function uniquePublicId(): Promise<string> {
   for (let i = 0; i < 8; i++) {
@@ -18,6 +19,17 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { name, email, password, ref, type } = body;
 
+    // Main app: no agent signup here
+    if (type === "agent") {
+      return NextResponse.json(
+        {
+          error:
+            "Agent partners use a separate app. This app is only for seekers and providers.",
+        },
+        { status: 400 }
+      );
+    }
+
     if (!name || !email || !password) {
       return NextResponse.json(
         { error: "Name, email and password are required" },
@@ -32,23 +44,28 @@ export async function POST(req: Request) {
       );
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email: String(email).trim().toLowerCase() },
+    const emailNorm = String(email).trim().toLowerCase();
+
+    const existingUser = await prisma.user.findFirst({
+      where: { email: { equals: emailNorm, mode: "insensitive" } },
     });
 
     if (existingUser) {
+      if (isAgentRole(existingUser.role)) {
+        return NextResponse.json({ error: agentBlockedMessage() }, { status: 400 });
+      }
       return NextResponse.json(
-        { error: "Email already registered" },
+        { error: "Email already registered. Sign in instead." },
         { status: 400 }
       );
     }
 
     let referredById: string | null = null;
 
+    // Referral codes still work (agent or member publicId) — backend only, no agent UI
     if (ref && typeof ref === "string") {
       const code = normalizeRefCode(ref);
       if (code) {
-        // Agent code OR any user's Registration ID (user referral)
         const referrer = await prisma.user.findFirst({
           where: {
             isBanned: false,
@@ -66,15 +83,19 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(password, 12);
     const publicId = await uniquePublicId();
 
+    // Main app accounts are always USER (seeker). SAATHI role comes from become-saathi.
+    const inviteAs =
+      type === "provider" ? "provider" : type === "seeker" ? "seeker" : isInviteType(type) ? type : "seeker";
+
     const user = await prisma.user.create({
       data: {
-        name,
-        email: String(email).trim().toLowerCase(),
+        name: String(name).trim(),
+        email: emailNorm,
         password: hashedPassword,
         role: "USER",
         publicId,
         referredById,
-        referredAs: referredById ? (isInviteType(type) ? type : "seeker") : null,
+        referredAs: referredById ? inviteAs : null,
       },
     });
 
@@ -93,9 +114,6 @@ export async function POST(req: Request) {
     );
   } catch (error) {
     console.error("Register error:", error);
-    return NextResponse.json(
-      { error: "Something went wrong" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
   }
 }

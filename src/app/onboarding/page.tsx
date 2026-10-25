@@ -3,12 +3,11 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { hasActivePlan } from "@/lib/plans";
 import { generateRegistrationId } from "@/lib/ids";
+import { isAgentRole } from "@/lib/account-type";
 
 /**
- * Single post-auth router:
- * no plan → /pricing
- * pending → /pay
- * active → /dashboard
+ * Post-auth router for MAIN APP only (seeker / provider).
+ * Agents are redirected away — separate product.
  */
 export default async function OnboardingPage() {
   const session = await auth();
@@ -21,7 +20,6 @@ export default async function OnboardingPage() {
     where: { email: { equals: email, mode: "insensitive" } },
   });
 
-  // Google first-login race: session exists, row may still be creating
   if (!user) {
     try {
       user = await prisma.user.create({
@@ -45,6 +43,11 @@ export default async function OnboardingPage() {
     redirect("/login?error=session");
   }
 
+  // Agent accounts cannot use main member app
+  if (isAgentRole(user.role)) {
+    redirect("/agent");
+  }
+
   if (!user.publicId) {
     try {
       await prisma.user.update({
@@ -52,7 +55,7 @@ export default async function OnboardingPage() {
         data: { publicId: generateRegistrationId() },
       });
     } catch {
-      /* ignore clash */
+      /* ignore */
     }
   }
 
