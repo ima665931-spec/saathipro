@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { assertCleanBio } from "@/lib/content-filter";
 import { hasActivePlan } from "@/lib/plans";
+import { ensureSessionUser } from "@/lib/session-user";
 
 const MAX_PHOTO_CHARS = 450_000;
 
@@ -52,12 +53,14 @@ export async function POST(req: Request) {
       photoData = photo;
     }
 
-    const user = await prisma.user.findFirst({
-      where: { email: { equals: session.user.email, mode: "insensitive" } },
-    });
+    // JWT/Google sessions can exist without a DB row — create if missing
+    const user = await ensureSessionUser(session);
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Could not load your account. Logout and sign in again." },
+        { status: 404 }
+      );
     }
 
     if (user.isBanned) {
@@ -65,14 +68,12 @@ export async function POST(req: Request) {
     }
 
     // Active membership required for live listing + SAATHI role
-    const paid =
-      user.role === "ADMIN" || hasActivePlan(user);
+    const paid = user.role === "ADMIN" || hasActivePlan(user);
 
     // Role: only promote to SAATHI when paid. Never demote ADMIN/AGENT.
     let nextRole = user.role;
     if (user.role !== "ADMIN" && user.role !== "AGENT") {
       nextRole = paid ? "SAATHI" : user.role === "SAATHI" ? "SAATHI" : "USER";
-      // Keep SAATHI role if already set (profile edit), but isActive still gated by paid
       if (paid) nextRole = "SAATHI";
     }
 
