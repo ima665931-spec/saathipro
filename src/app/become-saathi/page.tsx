@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -14,15 +14,25 @@ function compressImage(file: File): Promise<string> {
       const img = new Image();
       img.onload = () => {
         const max = 600;
-        let w = img.width, h = img.height;
+        let w = img.width,
+          h = img.height;
         if (w > max || h > max) {
-          if (w > h) { h = Math.round((h * max) / w); w = max; }
-          else { w = Math.round((w * max) / h); h = max; }
+          if (w > h) {
+            h = Math.round((h * max) / w);
+            w = max;
+          } else {
+            w = Math.round((w * max) / h);
+            h = max;
+          }
         }
         const canvas = document.createElement("canvas");
-        canvas.width = w; canvas.height = h;
+        canvas.width = w;
+        canvas.height = h;
         const ctx = canvas.getContext("2d");
-        if (!ctx) { reject(new Error("no canvas")); return; }
+        if (!ctx) {
+          reject(new Error("no canvas"));
+          return;
+        }
         ctx.drawImage(img, 0, 0, w, h);
         resolve(canvas.toDataURL("image/jpeg", 0.72));
       };
@@ -49,6 +59,13 @@ export default function BecomeSaathiPage() {
   const [success, setSuccess] = useState(false);
   const [needsPay, setNeedsPay] = useState(false);
 
+  // Must be logged in to fill provider profile
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/register?type=provider");
+    }
+  }, [status, router]);
+
   const toggleService = (svc: string) => {
     setServices((prev) =>
       prev.includes(svc) ? prev.filter((s) => s !== svc) : [...prev, svc]
@@ -74,7 +91,7 @@ export default function BecomeSaathiPage() {
     e.preventDefault();
     setError("");
     if (!session?.user) {
-      router.push("/login?callbackUrl=/become-saathi");
+      router.push("/register?type=provider");
       return;
     }
     if (!services.length) {
@@ -111,7 +128,10 @@ export default function BecomeSaathiPage() {
       }
       setNeedsPay(!!data.needsPayment);
       setSuccess(true);
-      setTimeout(() => router.push(data.needsPayment ? "/pricing" : "/dashboard"), 1800);
+      setTimeout(
+        () => router.push(data.needsPayment ? "/pricing?next=/become-saathi" : "/dashboard"),
+        1600
+      );
     } catch {
       setError("Network error");
     } finally {
@@ -119,10 +139,10 @@ export default function BecomeSaathiPage() {
     }
   };
 
-  if (status === "loading") {
+  if (status === "loading" || status === "unauthenticated") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-soft text-ink-muted text-sm">
-        Loading…
+        {status === "unauthenticated" ? "Redirecting to register…" : "Loading…"}
       </div>
     );
   }
@@ -131,12 +151,14 @@ export default function BecomeSaathiPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-soft px-4">
         <div className="bg-white rounded-2xl border border-border shadow-soft p-10 text-center max-w-md">
-          <div className="w-14 h-14 rounded-full bg-brand-gradient text-white flex items-center justify-center mx-auto text-xl">✓</div>
+          <div className="w-14 h-14 rounded-full bg-brand-gradient text-white flex items-center justify-center mx-auto text-xl">
+            ✓
+          </div>
           <h1 className="mt-4 font-display text-2xl font-bold text-ink">Profile saved</h1>
           <p className="mt-2 text-ink-muted text-sm">
             {needsPay
-              ? "Next: choose a membership plan to go live on Find."
-              : "Your listing is live. Redirecting…"}
+              ? "Next: choose a plan to go live on Find."
+              : "Your listing can go live. Redirecting…"}
           </p>
         </div>
       </div>
@@ -147,28 +169,31 @@ export default function BecomeSaathiPage() {
     <div className="min-h-screen bg-brand-soft">
       <BrandHeader active="become" />
       <main className="max-w-2xl mx-auto px-4 py-10">
-        <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">For professionals</p>
+        <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">
+          For professionals
+        </p>
         <h1 className="font-display text-3xl font-bold text-ink">Become a Saathi</h1>
-        <p className="mt-2 text-ink-muted mb-8">
-          Active membership unlocks your listing on Find. Profile can be saved anytime.
+        <p className="mt-2 text-ink-muted mb-2 text-sm">
+          Logged in as <strong className="text-ink">{session.user?.email}</strong>
+        </p>
+        <p className="text-ink-muted mb-8 text-sm">
+          Save profile anytime. Active plan makes you live on Find. Same account can also book
+          Saathis.
         </p>
 
-        {!session && (
-          <div className="mb-6 p-4 bg-pink-soft border border-border rounded-xl text-sm">
-            <Link href="/login?callbackUrl=/become-saathi" className="font-semibold text-accent underline">
-              Sign in
-            </Link>{" "}
-            to apply.
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-border shadow-card p-6 space-y-5">
-          {error && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl">{error}</div>}
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white rounded-2xl border border-border shadow-card p-6 space-y-5"
+        >
+          {error && (
+            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl">{error}</div>
+          )}
           <div>
             <label className="block text-sm font-medium text-ink mb-2">Photo</label>
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-100 to-pink-100 overflow-hidden flex items-center justify-center">
                 {photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={photo} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-xs text-ink-muted">None</span>
@@ -181,7 +206,13 @@ export default function BecomeSaathiPage() {
               >
                 {photo ? "Change" : "Upload"}
               </button>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPhotoChange} />
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onPhotoChange}
+              />
             </div>
           </div>
           <div>
@@ -247,15 +278,21 @@ export default function BecomeSaathiPage() {
               rows={4}
               required
               className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50"
+              placeholder="Min 20 characters — what you offer…"
             />
           </div>
           <button
             type="submit"
-            disabled={loading || !session}
+            disabled={loading}
             className="w-full py-3.5 btn-brand rounded-xl disabled:opacity-50"
           >
-            {loading ? "Submitting…" : "Submit application"}
+            {loading ? "Saving…" : "Save Saathi profile"}
           </button>
+          <p className="text-center text-xs text-ink-muted">
+            <Link href="/dashboard" className="text-accent font-medium">
+              ← Back to dashboard
+            </Link>
+          </p>
         </form>
       </main>
     </div>

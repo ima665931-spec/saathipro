@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
 
 type Props = {
   active?: "home" | "find" | "bookings" | "dashboard" | "become" | "admin";
@@ -9,6 +10,9 @@ type Props = {
 };
 
 export default function BrandHeader({ active, right, dark }: Props) {
+  const { data: session, status } = useSession();
+  const loggedIn = status === "authenticated" && !!session?.user;
+
   const link = (href: string, key: string, label: string) => (
     <Link
       href={href}
@@ -24,6 +28,49 @@ export default function BrandHeader({ active, right, dark }: Props) {
     </Link>
   );
 
+  const defaultRight = loggedIn ? (
+    <>
+      <Link
+        href="/dashboard"
+        className={`text-sm font-semibold px-2 hidden sm:inline ${
+          dark ? "text-white/90" : "text-ink-muted hover:text-ink"
+        }`}
+      >
+        {session.user?.name?.split(" ")[0] || "Account"}
+      </Link>
+      <button
+        type="button"
+        onClick={() => signOut({ callbackUrl: "/" })}
+        className={`text-sm font-medium px-2 ${
+          dark ? "text-white/80" : "text-ink-muted hover:text-ink"
+        }`}
+      >
+        Logout
+      </button>
+    </>
+  ) : (
+    <>
+      <Link
+        href="/login"
+        className={`text-sm font-semibold px-2 ${
+          dark ? "text-white/90" : "text-ink-muted hover:text-ink"
+        }`}
+      >
+        Login
+      </Link>
+      <Link
+        href="/register"
+        className={
+          dark
+            ? "px-4 py-2 bg-white text-accent text-sm font-bold rounded-full"
+            : "btn-brand px-4 py-2 text-sm rounded-full"
+        }
+      >
+        Join
+      </Link>
+    </>
+  );
+
   return (
     <header
       className={`sticky top-0 z-50 border-b shadow-sm ${
@@ -34,7 +81,7 @@ export default function BrandHeader({ active, right, dark }: Props) {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16">
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href={loggedIn ? "/dashboard" : "/"} className="flex items-center gap-2.5">
             <div
               className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-display font-bold text-sm ${
                 dark
@@ -56,35 +103,12 @@ export default function BrandHeader({ active, right, dark }: Props) {
 
           <nav className="hidden md:flex items-center gap-6">
             {link("/find", "find", "Find Saathi")}
-            {link("/bookings", "bookings", "Bookings")}
-            {link("/dashboard", "dashboard", "Dashboard")}
+            {loggedIn && link("/bookings", "bookings", "Bookings")}
+            {loggedIn && link("/dashboard", "dashboard", "Dashboard")}
             {link("/become-saathi", "become", "Become Saathi")}
           </nav>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            {right ?? (
-              <>
-                <Link
-                  href="/login"
-                  className={`text-sm font-semibold px-2 ${
-                    dark ? "text-white/90" : "text-ink-muted hover:text-ink"
-                  }`}
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/register"
-                  className={
-                    dark
-                      ? "px-4 py-2 bg-white text-accent text-sm font-bold rounded-full"
-                      : "btn-brand px-4 py-2 text-sm rounded-full"
-                  }
-                >
-                  Join
-                </Link>
-              </>
-            )}
-          </div>
+          <div className="flex items-center gap-2 sm:gap-3">{right ?? defaultRight}</div>
         </div>
       </div>
     </header>
