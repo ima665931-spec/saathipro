@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import BrandHeader from "@/components/BrandHeader";
 import {
   SERVICE_CATALOG,
@@ -32,6 +33,8 @@ function avatarUrl(name: string, image: string | null) {
 function FindInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { status } = useSession();
+  const loggedIn = status === "authenticated";
 
   const [selectedService, setSelectedService] = useState(
     searchParams.get("service") || "All"
@@ -65,7 +68,6 @@ function FindInner() {
     if (minRate) params.set("minRate", minRate);
     if (maxRate) params.set("maxRate", maxRate);
 
-    // Sync URL without full navigation noise
     const qs = params.toString();
     router.replace(qs ? `/find?${qs}` : "/find", { scroll: false });
 
@@ -87,7 +89,6 @@ function FindInner() {
     load();
   }, [load]);
 
-  // Debounce search draft → search
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchDraft.trim()), 350);
     return () => clearTimeout(t);
@@ -113,9 +114,36 @@ function FindInner() {
     !!maxRate ||
     sort !== "newest";
 
+  const bookHref = (id: string) =>
+    loggedIn ? `/book/${id}` : `/login?callbackUrl=${encodeURIComponent(`/book/${id}`)}`;
+
   return (
     <div className="min-h-screen bg-brand-soft">
       <BrandHeader active="find" />
+
+      {/* Guest guidance */}
+      {status === "unauthenticated" && (
+        <div className="bg-white border-b border-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p className="text-sm text-ink-muted">
+              <strong className="text-ink">Browse free.</strong> To book a Saathi:{" "}
+              <span className="text-ink">new user → Get started</span> ·{" "}
+              <span className="text-ink">already have account → Sign in</span>
+            </p>
+            <div className="flex gap-2 shrink-0">
+              <Link
+                href="/login?callbackUrl=/find"
+                className="px-4 py-2 text-sm font-semibold text-ink-muted border border-border rounded-full hover:border-accent/40"
+              >
+                Sign in
+              </Link>
+              <Link href="/register" className="btn-brand px-4 py-2 text-sm rounded-full">
+                Get started — free
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="border-b border-border bg-white/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -230,7 +258,6 @@ function FindInner() {
             ))}
           </div>
 
-          {/* Quick city chips */}
           <div className="mt-4 flex flex-wrap gap-2">
             {["Delhi", "Mumbai", "Bangalore", "Pune", "Hyderabad", "Noida", "Gurgaon"].map((c) => (
               <button
@@ -271,19 +298,11 @@ function FindInner() {
           <div className="text-center py-20">
             <h3 className="font-display text-xl font-bold text-ink">No matches</h3>
             <p className="text-ink-muted mt-2 max-w-md mx-auto">
-              Try another city or service. New Saathis appear here when their membership is active.
+              Try another city or service.
             </p>
-            <div className="mt-6 flex flex-wrap gap-3 justify-center">
-              <button type="button" onClick={clearFilters} className="btn-brand px-6 py-2.5 rounded-full">
-                Clear filters
-              </button>
-              <Link
-                href="/become-saathi"
-                className="px-6 py-2.5 rounded-full border border-border text-sm font-medium hover:border-accent/40"
-              >
-                Become a Saathi
-              </Link>
-            </div>
+            <button type="button" onClick={clearFilters} className="btn-brand mt-6 px-6 py-2.5 rounded-full">
+              Clear filters
+            </button>
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -294,6 +313,7 @@ function FindInner() {
               >
                 <Link href={`/saathi/${saathi.id}`} className="block">
                   <div className="aspect-[4/3] bg-gradient-to-br from-violet-100 to-pink-100 relative overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={avatarUrl(saathi.name, saathi.image)}
                       alt={saathi.name}
@@ -350,8 +370,8 @@ function FindInner() {
                       >
                         Profile
                       </Link>
-                      <Link href={`/book/${saathi.id}`} className="btn-brand px-4 py-2 text-sm rounded-full">
-                        Book
+                      <Link href={bookHref(saathi.id)} className="btn-brand px-4 py-2 text-sm rounded-full">
+                        {loggedIn ? "Book" : "Sign in to book"}
                       </Link>
                     </div>
                   </div>
@@ -364,13 +384,13 @@ function FindInner() {
 
       <section className="border-t border-border bg-brand-gradient text-white py-14">
         <div className="max-w-2xl mx-auto px-4 text-center">
-          <h2 className="font-display text-2xl font-bold">Become a Saathi</h2>
-          <p className="mt-2 text-white/85">Flexible hours · set your rates · earn on your schedule</p>
+          <h2 className="font-display text-2xl font-bold">Wanna be a Saathi?</h2>
+          <p className="mt-2 text-white/85">Same account · set rates · go live after plan</p>
           <Link
-            href="/become-saathi"
+            href={loggedIn ? "/become-saathi" : "/register?type=provider"}
             className="inline-block mt-6 px-8 py-3 bg-white text-accent font-bold rounded-full hover:bg-pink-soft transition"
           >
-            Apply now
+            {loggedIn ? "Create profile" : "Get started as provider"}
           </Link>
         </div>
       </section>

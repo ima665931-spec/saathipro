@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
+import { usePathname } from "next/navigation";
 
 type Props = {
   active?: "home" | "find" | "bookings" | "dashboard" | "become" | "admin";
@@ -11,8 +12,11 @@ type Props = {
 
 export default function BrandHeader({ active, right, dark }: Props) {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
   const loading = status === "loading";
   const loggedIn = status === "authenticated" && !!session?.user;
+
+  const loginHref = `/login?callbackUrl=${encodeURIComponent(pathname || "/dashboard")}`;
 
   const link = (href: string, key: string, label: string) => (
     <Link
@@ -54,12 +58,13 @@ export default function BrandHeader({ active, right, dark }: Props) {
   ) : (
     <>
       <Link
-        href="/login"
+        href={loginHref}
         className={`text-sm font-semibold px-2 ${
           dark ? "text-white/90" : "text-ink-muted hover:text-ink"
         }`}
+        title="Already have an account"
       >
-        Login
+        Sign in
       </Link>
       <Link
         href="/register"
@@ -68,8 +73,9 @@ export default function BrandHeader({ active, right, dark }: Props) {
             ? "px-4 py-2 bg-white text-accent text-sm font-bold rounded-full"
             : "btn-brand px-4 py-2 text-sm rounded-full"
         }
+        title="New here? Create a free account"
       >
-        Join
+        Get started
       </Link>
     </>
   );
