@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { hasActivePlan } from "@/lib/plans";
+import { isAgentRole } from "@/lib/account-type";
 
 const SERVICES = [
   { title: "Movie Partner", emoji: "🎬", color: "from-violet-500 to-purple-600", href: "/find" },
@@ -33,10 +34,14 @@ export default async function DashboardPage() {
 
   if (!dbUser) redirect("/login");
 
+  // Agents do not use the member dashboard
+  if (isAgentRole(dbUser.role)) {
+    redirect("/agent");
+  }
+
   const role = dbUser.role || "USER";
   const isSaathi = role === "SAATHI";
   const isAdmin = role === "ADMIN";
-  const isAgent = role === "AGENT";
   const clientBookings = dbUser.bookingsAsClient || [];
   const saathiBookings = dbUser.bookingsAsSaathi || [];
   const pay = dbUser.paymentStatus || "NONE";
@@ -52,7 +57,7 @@ export default async function DashboardPage() {
     process.env.AUTH_URL ||
     process.env.NEXTAUTH_URL ||
     "https://saathipro.vercel.app";
-  const inviteCode = dbUser.referralCode || dbUser.publicId;
+  const inviteCode = dbUser.publicId;
   const inviteLink = inviteCode
     ? `${origin.replace(/\/$/, "")}/register?ref=${inviteCode}&type=seeker`
     : null;
@@ -83,9 +88,6 @@ export default async function DashboardPage() {
             <div className="flex items-center gap-3">
               <Link href="/find" className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-accent">Find</Link>
               <Link href="/bookings" className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-accent">Bookings</Link>
-              {isAgent && (
-                <Link href="/agent" className="hidden sm:inline text-sm font-medium text-accent">Agent hub</Link>
-              )}
               {needsPay && (
                 <Link href="/pricing" className="text-sm font-semibold text-pink hover:underline">
                   {expired ? "Renew plan" : "Get plan"}
@@ -111,13 +113,13 @@ export default async function DashboardPage() {
               {dbUser.publicId && (
                 <span className="font-mono text-xs">Reg ID: {dbUser.publicId} · </span>
               )}
-              Pick a service & find your Saathi
+              {isSaathi ? "Manage bookings & profile" : "Pick a service & find your Saathi"}
             </p>
           </div>
           <span className={`inline-flex px-3 py-1 rounded-full text-xs font-bold ${
             isSaathi ? "bg-brand-gradient text-white" : "bg-white border border-border text-ink"
           }`}>
-            {isSaathi ? "Saathi" : isAgent ? "Agent" : "Member"}
+            {isSaathi ? "Provider (Saathi)" : "Seeker"}
           </span>
         </div>
 
@@ -132,11 +134,11 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {inviteLink && !isAgent && (
+        {inviteLink && (
           <div className="mb-6 p-5 rounded-2xl bg-white border border-border shadow-card">
             <p className="font-display font-bold text-ink">Invite friends · earn ₹49 credit</p>
             <p className="text-sm text-ink-muted mt-1">
-              When they buy a plan, you get ₹49 bill credit (not cash).
+              When they buy a plan, you get ₹49 bill credit.
             </p>
             <p className="mt-3 text-xs font-mono text-ink-muted break-all">{inviteLink}</p>
             <p className="text-xs text-accent mt-2">Share code: <strong className="font-mono">{inviteCode}</strong></p>
@@ -155,7 +157,7 @@ export default async function DashboardPage() {
               </p>
               <p className="text-sm text-white/90 mt-1">
                 {pay === "PENDING"
-                  ? "Admin is verifying. Booking & listing unlock after approval."
+                  ? "Access unlocks after verification (Razorpay is instant)."
                   : expired
                     ? "Renew membership to book & list again."
                     : "Choose a membership plan to book & list."}
@@ -218,7 +220,7 @@ export default async function DashboardPage() {
           </div>
           <div className="bg-white rounded-2xl border border-border p-5 shadow-card">
             <p className="text-xs uppercase tracking-wide text-ink-muted">Role</p>
-            <p className="font-display text-lg font-bold text-ink mt-1">{role}</p>
+            <p className="font-display text-lg font-bold text-ink mt-1">{isSaathi ? "Provider" : "Seeker"}</p>
           </div>
         </div>
 
@@ -233,7 +235,7 @@ export default async function DashboardPage() {
           </Link>
           <Link href="/become-saathi" className="rounded-2xl p-6 text-white bg-brand-gradient shadow-glow hover:opacity-95 transition">
             <h3 className="font-display font-bold">{isSaathi ? "Edit Saathi profile" : "Become a Saathi"}</h3>
-            <p className="text-sm text-white/80 mt-1">Earn up to ₹2,000/hr</p>
+            <p className="text-sm text-white/80 mt-1">Earn as a provider</p>
           </Link>
         </div>
 
