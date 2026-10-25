@@ -16,8 +16,11 @@ export default function PricingPage() {
             Choose your <span className="text-brand-gradient">plan</span>
           </h1>
           <p className="mt-3 text-ink-muted text-sm">
-            Unlock Find, Book & Become Saathi. Longer plans = bigger savings.
-            Pay via UPI · admin verifies in minutes.
+            Unlock Find, Book & Become Saathi. Pay instantly with Razorpay (UPI · Cards),
+            or manual UPI if needed.
+          </p>
+          <p className="mt-2 text-xs text-ink-muted">
+            Flow: <strong className="text-ink">Plan → Pay → Dashboard → Find → Book</strong>
           </p>
         </div>
 
@@ -41,7 +44,9 @@ export default function PricingPage() {
                 <h2 className="font-display text-lg font-bold text-ink">{p.name}</h2>
                 <p className="text-xs text-ink-muted mt-1">{p.tagline}</p>
                 <p className="mt-4">
-                  <span className="font-display text-3xl font-bold text-brand-gradient">₹{p.price}</span>
+                  <span className="font-display text-3xl font-bold text-brand-gradient">
+                    ₹{p.price}
+                  </span>
                 </p>
                 {p.saveLabel && (
                   <p className="text-xs font-semibold text-pink mt-1">{p.saveLabel}</p>
@@ -50,12 +55,14 @@ export default function PricingPage() {
                   <li>· Full access {p.days} days</li>
                   <li>· Book any Saathi</li>
                   <li>· Become a Saathi</li>
-                  <li>· Renew anytime</li>
+                  <li>· Instant unlock via Razorpay</li>
                 </ul>
                 <Link
                   href={`/pay?plan=${p.id}`}
                   className={`mt-6 block text-center py-3 rounded-full text-sm font-bold transition ${
-                    highlight ? "btn-brand shadow-soft" : "border-2 border-accent/40 text-accent hover:bg-pink-soft/50"
+                    highlight
+                      ? "btn-brand shadow-soft"
+                      : "border-2 border-accent/40 text-accent hover:bg-pink-soft/50"
                   }`}
                 >
                   Select {p.name}
@@ -66,8 +73,8 @@ export default function PricingPage() {
         </div>
 
         <p className="mt-10 text-center text-xs text-ink-muted max-w-md mx-auto">
-          After UPI payment, upload UTR + screenshot. Access starts when admin approves.
-          Hourly session fees between you and Saathi are separate (coming later).
+          Razorpay success unlocks access immediately. Manual UPI needs admin verification.
+          Hourly session fees with Saathi are separate.
         </p>
       </main>
     </div>

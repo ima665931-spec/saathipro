@@ -19,6 +19,8 @@ export const config = {
     "/book/:path*",
     "/chat",
     "/chat/:path*",
+    "/onboarding",
+    "/onboarding/:path*",
     "/admin",
     "/admin/:path*",
   ],

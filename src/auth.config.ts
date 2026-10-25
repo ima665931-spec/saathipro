@@ -31,6 +31,7 @@ export const authConfig = {
         "/agent",
         "/book",
         "/chat",
+        "/onboarding",
       ];
 
       const needsAuth = protectedPrefixes.some(
