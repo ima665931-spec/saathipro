@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import SiteFooter from "@/components/SiteFooter";
 
 const services = [
   { title: "Movie Partner", desc: "Watch together, share the moment", price: "From ₹1,500", emoji: "🎬", color: "from-violet-500 to-purple-600" },
@@ -17,23 +18,23 @@ const services = [
 const faqs = [
   {
     q: "What is SaathiPro?",
-    a: "India's social companion platform. Book verified Saathis for movies, care, hangouts and more — safe, professional, consent-first. For seekers and providers only.",
+    a: "Professional social companion platform. Book verified Saathis for movies, care, hangouts and more — safe, consent-first. Not a dating service. Soft launch in Delhi NCR.",
   },
   {
     q: "How much does membership cost?",
-    a: "Weekly ₹299 · Monthly ₹499 · Half-year ₹999 · Yearly ₹1499. Pay instantly via Razorpay (UPI / cards).",
+    a: "Weekly ₹299 · Monthly ₹499 · Half-year ₹999 · Yearly ₹1499. Pay via Razorpay (UPI / cards). Browse is free; plan unlocks booking & chat.",
   },
   {
     q: "How do I book?",
-    a: "Register as seeker → choose a plan → pay → Find a Saathi → book date & time → chat if needed.",
+    a: "Get started → dashboard → Find a Saathi → book. If you don’t have a plan yet, you’ll be asked to unlock membership first.",
   },
   {
     q: "Can I become a Saathi?",
-    a: "Yes. Register, complete your provider profile, keep membership active, and go live on Find.",
+    a: "Yes — same account. Create a provider profile anytime; active plan makes you live on Find.",
   },
   {
     q: "Is it safe?",
-    a: "Profiles are reviewed, boundaries are clear, and you can report issues anytime. Not a dating service.",
+    a: "Read our Safety page. Public places preferred, report issues on WhatsApp support. Professional boundaries only.",
   },
 ];
 
@@ -43,7 +44,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-brand-soft">
       <div className="bg-brand-gradient text-white text-center text-xs sm:text-sm font-medium py-2 px-4">
-        ✨ Membership from ₹299/week · Yearly best value ₹1499
+        Soft launch · Delhi NCR · Membership from ₹299/week
       </div>
 
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-border shadow-sm">
@@ -61,14 +62,14 @@ export default function Home() {
               <a href="#services" className="hover:text-accent transition">Services</a>
               <Link href="/pricing" className="hover:text-accent transition">Pricing</Link>
               <Link href="/find" className="hover:text-accent transition">Find Saathi</Link>
-              <Link href="/become-saathi" className="hover:text-accent transition">Become Saathi</Link>
+              <Link href="/safety" className="hover:text-accent transition">Safety</Link>
             </nav>
             <div className="flex items-center gap-2 sm:gap-3">
               <Link href="/login" className="text-sm font-semibold text-ink-muted hover:text-ink px-3 py-2">
-                Login
+                Sign in
               </Link>
               <Link href="/register" className="btn-brand px-5 py-2.5 text-sm rounded-full shadow-soft">
-                Join Now
+                Get started
               </Link>
             </div>
           </div>
@@ -83,32 +84,33 @@ export default function Home() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 lg:pt-24 lg:pb-28">
           <div className="max-w-3xl mx-auto text-center">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-border text-xs font-semibold text-accent shadow-card">
-              🏆 Seekers & providers · professional companionship
+              Soft launch · Delhi NCR · professional only
             </span>
             <h1 className="mt-6 font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-ink leading-[1.12] tracking-tight text-balance">
               Find your perfect{" "}
               <span className="text-brand-gradient">Saathi</span>
             </h1>
             <p className="mt-5 text-lg text-ink-muted max-w-xl mx-auto leading-relaxed">
-              Movies, care, hangouts, travel — verified professionals across India.
+              Movies, care, hangouts, travel — verified professionals. Browse free. Plan unlocks
+              booking & chat.
             </p>
             <div className="mt-9 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link href="/find" className="w-full sm:w-auto btn-brand px-9 py-3.5 rounded-full text-center shadow-glow">
                 Find a Saathi
               </Link>
               <Link
-                href="/pricing"
+                href="/register"
                 className="w-full sm:w-auto px-9 py-3.5 bg-white border-2 border-accent/30 text-accent font-semibold rounded-full hover:border-accent hover:bg-pink-soft/40 transition text-center"
               >
-                View plans
+                Get started free
               </Link>
             </div>
 
             <div className="mt-14 grid grid-cols-3 gap-4 max-w-md mx-auto">
               {[
                 { value: "₹299+", label: "From weekly" },
-                { value: "Pan-India", label: "Cities" },
-                { value: "24/7", label: "Support" },
+                { value: "NCR", label: "Soft launch" },
+                { value: "Support", label: "WhatsApp" },
               ].map((stat) => (
                 <div key={stat.label} className="bg-white/80 backdrop-blur rounded-2xl border border-border p-4 shadow-card">
                   <div className="font-display text-lg font-bold text-brand-gradient">{stat.value}</div>
@@ -123,16 +125,16 @@ export default function Home() {
       <section className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid md:grid-cols-2 gap-4">
           <Link href="/register" className="group rounded-2xl p-6 bg-white border border-border shadow-card hover:shadow-soft transition">
-            <p className="text-xs font-bold uppercase tracking-widest text-pink">Seekers</p>
-            <h3 className="mt-2 font-display text-xl font-bold text-ink group-hover:text-accent">I need a Saathi</h3>
-            <p className="mt-2 text-sm text-ink-muted">Register → plan → pay → find & book</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-pink">Need a Saathi</p>
+            <h3 className="mt-2 font-display text-xl font-bold text-ink group-hover:text-accent">I want to book</h3>
+            <p className="mt-2 text-sm text-ink-muted">Create account → browse → unlock plan when you book</p>
             <span className="mt-4 inline-block text-sm font-semibold text-accent">Get started →</span>
           </Link>
-          <Link href="/become-saathi" className="group rounded-2xl p-6 bg-brand-gradient text-white shadow-glow hover:opacity-95 transition">
-            <p className="text-xs font-bold uppercase tracking-widest text-white/80">Providers</p>
-            <h3 className="mt-2 font-display text-xl font-bold">Become a Saathi</h3>
-            <p className="mt-2 text-sm text-white/90">Earn up to ₹2,000/hr · set your rates & hours</p>
-            <span className="mt-4 inline-block text-sm font-semibold">Apply now →</span>
+          <Link href="/register?type=provider" className="group rounded-2xl p-6 bg-brand-gradient text-white shadow-glow hover:opacity-95 transition">
+            <p className="text-xs font-bold uppercase tracking-widest text-white/80">Wanna be a Saathi</p>
+            <h3 className="mt-2 font-display text-xl font-bold">Earn as a provider</h3>
+            <p className="mt-2 text-sm text-white/90">Same account · profile · go live with plan</p>
+            <span className="mt-4 inline-block text-sm font-semibold">Start profile →</span>
           </Link>
         </div>
       </section>
@@ -144,7 +146,6 @@ export default function Home() {
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-ink">
               Something for every mood
             </h2>
-            <p className="mt-2 text-ink-muted text-sm">Pick a service · find your Saathi · book in minutes</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {services.map((s) => (
@@ -168,32 +169,6 @@ export default function Home() {
               Browse all Saathis →
             </Link>
           </div>
-        </div>
-      </section>
-
-      <section id="earn" className="py-20 bg-brand-gradient text-white">
-        <div className="max-w-3xl mx-auto px-4 text-center">
-          <p className="text-xs font-bold tracking-widest uppercase text-white/80 mb-3">For professionals</p>
-          <h2 className="font-display text-3xl sm:text-4xl font-bold">Earn up to ₹2,000/hr</h2>
-          <p className="mt-3 text-white/85 text-lg">Set rates · choose services · flexible hours</p>
-          <div className="mt-10 grid grid-cols-3 gap-4 max-w-md mx-auto">
-            {[
-              { v: "₹2K", l: "Max / hr" },
-              { v: "You", l: "Set rates" },
-              { v: "You", l: "Set hours" },
-            ].map((x) => (
-              <div key={x.l} className="bg-white/15 backdrop-blur rounded-2xl p-4 border border-white/20">
-                <div className="font-display text-2xl font-bold">{x.v}</div>
-                <div className="text-xs text-white/70 mt-1 uppercase tracking-wide">{x.l}</div>
-              </div>
-            ))}
-          </div>
-          <Link
-            href="/become-saathi"
-            className="inline-block mt-10 px-10 py-3.5 bg-white text-accent font-bold rounded-full hover:bg-pink-soft transition shadow-lg"
-          >
-            Apply as Saathi
-          </Link>
         </div>
       </section>
 
@@ -222,29 +197,16 @@ export default function Home() {
 
       <section className="py-14 bg-white border-t border-border text-center">
         <div className="max-w-xl mx-auto px-4">
-          <h2 className="font-display text-2xl font-bold text-ink">Ready to meet your Saathi?</h2>
-          <p className="mt-2 text-ink-muted">Plans from ₹299 · instant unlock with Razorpay</p>
+          <h2 className="font-display text-2xl font-bold text-ink">Ready for soft launch?</h2>
+          <p className="mt-2 text-ink-muted">Delhi NCR · plans from ₹299 · Razorpay</p>
           <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/register" className="btn-brand px-8 py-3.5 rounded-full shadow-glow">Create account</Link>
-            <Link href="/pricing" className="px-8 py-3.5 border-2 border-accent/40 text-accent font-semibold rounded-full hover:bg-pink-soft/50 transition">View pricing</Link>
+            <Link href="/register" className="btn-brand px-8 py-3.5 rounded-full shadow-glow">Get started</Link>
+            <Link href="/safety" className="px-8 py-3.5 border-2 border-accent/40 text-accent font-semibold rounded-full hover:bg-pink-soft/50 transition">Safety rules</Link>
           </div>
         </div>
       </section>
 
-      <footer className="border-t border-border py-10 bg-cream">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-ink-muted">
-          <p className="font-display font-bold text-ink mb-1">
-            Saathi<span className="text-pink">Pro</span>
-          </p>
-          <p>Seekers & providers across India · Not a dating service</p>
-          <div className="mt-4 flex flex-wrap justify-center gap-6">
-            <Link href="/find" className="hover:text-accent">Find</Link>
-            <Link href="/pricing" className="hover:text-accent">Pricing</Link>
-            <Link href="/become-saathi" className="hover:text-accent">Become Saathi</Link>
-            <Link href="/login" className="hover:text-accent">Login</Link>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
