@@ -38,9 +38,6 @@ function RegisterForm() {
     }
   }, [searchParams]);
 
-  // Same account can do both later; intent only sets first landing
-  const postAuthPath = intent === "provider" ? "/become-saathi" : "/dashboard";
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -63,24 +60,30 @@ function RegisterForm() {
         setLoading(false);
         return;
       }
+
       const loginRes = await signIn("credentials", {
         email: email.trim().toLowerCase(),
         password,
         redirect: false,
       });
+
       if (loginRes?.error) {
         setError("Account created. Please sign in.");
         setLoading(false);
         router.push("/login");
         return;
       }
+
       try {
         localStorage.removeItem("saathi_ref");
       } catch {
         /* */
       }
-      router.push(postAuthPath);
-      router.refresh();
+
+      // Let auth cookie settle, then hard navigate so session is available
+      await new Promise((r) => setTimeout(r, 400));
+      const dest = intent === "provider" ? "/become-saathi" : "/dashboard";
+      window.location.href = dest;
     } catch {
       setError("Something went wrong");
       setLoading(false);
@@ -133,7 +136,11 @@ function RegisterForm() {
 
         <button
           type="button"
-          onClick={() => signIn("google", { callbackUrl: postAuthPath })}
+          onClick={() =>
+            signIn("google", {
+              callbackUrl: intent === "provider" ? "/become-saathi" : "/dashboard",
+            })
+          }
           className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-border rounded-xl hover:bg-cream transition font-medium text-ink"
         >
           Continue with Google

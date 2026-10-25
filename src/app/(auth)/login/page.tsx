@@ -54,8 +54,8 @@ function LoginForm() {
         setLoading(false);
         return;
       }
-      router.push(callbackUrl);
-      router.refresh();
+      await new Promise((r) => setTimeout(r, 300));
+      window.location.href = callbackUrl;
     } catch {
       setError("Something went wrong");
       setLoading(false);

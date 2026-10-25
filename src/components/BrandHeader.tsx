@@ -11,6 +11,7 @@ type Props = {
 
 export default function BrandHeader({ active, right, dark }: Props) {
   const { data: session, status } = useSession();
+  const loading = status === "loading";
   const loggedIn = status === "authenticated" && !!session?.user;
 
   const link = (href: string, key: string, label: string) => (
@@ -28,7 +29,9 @@ export default function BrandHeader({ active, right, dark }: Props) {
     </Link>
   );
 
-  const defaultRight = loggedIn ? (
+  const defaultRight = loading ? (
+    <span className={`text-sm ${dark ? "text-white/60" : "text-ink-muted"}`}>…</span>
+  ) : loggedIn ? (
     <>
       <Link
         href="/dashboard"
