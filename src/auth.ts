@@ -33,6 +33,39 @@ async function ensurePublicId(userId: string, current?: string | null) {
   return null;
 }
 
+/** Ensure a User row exists for Google / JWT sessions */
+async function ensureDbUserFromEmail(opts: {
+  email: string;
+  name?: string | null;
+  image?: string | null;
+}) {
+  const email = opts.email.trim().toLowerCase();
+  let dbUser = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+  });
+  if (dbUser) {
+    await ensurePublicId(dbUser.id, dbUser.publicId);
+    return dbUser;
+  }
+  try {
+    dbUser = await prisma.user.create({
+      data: {
+        email,
+        name: opts.name || null,
+        image: safeImage(opts.image),
+        role: "USER",
+        paymentStatus: "NONE",
+        publicId: generateRegistrationId(),
+      },
+    });
+  } catch {
+    dbUser = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+    });
+  }
+  return dbUser;
+}
+
 const providers = [];
 
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
@@ -109,15 +142,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (!email) return false;
 
       try {
-        const dbUser = await prisma.user.findFirst({
-          where: { email: { equals: email, mode: "insensitive" } },
-          select: { id: true, isBanned: true, publicId: true },
+        const dbUser = await ensureDbUserFromEmail({
+          email,
+          name: user.name,
+          image: user.image,
         });
         if (dbUser?.isBanned) {
           return "/login?error=banned";
-        }
-        if (dbUser) {
-          await ensurePublicId(dbUser.id, dbUser.publicId);
         }
       } catch {
         if (account?.provider === "credentials") return false;
@@ -145,14 +176,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         try {
           if (g.email) {
-            const dbUser = await prisma.user.findFirst({
-              where: { email: { equals: g.email, mode: "insensitive" } },
-              select: { id: true, role: true, isBanned: true, publicId: true },
+            const dbUser = await ensureDbUserFromEmail({
+              email: g.email,
+              name: g.name,
+              image: g.picture,
             });
             if (dbUser) {
               token.id = dbUser.id;
               token.role = dbUser.isBanned ? "BANNED" : dbUser.role;
-              await ensurePublicId(dbUser.id, dbUser.publicId);
             }
           }
         } catch {
@@ -169,6 +200,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           if (dbUser?.isBanned) token.role = "BANNED";
           else if (dbUser?.role) token.role = dbUser.role;
           if (dbUser) await ensurePublicId(dbUser.id, dbUser.publicId);
+        } catch {
+          /* ignore */
+        }
+      } else if (token.email && typeof token.email === "string") {
+        // Fallback: resolve id by email so APIs never see orphan sessions
+        try {
+          const dbUser = await ensureDbUserFromEmail({
+            email: token.email,
+            name: typeof token.name === "string" ? token.name : null,
+          });
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.role = dbUser.isBanned ? "BANNED" : dbUser.role;
+          }
         } catch {
           /* ignore */
         }
