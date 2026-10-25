@@ -1,8 +1,8 @@
-/** Update these before public soft launch */
+/** Soft launch support contacts */
 export const SUPPORT = {
-  whatsapp: "919810000000", // TODO: replace with real number (country code, no +)
-  whatsappDisplay: "+91 98100 00000",
-  email: "support@saathipro.com",
+  whatsapp: "918112276561", // country code, no +
+  whatsappDisplay: "+91 81122 76561",
+  email: "saathiprosupport@gmail.com",
   region: "Delhi NCR (soft launch)",
 };
 
