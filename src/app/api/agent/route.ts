@@ -64,7 +64,7 @@ export async function GET() {
   const origin =
     process.env.AUTH_URL ||
     process.env.NEXTAUTH_URL ||
-    "https://saathipro.vercel.app";
+    "https://saathipro.site";
 
   const feePaid = await prisma.payment.findFirst({
     where: { userId: user.id, type: AGENT_ENTRY_TYPE, status: "APPROVED" },
