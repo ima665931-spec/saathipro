@@ -174,7 +174,7 @@ export default function BecomeSaathiPage() {
         </p>
         <h1 className="font-display text-3xl font-bold text-ink">Become a Saathi</h1>
         <p className="mt-2 text-ink-muted mb-2 text-sm">
-          Logged in as <strong className="text-ink">{session.user?.email}</strong>
+          Logged in as <strong className="text-ink">{session?.user?.email}</strong>
         </p>
         <p className="text-ink-muted mb-8 text-sm">
           Save profile anytime. Active plan makes you live on Find. Same account can also book
