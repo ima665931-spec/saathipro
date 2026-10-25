@@ -14,43 +14,37 @@ function RegisterForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [ref, setRef] = useState("");
-  /** seeker | provider only — agents are a separate app */
-  const [inviteType, setInviteType] = useState<"seeker" | "provider">("seeker");
+  const [intent, setIntent] = useState<"seeker" | "provider">("seeker");
 
   useEffect(() => {
     const fromUrl = searchParams.get("ref") || "";
     const type = searchParams.get("type") || "seeker";
-    // Ignore agent — main app only seeker/provider
-    if (type === "provider") setInviteType("provider");
-    else setInviteType("seeker");
-
+    if (type === "provider") setIntent("provider");
+    else setIntent("seeker");
     if (fromUrl) {
       setRef(fromUrl);
       try {
         localStorage.setItem("saathi_ref", fromUrl);
-        localStorage.setItem("saathi_ref_type", type === "provider" ? "provider" : "seeker");
       } catch {
         /* */
       }
     } else {
       try {
         const saved = localStorage.getItem("saathi_ref") || "";
-        const st = localStorage.getItem("saathi_ref_type") || "seeker";
         if (saved) setRef(saved);
-        if (st === "provider") setInviteType("provider");
       } catch {
         /* */
       }
     }
   }, [searchParams]);
 
-  const postAuthPath = inviteType === "provider" ? "/become-saathi" : "/onboarding";
+  // Same account can do both later; intent only sets first landing
+  const postAuthPath = intent === "provider" ? "/become-saathi" : "/dashboard";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       const res = await fetch("/api/register", {
         method: "POST",
@@ -60,38 +54,31 @@ function RegisterForm() {
           email: email.trim().toLowerCase(),
           password,
           ref: ref || undefined,
-          type: inviteType,
+          type: intent,
         }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
         setError(data.error || "Registration failed");
         setLoading(false);
         return;
       }
-
       const loginRes = await signIn("credentials", {
         email: email.trim().toLowerCase(),
         password,
         redirect: false,
       });
-
       if (loginRes?.error) {
         setError("Account created. Please sign in.");
         setLoading(false);
         router.push("/login");
         return;
       }
-
       try {
         localStorage.removeItem("saathi_ref");
-        localStorage.removeItem("saathi_ref_type");
       } catch {
         /* */
       }
-
       router.push(postAuthPath);
       router.refresh();
     } catch {
@@ -113,42 +100,34 @@ function RegisterForm() {
         </Link>
         <h1 className="mt-8 font-display text-3xl font-bold text-ink">Create account</h1>
         <p className="mt-2 text-ink-muted text-sm">
-          {inviteType === "provider"
-            ? "Next: set up your Saathi provider profile"
-            : "Next: choose a plan & start booking"}
-          {ref ? (
-            <span className="block mt-1 text-accent font-medium text-xs">
-              Invite code · {ref.toUpperCase()}
-            </span>
-          ) : null}
+          One account · find Saathis and/or become one
         </p>
       </div>
 
       <div className="bg-white rounded-2xl border border-border shadow-card p-8">
         {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-xl border border-red-100">
-            {error}
-          </div>
+          <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-xl">{error}</div>
         )}
 
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted mb-2">I want to</p>
         <div className="mb-5 grid grid-cols-2 gap-2 p-1 bg-cream rounded-xl">
           <button
             type="button"
-            onClick={() => setInviteType("seeker")}
-            className={`py-2.5 rounded-lg text-sm font-semibold transition ${
-              inviteType === "seeker" ? "btn-brand" : "text-ink-muted"
+            onClick={() => setIntent("seeker")}
+            className={`py-3 rounded-lg text-sm font-semibold transition ${
+              intent === "seeker" ? "btn-brand" : "text-ink-muted"
             }`}
           >
-            I want a Saathi
+            Need a Saathi
           </button>
           <button
             type="button"
-            onClick={() => setInviteType("provider")}
-            className={`py-2.5 rounded-lg text-sm font-semibold transition ${
-              inviteType === "provider" ? "btn-brand" : "text-ink-muted"
+            onClick={() => setIntent("provider")}
+            className={`py-3 rounded-lg text-sm font-semibold transition ${
+              intent === "provider" ? "btn-brand" : "text-ink-muted"
             }`}
           >
-            I am a Saathi
+            Wanna be a Saathi
           </button>
         </div>
 
@@ -213,7 +192,11 @@ function RegisterForm() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-ink-muted">
+        <p className="mt-4 text-[11px] text-ink-muted text-center leading-relaxed">
+          Browse free. Membership is asked only when you book, message, or go live as Saathi.
+        </p>
+
+        <p className="mt-4 text-center text-sm text-ink-muted">
           Already have an account?{" "}
           <Link href="/login" className="text-accent font-semibold hover:underline">
             Sign in

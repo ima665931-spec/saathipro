@@ -1,10 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import BrandHeader from "@/components/BrandHeader";
 import { PLANS } from "@/lib/plans";
 
-export default function PricingPage() {
+function PricingInner() {
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") || "";
+
   return (
     <div className="min-h-screen bg-brand-soft">
       <BrandHeader />
@@ -13,20 +18,25 @@ export default function PricingPage() {
         <div className="text-center max-w-xl mx-auto mb-12">
           <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">Membership</p>
           <h1 className="font-display text-4xl font-bold text-ink">
-            Choose your <span className="text-brand-gradient">plan</span>
+            Unlock <span className="text-brand-gradient">booking & chat</span>
           </h1>
           <p className="mt-3 text-ink-muted text-sm">
-            Unlock Find, Book & Become Saathi. Pay instantly with Razorpay (UPI · Cards),
-            or manual UPI if needed.
+            Browse profiles free. Plan is required to book a Saathi, send messages, or go live as a provider.
+            Same account works for both.
           </p>
-          <p className="mt-2 text-xs text-ink-muted">
-            Flow: <strong className="text-ink">Plan → Pay → Dashboard → Find → Book</strong>
-          </p>
+          {next && (
+            <p className="mt-2 text-xs text-accent font-medium">
+              After payment you can continue where you left off.
+            </p>
+          )}
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {PLANS.map((p) => {
             const highlight = p.id === "YEARLY" || p.id === "MONTHLY";
+            const payHref = next
+              ? `/pay?plan=${p.id}&next=${encodeURIComponent(next)}`
+              : `/pay?plan=${p.id}`;
             return (
               <div
                 key={p.id}
@@ -44,21 +54,19 @@ export default function PricingPage() {
                 <h2 className="font-display text-lg font-bold text-ink">{p.name}</h2>
                 <p className="text-xs text-ink-muted mt-1">{p.tagline}</p>
                 <p className="mt-4">
-                  <span className="font-display text-3xl font-bold text-brand-gradient">
-                    ₹{p.price}
-                  </span>
+                  <span className="font-display text-3xl font-bold text-brand-gradient">₹{p.price}</span>
                 </p>
                 {p.saveLabel && (
                   <p className="text-xs font-semibold text-pink mt-1">{p.saveLabel}</p>
                 )}
                 <ul className="mt-4 space-y-1.5 text-xs text-ink-muted flex-1">
-                  <li>· Full access {p.days} days</li>
                   <li>· Book any Saathi</li>
-                  <li>· Become a Saathi</li>
-                  <li>· Instant unlock via Razorpay</li>
+                  <li>· In-app chat on bookings</li>
+                  <li>· Go live as provider</li>
+                  <li>· {p.days} days access</li>
                 </ul>
                 <Link
-                  href={`/pay?plan=${p.id}`}
+                  href={payHref}
                   className={`mt-6 block text-center py-3 rounded-full text-sm font-bold transition ${
                     highlight
                       ? "btn-brand shadow-soft"
@@ -73,10 +81,23 @@ export default function PricingPage() {
         </div>
 
         <p className="mt-10 text-center text-xs text-ink-muted max-w-md mx-auto">
-          Razorpay success unlocks access immediately. Manual UPI needs admin verification.
-          Hourly session fees with Saathi are separate.
+          Razorpay unlocks instantly. You can find Saathis and become a Saathi with the same Gmail.
         </p>
       </main>
     </div>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-brand-soft text-sm text-ink-muted">
+          Loading…
+        </div>
+      }
+    >
+      <PricingInner />
+    </Suspense>
   );
 }

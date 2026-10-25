@@ -1,13 +1,12 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { hasActivePlan } from "@/lib/plans";
 import { generateRegistrationId } from "@/lib/ids";
 import { isAgentRole } from "@/lib/account-type";
 
 /**
- * Post-auth router for MAIN APP only (seeker / provider).
- * Agents are redirected away — separate product.
+ * After login/register → always Dashboard.
+ * Browse is free. Plan is required only when booking / messaging / going live.
  */
 export default async function OnboardingPage() {
   const session = await auth();
@@ -39,14 +38,11 @@ export default async function OnboardingPage() {
     }
   }
 
-  if (!user) {
-    redirect("/login?error=session");
-  }
+  if (!user) redirect("/login?error=session");
 
-  // Agent accounts cannot use main member app
-  if (isAgentRole(user.role)) {
-    redirect("/agent");
-  }
+  if (isAgentRole(user.role)) redirect("/agent");
+  if (user.isBanned) redirect("/login?error=banned");
+  if (user.role === "ADMIN") redirect("/admin");
 
   if (!user.publicId) {
     try {
@@ -55,25 +51,9 @@ export default async function OnboardingPage() {
         data: { publicId: generateRegistrationId() },
       });
     } catch {
-      /* ignore */
+      /* */
     }
   }
 
-  if (user.isBanned) {
-    redirect("/login?error=banned");
-  }
-
-  if (user.role === "ADMIN") {
-    redirect("/admin");
-  }
-
-  if (hasActivePlan(user)) {
-    redirect("/dashboard");
-  }
-
-  if (user.paymentStatus === "PENDING") {
-    redirect("/pay");
-  }
-
-  redirect("/pricing");
+  redirect("/dashboard");
 }
