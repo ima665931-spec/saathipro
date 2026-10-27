@@ -6,7 +6,19 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import BrandHeader from "@/components/BrandHeader";
 
-const TIME_SLOTS = ["10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM", "7:00 PM", "8:00 PM"];
+const TIME_SLOTS = [
+  "10:00 AM",
+  "11:00 AM",
+  "12:00 PM",
+  "1:00 PM",
+  "2:00 PM",
+  "3:00 PM",
+  "4:00 PM",
+  "5:00 PM",
+  "6:00 PM",
+  "7:00 PM",
+  "8:00 PM",
+];
 
 type SaathiInfo = {
   id: string;
@@ -17,6 +29,8 @@ type SaathiInfo = {
   rating: number;
   bio: string;
 };
+
+type FreeSlot = { id: string; date: string; time: string };
 
 export default function BookPage() {
   const params = useParams();
@@ -29,6 +43,7 @@ export default function BookPage() {
   const [service, setService] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
+  const [slotId, setSlotId] = useState("");
   const [duration, setDuration] = useState(1);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,6 +51,8 @@ export default function BookPage() {
   const [success, setSuccess] = useState(false);
   const [planActive, setPlanActive] = useState<boolean | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [hasSchedule, setHasSchedule] = useState(false);
+  const [freeSlots, setFreeSlots] = useState<FreeSlot[]>([]);
 
   useEffect(() => {
     if (!id) {
@@ -69,6 +86,25 @@ export default function BookPage() {
       });
   }, [status]);
 
+  useEffect(() => {
+    if (!id) return;
+    const q = date
+      ? `/api/slots?saathiId=${encodeURIComponent(id)}&date=${encodeURIComponent(date)}`
+      : `/api/slots?saathiId=${encodeURIComponent(id)}`;
+    fetch(q)
+      .then((r) => r.json())
+      .then((d) => {
+        setHasSchedule(!!d.hasSchedule);
+        setFreeSlots(d.slots || []);
+        setTime("");
+        setSlotId("");
+      })
+      .catch(() => {
+        setHasSchedule(false);
+        setFreeSlots([]);
+      });
+  }, [id, date]);
+
   const needsPay =
     status === "authenticated" &&
     planActive !== null &&
@@ -84,6 +120,19 @@ export default function BookPage() {
     ? `https://ui-avatars.com/api/?name=${encodeURIComponent(saathi.name)}&background=7c3aed&color=fff&size=128&font-size=0.4`
     : "";
 
+  const timeOptions = hasSchedule
+    ? freeSlots.filter((s) => !date || s.date === date).map((s) => s.time)
+    : TIME_SLOTS;
+
+  const onPickTime = (t: string) => {
+    setTime(t);
+    const match = freeSlots.find(
+      (s) => s.time === t && (!date || s.date === date)
+    );
+    setSlotId(match?.id || "");
+    if (match && !date) setDate(match.date);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -97,6 +146,10 @@ export default function BookPage() {
     }
     if (!saathi || !date || !time || !service) {
       setError("Fill date, time and service");
+      return;
+    }
+    if (hasSchedule && timeOptions.length === 0) {
+      setError("No open slots on this date — try another day");
       return;
     }
     setLoading(true);
@@ -114,6 +167,7 @@ export default function BookPage() {
           durationHours: duration,
           amount: total,
           notes: notes.trim() || null,
+          slotId: slotId || undefined,
         }),
       });
       const data = await res.json();
@@ -193,6 +247,7 @@ export default function BookPage() {
         )}
 
         <div className="bg-white rounded-2xl border border-border p-5 mb-6 flex items-center gap-4 shadow-card">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={avatar} alt={saathi.name} className="w-16 h-16 rounded-xl object-cover" />
           <div>
             <h2 className="font-display font-bold text-lg text-ink">{saathi.name}</h2>
@@ -241,19 +296,27 @@ export default function BookPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-ink mb-1">Time</label>
+              <label className="block text-sm font-medium text-ink mb-1">
+                Time{hasSchedule ? " (open only)" : ""}
+              </label>
               <select
                 value={time}
-                onChange={(e) => setTime(e.target.value)}
+                onChange={(e) => onPickTime(e.target.value)}
                 required
                 className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50"
               >
                 <option value="">Select</option>
-                {TIME_SLOTS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
+                {timeOptions.length === 0 && hasSchedule ? (
+                  <option value="" disabled>
+                    No open slots this day
                   </option>
-                ))}
+                ) : (
+                  timeOptions.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           </div>
