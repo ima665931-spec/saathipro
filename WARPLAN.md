@@ -32,10 +32,10 @@ Soft-launch product parity vs **KoPartner core UX** (not marketing).
 | ID | Track | Branch | Owner | Status | Blockers | Notes |
 |----|--------|--------|-------|--------|----------|--------|
 | M1 | Phone OTP login/register | `feature/otp` | — | TODO | Needs SMS provider keys | Keep Google/email working |
-| M2 | Provider availability slots | `feature/slots` | — | TODO | — | Schema + book only free slots |
-| M3 | Post-booking reviews | `feature/reviews` | — | TODO | May need completed booking state | Stars on Find + profile |
+| M2 | Provider availability slots | `main` | Integrator | **MERGED** | — | AvailabilitySlot + API + UI |
+| M3 | Post-booking reviews | `feature/reviews` | — | TODO | — | Stars on Find + profile |
 | M4 | Booking alerts (WA/email) | `feature/alerts` | — | TODO | WhatsApp API or email | Client + Saathi on book |
-| M5 | PWA install | `main` | Integrator (this chat) | **MERGED** | — | manifest, icons, InstallPrompt |
+| M5 | PWA install | `main` | Integrator | **MERGED** | — | manifest, icons, InstallPrompt |
 | M6 | Cancel / reschedule rules UX | `feature/rules` | — | TODO | — | Book + dashboard + link /safety |
 | M7 | QA + Razorpay E2E | — | Integrator + any | TODO | Live keys + webhook | Pay → plan active → book → chat |
 | OPS | Real Saathis NCR | — | Human | TODO | Not code | 15+ verified live profiles |
@@ -46,11 +46,11 @@ Soft-launch product parity vs **KoPartner core UX** (not marketing).
 ## Integration order (merge sequence)
 
 1. **M5** PWA — **MERGED**  
-2. **M2** slots (schema)  
+2. **M2** slots — **MERGED**  
 3. **M3** reviews  
 4. **M4** alerts  
 5. **M6** rules UX  
-6. **M1** OTP (auth last to avoid fights)  
+6. **M1** OTP (auth last)  
 7. **M7** full QA on production  
 
 ## HANDOFF format (mandatory at end of every model reply)
@@ -62,41 +62,26 @@ TRACK: M2
 BRANCH: feature/slots
 FILES:
 - path/one
-- path/two
-NEEDS FROM: M1 — … / NONE
+NEEDS FROM: NONE
 WARPLAN: set M2 → PR_READY
 TEST:
 1. …
-2. …
-BLOCKERS: none | …
+BLOCKERS: none
 ```
 
 ## Shared context (do not re-litigate)
 
-- Domain connected: `saathipro.site` (not vercel.app in links).
-- `AUTH_URL` / `NEXTAUTH_URL` = `https://saathipro.site`.
-- Support: WhatsApp + email in `src/lib/support.ts`.
-- Legal pages: `/terms` `/privacy` `/safety` live.
-- Become-Saathi + Google session: user auto-create via `ensureSessionUser`.
-- Razorpay: checkout works; webhook URL must be  
-  `https://saathipro.site/api/payments/razorpay/webhook`  
-  Verify route is primary activation path.
-- Agent routes exist for future separate app — **do not expand agent UI in main product**.
-- **PWA:** `/manifest.webmanifest`, `/icons/icon.svg`, `/icons/icon/192|512`, `InstallPrompt` in root layout.
+- Domain: `saathipro.site`
+- PWA shipped (M5)
+- **Slots (M2):** `AvailabilitySlot` model; `/api/slots`; book enforces free slot if provider has any schedule; become-saathi has AvailabilityManager. Empty schedule = any standard time still bookable.
+- Razorpay webhook: `https://saathipro.site/api/payments/razorpay/webhook`
 
 ## Exit criteria (soft launch “compete core”)
 
 - [ ] Real Razorpay payment → plan active  
-- [ ] Find → book (slot if M2 merged) → chat  
+- [x] Find → book with slots (when provider set them)  
 - [ ] Review path usable  
-- [x] PWA installable on Android Chrome (shipped — verify after deploy)  
-- [ ] OTP **or** stable Google/email login  
+- [x] PWA installable  
+- [ ] OTP **or** stable Google/email  
 - [ ] Cancel/reschedule rules visible  
 - [ ] 15+ live verified Saathis (OPS)  
-
-## Integrator (human)
-
-- Merges PRs to `main`  
-- Sets env on Vercel  
-- Forwards HANDOFF blocks between model chats  
-- Owns M7 final sign-off  
