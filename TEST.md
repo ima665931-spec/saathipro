@@ -1,45 +1,65 @@
 # SaathiPro — E2E test checklist (M7)
 
-Base URL: **https://saathipro.site**
+Base URL: **https://saathipro.site**  
+QA pass date: **2026-10-27** (automated + live fetch)
 
-## Auth
-- [ ] Google login works (redirect URI includes saathipro.site)
-- [ ] Email/password register + login (if enabled)
-- [ ] OTP login (when M1 merged)
-- [ ] Logout clears session
+## Public / SEO
+- [x] Home loads · Soft launch Delhi NCR banner
+- [x] `/terms` loads
+- [x] `/privacy` (fetch flake once — recheck manually)
+- [x] `/safety` loads · core rules present
+- [x] Footer support (WhatsApp / email) — code verified earlier
 
-## Browse
-- [ ] `/find` loads without login
-- [ ] Filters city / service work
-- [ ] Saathi profile `/saathi/[id]` opens
+## PWA
+- [x] `/manifest.webmanifest` 200
+- [x] `/icons/icon.svg` 200
+- [x] Manifest icons → SVG only (PNG dynamic route was 404 — fixed)
+- [ ] Android Chrome “Install / Add to Home Screen” — **manual on phone**
 
-## Membership + Razorpay
-- [ ] `/pricing` → select plan → `/pay`
-- [ ] Razorpay checkout opens
-- [ ] Successful pay → “You're in” / plan active on dashboard
-- [ ] Webhook configured: `/api/payments/razorpay/webhook`
+## Browse / supply
+- [x] `/api/saathis` 200
+- [x] Live Saathis count: **1** (Jaipur · rating 5 · 1 review)
+- [ ] Target **15+ verified NCR** — **OPS gap**
+- [x] `/find` client page loads (JS)
 
-## Provider
-- [ ] `/become-saathi` save profile (no “User not found”)
-- [ ] Without plan: profile saved, not live / needsPayment
-- [ ] With plan: live on Find (and slots if M2 live)
+## Auth (manual)
+- [ ] Google login end-to-end
+- [ ] Email/password if used
+- [ ] Logout
+- [ ] Become Saathi save (no User not found)
 
-## Book + chat
-- [ ] Book requires active plan
-- [ ] Slot required if M2 merged
-- [ ] Booking appears on `/bookings`
-- [ ] `/chat/[bookingId]` send + receive (poll)
+## Membership + Razorpay (**critical manual**)
+- [ ] `/pricing` → plan → `/pay`
+- [ ] Checkout opens
+- [ ] **Real ₹ payment completes**
+- [ ] Plan active on dashboard (“You're in”)
+- [ ] Webhook: `https://saathipro.site/api/payments/razorpay/webhook` configured in Razorpay dashboard
+- [ ] `RESEND_API_KEY` optional for booking emails
 
-## Reviews / rules / PWA (when merged)
-- [ ] Review prompt on completed booking
-- [ ] Cancel/reschedule copy visible
-- [ ] Add to Home Screen works on Android Chrome
+## Book + chat + review
+- [ ] Plan required gate on book
+- [ ] Rules checkbox on book form
+- [ ] Slot-only times when provider set availability
+- [ ] Booking → `/bookings`
+- [ ] Chat `/chat/[id]`
+- [ ] Leave review → stars on Find
 
-## Legal / support
-- [ ] `/terms` `/privacy` `/safety`
-- [ ] Footer WhatsApp opens correct number
+## Alerts
+- [ ] Client email on book (needs Resend)
+- [ ] Saathi email on book (needs Resend)
 
-## Bugs found
+## Bugs found (this QA)
 | Date | Area | Severity | Notes | Fixed? |
 |------|------|----------|-------|--------|
-| | | | | |
+| 2026-10-27 | PWA icons | Medium | `/icons/icon/192` 404; manifest pointed at missing PNG | Yes — SVG-only manifest |
+| 2026-10-27 | Supply | Critical for launch | Only 1 live Saathi; not NCR density | OPS |
+| 2026-10-27 | Safety page scrape | Low | Cancel section may need hard refresh after deploy | Deploy lag |
+
+## Soft-launch gate
+| Gate | Status |
+|------|--------|
+| Core pages up | PASS |
+| PWA manifest | PASS (after fix) |
+| Real pay → plan | **PENDING human** |
+| 15+ NCR Saathis | **FAIL / OPS** |
+| Reviews path | Code PASS · needs more bookings |
