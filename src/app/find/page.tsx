@@ -121,7 +121,6 @@ function FindInner() {
     <div className="min-h-screen bg-brand-soft">
       <BrandHeader active="find" />
 
-      {/* Guest guidance */}
       {status === "unauthenticated" && (
         <div className="bg-white border-b border-border">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -337,10 +336,17 @@ function FindInner() {
                       <p className="text-sm text-ink-muted">{saathi.city}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-sm font-bold text-gold">★ {saathi.rating}</div>
-                      <p className="text-xs text-ink-muted">
-                        {saathi.reviews > 0 ? `${saathi.reviews} reviews` : "New"}
-                      </p>
+                      {saathi.reviews > 0 ? (
+                        <>
+                          <div className="text-sm font-bold text-gold">★ {saathi.rating}</div>
+                          <p className="text-xs text-ink-muted">{saathi.reviews} reviews</p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-sm font-semibold text-ink-muted">New</div>
+                          <p className="text-xs text-ink-muted">No reviews yet</p>
+                        </>
+                      )}
                     </div>
                   </div>
                   <p className="mt-3 text-sm text-ink-muted line-clamp-2 flex-1">{saathi.bio}</p>
