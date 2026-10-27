@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { sendBookingConfirmationEmail } from "@/lib/email";
 import { requirePaidAccess } from "@/lib/payment-gate";
+import { notifyBookingCreated } from "@/lib/notify";
 
 export async function POST(req: Request) {
   try {
@@ -124,17 +124,22 @@ export async function POST(req: Request) {
       });
     }
 
-    sendBookingConfirmationEmail({
-      to: client.email,
-      clientName: session.user.name || null,
+    // Client + Saathi email, optional Telegram ops — never block response
+    notifyBookingCreated({
+      bookingId: booking.id,
+      clientEmail: client.email,
+      clientName: client.name || session.user.name || null,
+      clientPhone: client.phone,
+      saathiEmail: saathiUser.email,
       saathiName: saathiUser.name || String(saathiName),
+      saathiPhone: saathiUser.phone,
       service: String(service),
       date: String(date),
       time: String(time),
       durationHours: Number(durationHours) || 1,
       amount: Number(amount),
       city: city || saathiUser.saathiProfile.city || null,
-    }).catch((err) => console.error("[email] async error:", err));
+    }).catch((err) => console.error("[notify] async error:", err));
 
     return NextResponse.json({ success: true, booking });
   } catch (err) {
@@ -233,7 +238,6 @@ export async function PATCH(req: Request) {
       data: { status: "CANCELLED" },
     });
 
-    // Free matching availability slot if any
     await prisma.availabilitySlot.updateMany({
       where: { bookingId: booking.id },
       data: { isBooked: false, bookingId: null },
