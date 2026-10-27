@@ -30,6 +30,7 @@ export async function POST(req: Request) {
       durationHours,
       amount,
       notes,
+      slotId,
     } = body;
 
     if (!saathiId || !saathiName || !service || !date || !time || amount == null) {
@@ -41,17 +42,13 @@ export async function POST(req: Request) {
 
     const client = gate.user;
 
-    // Real Saathi only — never fall back to client (was causing self-bookings on dummy IDs)
     const saathiUser = await prisma.user.findUnique({
       where: { id: String(saathiId) },
       include: { saathiProfile: true },
     });
 
     if (!saathiUser || saathiUser.isBanned) {
-      return NextResponse.json(
-        { error: "Saathi not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Saathi not found" }, { status: 404 });
     }
 
     if (!saathiUser.saathiProfile || !saathiUser.saathiProfile.isActive) {
@@ -66,6 +63,42 @@ export async function POST(req: Request) {
         { error: "You cannot book yourself" },
         { status: 400 }
       );
+    }
+
+    const scheduleCount = await prisma.availabilitySlot.count({
+      where: { userId: saathiUser.id },
+    });
+
+    let lockedSlotId: string | null = null;
+
+    if (scheduleCount > 0) {
+      const slot = slotId
+        ? await prisma.availabilitySlot.findFirst({
+            where: {
+              id: String(slotId),
+              userId: saathiUser.id,
+              isBooked: false,
+            },
+          })
+        : await prisma.availabilitySlot.findFirst({
+            where: {
+              userId: saathiUser.id,
+              date: String(date),
+              time: String(time),
+              isBooked: false,
+            },
+          });
+
+      if (!slot) {
+        return NextResponse.json(
+          {
+            error:
+              "That time is not available. Pick an open slot from the list.",
+          },
+          { status: 400 }
+        );
+      }
+      lockedSlotId = slot.id;
     }
 
     const booking = await prisma.booking.create({
@@ -83,6 +116,13 @@ export async function POST(req: Request) {
         notes: notes ? String(notes) : null,
       },
     });
+
+    if (lockedSlotId) {
+      await prisma.availabilitySlot.update({
+        where: { id: lockedSlotId },
+        data: { isBooked: true, bookingId: booking.id },
+      });
+    }
 
     sendBookingConfirmationEmail({
       to: client.email,
@@ -191,6 +231,12 @@ export async function PATCH(req: Request) {
     const updated = await prisma.booking.update({
       where: { id: bookingId },
       data: { status: "CANCELLED" },
+    });
+
+    // Free matching availability slot if any
+    await prisma.availabilitySlot.updateMany({
+      where: { bookingId: booking.id },
+      data: { isBooked: false, bookingId: null },
     });
 
     return NextResponse.json({ success: true, booking: updated });
