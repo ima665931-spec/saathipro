@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandHeader from "@/components/BrandHeader";
+import BookingRulesCard from "@/components/BookingRulesCard";
 
 type Booking = {
   id: string;
@@ -87,7 +88,12 @@ export default function BookingsPage() {
   };
 
   const cancelBooking = async (bookingId: string) => {
-    if (!confirm("Cancel this booking?")) return;
+    if (
+      !confirm(
+        "Cancel this booking? Prefer 6+ hours notice. You can book a new slot afterward to reschedule."
+      )
+    )
+      return;
     setCancellingId(bookingId);
     setMsg("");
     try {
@@ -262,6 +268,10 @@ export default function BookingsPage() {
             ))}
           </div>
         )}
+
+        <div className="mt-10">
+          <BookingRulesCard compact />
+        </div>
       </main>
     </div>
   );
