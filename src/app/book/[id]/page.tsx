@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import BrandHeader from "@/components/BrandHeader";
+import BookingRulesCard from "@/components/BookingRulesCard";
 
 const TIME_SLOTS = [
   "10:00 AM",
@@ -53,6 +54,7 @@ export default function BookPage() {
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [hasSchedule, setHasSchedule] = useState(false);
   const [freeSlots, setFreeSlots] = useState<FreeSlot[]>([]);
+  const [acceptedRules, setAcceptedRules] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -142,6 +144,10 @@ export default function BookPage() {
     }
     if (needsPay) {
       router.push("/pricing");
+      return;
+    }
+    if (!acceptedRules) {
+      setError("Please accept the booking rules to continue");
       return;
     }
     if (!saathi || !date || !time || !service) {
@@ -346,6 +352,20 @@ export default function BookPage() {
               className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50"
             />
           </div>
+
+          <label className="flex items-start gap-3 text-sm text-ink-muted cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acceptedRules}
+              onChange={(e) => setAcceptedRules(e.target.checked)}
+              className="mt-1 accent-pink"
+            />
+            <span>
+              I agree to the booking rules, Safety guidelines, and Terms (cancel ≥6h when possible;
+              professional only).
+            </span>
+          </label>
+
           <div className="flex items-center justify-between pt-4 border-t border-border">
             <div>
               <p className="text-xs text-ink-muted uppercase">Total</p>
@@ -353,7 +373,7 @@ export default function BookPage() {
             </div>
             <button
               type="submit"
-              disabled={loading || !session || needsPay}
+              disabled={loading || !session || needsPay || !acceptedRules}
               className="px-8 py-3.5 btn-brand rounded-xl disabled:opacity-50"
             >
               {loading
@@ -366,6 +386,10 @@ export default function BookPage() {
             </button>
           </div>
         </form>
+
+        <div className="mt-6">
+          <BookingRulesCard />
+        </div>
       </main>
     </div>
   );
