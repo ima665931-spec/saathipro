@@ -35,7 +35,7 @@ Soft-launch product parity vs **KoPartner core UX** (not marketing).
 | M2 | Provider availability slots | `feature/slots` | — | TODO | — | Schema + book only free slots |
 | M3 | Post-booking reviews | `feature/reviews` | — | TODO | May need completed booking state | Stars on Find + profile |
 | M4 | Booking alerts (WA/email) | `feature/alerts` | — | TODO | WhatsApp API or email | Client + Saathi on book |
-| M5 | PWA install | `feature/pwa` | — | TODO | — | manifest, icons, install banner |
+| M5 | PWA install | `main` | Integrator (this chat) | **MERGED** | — | manifest, icons, InstallPrompt |
 | M6 | Cancel / reschedule rules UX | `feature/rules` | — | TODO | — | Book + dashboard + link /safety |
 | M7 | QA + Razorpay E2E | — | Integrator + any | TODO | Live keys + webhook | Pay → plan active → book → chat |
 | OPS | Real Saathis NCR | — | Human | TODO | Not code | 15+ verified live profiles |
@@ -45,7 +45,7 @@ Soft-launch product parity vs **KoPartner core UX** (not marketing).
 
 ## Integration order (merge sequence)
 
-1. **M5** PWA (low conflict)  
+1. **M5** PWA — **MERGED**  
 2. **M2** slots (schema)  
 3. **M3** reviews  
 4. **M4** alerts  
@@ -82,13 +82,14 @@ BLOCKERS: none | …
   `https://saathipro.site/api/payments/razorpay/webhook`  
   Verify route is primary activation path.
 - Agent routes exist for future separate app — **do not expand agent UI in main product**.
+- **PWA:** `/manifest.webmanifest`, `/icons/icon.svg`, `/icons/icon/192|512`, `InstallPrompt` in root layout.
 
 ## Exit criteria (soft launch “compete core”)
 
 - [ ] Real Razorpay payment → plan active  
 - [ ] Find → book (slot if M2 merged) → chat  
 - [ ] Review path usable  
-- [ ] PWA installable on Android Chrome  
+- [x] PWA installable on Android Chrome (shipped — verify after deploy)  
 - [ ] OTP **or** stable Google/email login  
 - [ ] Cancel/reschedule rules visible  
 - [ ] 15+ live verified Saathis (OPS)  
