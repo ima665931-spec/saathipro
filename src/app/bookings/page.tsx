@@ -34,6 +34,7 @@ export default function BookingsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
+  const [okMsg, setOkMsg] = useState("");
 
   const load = () => {
     fetch("/api/bookings")
@@ -53,9 +54,14 @@ export default function BookingsPage() {
     if (status === "authenticated") load();
   }, [status, router]);
 
+  const pendingReview = bookings.filter(
+    (b) => b.isClient && b.status === "CONFIRMED" && !b.hasReview
+  );
+
   const submitReview = async (bookingId: string) => {
     setSubmitting(true);
     setMsg("");
+    setOkMsg("");
     try {
       const res = await fetch("/api/reviews", {
         method: "POST",
@@ -71,6 +77,7 @@ export default function BookingsPage() {
       setReviewingId(null);
       setComment("");
       setRating(5);
+      setOkMsg("Thanks — review published on Find.");
       load();
     } catch {
       setMsg("Network error");
@@ -127,7 +134,18 @@ export default function BookingsPage() {
           </Link>
         </div>
 
+        {pendingReview.length > 0 && (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-100 text-sm text-amber-900">
+            <strong>{pendingReview.length}</strong> session
+            {pendingReview.length > 1 ? "s" : ""} waiting for your review — it helps other members
+            choose a Saathi.
+          </div>
+        )}
+
         {msg && <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-xl">{msg}</div>}
+        {okMsg && (
+          <div className="mb-4 p-3 bg-emerald-50 text-emerald-800 text-sm rounded-xl">{okMsg}</div>
+        )}
 
         {bookings.length === 0 ? (
           <div className="bg-white rounded-2xl border border-border p-12 text-center shadow-card">
@@ -197,9 +215,9 @@ export default function BookingsPage() {
                         <button
                           type="button"
                           onClick={() => setReviewingId(reviewingId === b.id ? null : b.id)}
-                          className="text-sm font-medium text-ink border border-border px-3 py-1.5 rounded-full hover:border-accent/40"
+                          className="text-sm font-semibold text-white btn-brand px-3 py-1.5 rounded-full"
                         >
-                          {reviewingId === b.id ? "Close" : "Leave review"}
+                          {reviewingId === b.id ? "Close" : "★ Leave review"}
                         </button>
                       )}
                     </div>
@@ -208,6 +226,7 @@ export default function BookingsPage() {
 
                 {reviewingId === b.id && (
                   <div className="mt-4 pt-4 border-t border-border space-y-3">
+                    <p className="text-sm font-medium text-ink">How was your session?</p>
                     <div className="flex gap-1">
                       {[1, 2, 3, 4, 5].map((n) => (
                         <button
@@ -215,6 +234,7 @@ export default function BookingsPage() {
                           type="button"
                           onClick={() => setRating(n)}
                           className={`text-2xl ${n <= rating ? "text-gold" : "text-border"}`}
+                          aria-label={`${n} stars`}
                         >
                           ★
                         </button>
@@ -224,7 +244,8 @@ export default function BookingsPage() {
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
                       rows={2}
-                      placeholder="Optional comment…"
+                      maxLength={500}
+                      placeholder="Optional comment (public on profile)…"
                       className="w-full px-3 py-2 border border-border rounded-xl text-sm bg-cream/50 text-ink"
                     />
                     <button
