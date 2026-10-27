@@ -2,6 +2,7 @@ import Link from "next/link";
 import BrandHeader from "@/components/BrandHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { SUPPORT, whatsappUrl } from "@/lib/support";
+import { BOOKING_RULES } from "@/lib/booking-rules";
 
 export default function SafetyPage() {
   return (
@@ -33,6 +34,24 @@ export default function SafetyPage() {
               <li>Confirm service, time, and location in chat</li>
               <li>Do not share unnecessary personal documents</li>
             </ul>
+          </section>
+
+          <section>
+            <h2 className="font-display font-bold text-ink text-lg mb-2">Cancel & reschedule</h2>
+            <ul className="list-disc pl-5 space-y-1">
+              {BOOKING_RULES.bullets.map((b) => (
+                <li key={b}>{b}</li>
+              ))}
+            </ul>
+            <p className="mt-2">{BOOKING_RULES.cancelNote}</p>
+            <p className="mt-1">{BOOKING_RULES.rescheduleNote}</p>
+            <p className="mt-2">
+              Manage bookings on{" "}
+              <Link href="/bookings" className="text-accent font-medium">
+                My bookings
+              </Link>
+              .
+            </p>
           </section>
 
           <section>
