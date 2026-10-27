@@ -1,4 +1,4 @@
-# SaathiPro War Plan — live coordination board
+# SaathiPro War Plan — live
 
 | ID | Track | Status |
 |----|--------|--------|
@@ -7,15 +7,15 @@
 | M3 | Reviews | **MERGED** |
 | M4 | Booking alerts | **MERGED** |
 | M5 | PWA | **MERGED** |
-| M6 | Cancel/rules UX | TODO |
+| M6 | Cancel/rules UX | **MERGED** |
 | M7 | QA + Razorpay E2E | TODO |
 | OPS | Real Saathis NCR | TODO |
 
-## M4 notes
-- `src/lib/notify.ts` → client confirm email + Saathi new-booking email
-- Optional: `TELEGRAM_BOT_TOKEN` + `TELEGRAM_OPS_CHAT_ID` for ops alert
-- Needs `RESEND_API_KEY` (+ `EMAIL_FROM`) on Vercel for real email
-- Wired in `POST /api/bookings` via `notifyBookingCreated`
+## M6
+- `src/lib/booking-rules.ts`
+- `BookingRulesCard` on book + bookings
+- Book confirm requires rules checkbox
+- Safety page cancel/reschedule section
 
 ## Next
-M6 rules UX → M1 OTP → M7 QA
+M1 OTP (optional if SMS keys missing) → **M7 QA** on production
