@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BrandHeader from "@/components/BrandHeader";
+import AvailabilityManager from "@/components/AvailabilityManager";
 import { SERVICE_CATALOG, CITY_LIST } from "@/lib/catalog";
 
 function compressImage(file: File): Promise<string> {
@@ -59,7 +60,6 @@ export default function BecomeSaathiPage() {
   const [success, setSuccess] = useState(false);
   const [needsPay, setNeedsPay] = useState(false);
 
-  // Must be logged in to fill provider profile
   useEffect(() => {
     if (status === "unauthenticated") {
       router.replace("/register?type=provider");
@@ -168,18 +168,20 @@ export default function BecomeSaathiPage() {
   return (
     <div className="min-h-screen bg-brand-soft">
       <BrandHeader active="become" />
-      <main className="max-w-2xl mx-auto px-4 py-10">
-        <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">
-          For professionals
-        </p>
-        <h1 className="font-display text-3xl font-bold text-ink">Become a Saathi</h1>
-        <p className="mt-2 text-ink-muted mb-2 text-sm">
-          Logged in as <strong className="text-ink">{session?.user?.email}</strong>
-        </p>
-        <p className="text-ink-muted mb-8 text-sm">
-          Save profile anytime. Active plan makes you live on Find. Same account can also book
-          Saathis.
-        </p>
+      <main className="max-w-2xl mx-auto px-4 py-10 space-y-8">
+        <div>
+          <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">
+            For professionals
+          </p>
+          <h1 className="font-display text-3xl font-bold text-ink">Become a Saathi</h1>
+          <p className="mt-2 text-ink-muted mb-2 text-sm">
+            Logged in as <strong className="text-ink">{session?.user?.email}</strong>
+          </p>
+          <p className="text-ink-muted text-sm">
+            Save profile anytime. Active plan makes you live on Find. Same account can also book
+            Saathis.
+          </p>
+        </div>
 
         <form
           onSubmit={handleSubmit}
@@ -294,6 +296,8 @@ export default function BecomeSaathiPage() {
             </Link>
           </p>
         </form>
+
+        <AvailabilityManager />
       </main>
     </div>
   );
