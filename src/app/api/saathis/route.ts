@@ -78,7 +78,7 @@ export async function GET(req: Request) {
           city: p.city || "India",
           services,
           rate,
-          rating: avg || 4.8,
+          rating: avg,
           reviews: count,
           bio: bio || "Professional companion.",
           image: pickImage(p.user.image),
@@ -95,7 +95,6 @@ export async function GET(req: Request) {
         })
       );
 
-    // Filters
     if (cityQ && cityQ.toLowerCase() !== "all" && cityQ !== "All Cities") {
       const c = norm(cityQ);
       saathis = saathis.filter(
@@ -132,7 +131,6 @@ export async function GET(req: Request) {
       saathis = saathis.filter((s) => s.rate <= maxRate);
     }
 
-    // Sort
     if (sort === "rate_asc") {
       saathis.sort((a, b) => a.rate - b.rate);
     } else if (sort === "rate_desc") {
@@ -140,9 +138,7 @@ export async function GET(req: Request) {
     } else if (sort === "rating") {
       saathis.sort((a, b) => b.rating - a.rating || b.reviews - a.reviews);
     }
-    // newest = default order from DB
 
-    // Facets for UI (from unfiltered active set would be better; use current list cities)
     const cities = Array.from(
       new Set(
         profiles
