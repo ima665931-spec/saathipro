@@ -4,7 +4,7 @@ import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
 import InstallPrompt from "@/components/InstallPrompt";
 import StandaloneRedirect from "@/components/StandaloneRedirect";
-import AppBottomNav from "@/components/AppBottomNav";
+import AppShell from "@/components/app/AppShell";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
@@ -74,11 +74,10 @@ export default function RootLayout({
       lang="en"
       className={`${dmSans.variable} ${playfair.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-cream text-ink font-sans pb-20 md:pb-0">
+      <body className="min-h-full flex flex-col bg-cream text-ink font-sans">
         <SessionProvider>
           <StandaloneRedirect />
-          <div className="flex-1 flex flex-col min-h-0">{children}</div>
-          <AppBottomNav />
+          <AppShell>{children}</AppShell>
           <InstallPrompt />
         </SessionProvider>
       </body>
