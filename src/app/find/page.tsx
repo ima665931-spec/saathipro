@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import BrandHeader from "@/components/BrandHeader";
 import {
-  SERVICE_CATALOG,
+  SERVICE_LABELS,
   CITY_LIST,
   SORT_OPTIONS,
   type SortId,
@@ -118,20 +118,14 @@ function FindInner() {
   const bookHref = (id: string) =>
     loggedIn ? `/book/${id}` : `/login?callbackUrl=${encodeURIComponent(`/book/${id}`)}`;
 
-  const serviceChips = ["All", ...SERVICE_CATALOG.map((s) => (typeof s === "string" ? s : s.title || s.name || String(s)))];
-  // SERVICE_CATALOG may be string[] or objects — normalize
-  const chipLabels: string[] = Array.isArray(SERVICE_CATALOG)
-    ? ["All", ...SERVICE_CATALOG.map((s: unknown) => (typeof s === "string" ? s : (s as { title?: string }).title || ""))].filter(Boolean)
-    : ["All"];
+  const chipLabels = ["All", ...SERVICE_LABELS];
 
   return (
     <div className="pb-2">
-      {/* Desktop marketing header only */}
       <div className="hidden md:block -mx-4 mb-4">
         <BrandHeader active="find" />
       </div>
 
-      {/* Search */}
       <div className="flex gap-2 items-center">
         <div className="flex-1 relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted text-sm">🔍</span>
@@ -156,11 +150,10 @@ function FindInner() {
         </button>
       </div>
 
-      {/* Service chips */}
       <div className="mt-3 -mx-1 overflow-x-auto">
         <div className="flex gap-2 px-1 pb-1 min-w-min">
           {chipLabels.map((svc) => {
-            const active = selectedService === svc || (svc === "All" && selectedService === "All");
+            const active = selectedService === svc;
             return (
               <button
                 key={svc}
@@ -179,7 +172,6 @@ function FindInner() {
         </div>
       </div>
 
-      {/* Filter panel */}
       {filtersOpen && (
         <div className="mt-3 rounded-2xl border border-border bg-white p-3 space-y-3 shadow-card">
           <div className="grid grid-cols-2 gap-2">
@@ -246,25 +238,19 @@ function FindInner() {
             Verified only
           </label>
           {hasFilters && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="text-xs font-semibold text-violet-600"
-            >
+            <button type="button" onClick={clearFilters} className="text-xs font-semibold text-violet-600">
               Clear all filters
             </button>
           )}
         </div>
       )}
 
-      {/* Count */}
       <p className="mt-3 text-xs text-ink-muted">
         {loading ? "Searching…" : `${total} Saathi${total === 1 ? "" : "s"}`}
         {selectedService !== "All" ? ` · ${selectedService}` : ""}
         {selectedCity !== "All Cities" ? ` · ${selectedCity}` : ""}
       </p>
 
-      {/* List */}
       <div className="mt-3 space-y-3">
         {loading && list.length === 0 ? (
           <div className="space-y-3">
@@ -277,11 +263,7 @@ function FindInner() {
             <p className="font-semibold text-ink text-sm">No matches</p>
             <p className="text-xs text-ink-muted mt-1">Try another city or clear filters.</p>
             {hasFilters && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="mt-3 text-xs font-bold text-violet-600"
-              >
+              <button type="button" onClick={clearFilters} className="mt-3 text-xs font-bold text-violet-600">
                 Clear filters
               </button>
             )}
@@ -368,11 +350,7 @@ function FindInner() {
 
 export default function FindPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="py-16 text-center text-sm text-ink-muted">Loading…</div>
-      }
-    >
+    <Suspense fallback={<div className="py-16 text-center text-sm text-ink-muted">Loading…</div>}>
       <FindInner />
     </Suspense>
   );
