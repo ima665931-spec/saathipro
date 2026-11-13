@@ -1,21 +1,20 @@
-import { auth, signOut } from "@/auth";
+import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { hasActivePlan } from "@/lib/plans";
 import { isAgentRole } from "@/lib/account-type";
 import { isQualityProfile } from "@/lib/content-filter";
-import BrandLogo from "@/components/BrandLogo";
 
 const SERVICES = [
-  { title: "Movie Partner", emoji: "🎬", color: "from-violet-500 to-purple-600" },
-  { title: "Hanging Out", emoji: "☕", color: "from-pink-400 to-rose-500" },
-  { title: "Elder Care", emoji: "💚", color: "from-emerald-400 to-teal-500" },
-  { title: "Clubbing", emoji: "🎉", color: "from-fuchsia-500 to-pink-600" },
-  { title: "Shopping Buddy", emoji: "🛍️", color: "from-amber-400 to-orange-500" },
-  { title: "Coffee Partner", emoji: "💬", color: "from-rose-400 to-pink-500" },
-  { title: "Travel Partner", emoji: "✈️", color: "from-indigo-400 to-violet-500" },
-  { title: "Medical Support", emoji: "🏥", color: "from-sky-400 to-blue-500" },
+  { title: "Movie Partner", emoji: "🎬" },
+  { title: "Hanging Out", emoji: "☕" },
+  { title: "Elder Care", emoji: "💚" },
+  { title: "Clubbing", emoji: "🎉" },
+  { title: "Shopping Buddy", emoji: "🛍️" },
+  { title: "Coffee Partner", emoji: "💬" },
+  { title: "Travel Partner", emoji: "✈️" },
+  { title: "Medical Support", emoji: "🏥" },
 ];
 
 function avatar(name: string, image: string | null) {
@@ -40,9 +39,9 @@ export default async function DashboardPage() {
 
   const isAdmin = dbUser.role === "ADMIN";
   const hasProfile = !!dbUser.saathiProfile;
-  const isProvider = dbUser.role === "SAATHI" || hasProfile;
   const active = isAdmin || hasActivePlan(dbUser);
   const pay = dbUser.paymentStatus || "NONE";
+  const firstName = dbUser.name?.split(" ")[0] || "there";
 
   const profiles = await prisma.saathiProfile.findMany({
     where: { isActive: true },
@@ -89,7 +88,6 @@ export default async function DashboardPage() {
         services,
         rate: p.hourlyRate || 1500,
         rating,
-        reviews: revs.length,
         bio: p.bio || "",
         image: p.user.image,
         verified: p.isVerified,
@@ -106,246 +104,222 @@ export default async function DashboardPage() {
     .slice(0, 8);
 
   return (
-    <div className="min-h-screen bg-brand-soft">
-      <header className="bg-white/90 backdrop-blur border-b border-border sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2.5">
-              <BrandLogo size="md" />
-              <span className="font-display text-lg font-bold text-ink">
-                Saathi<span className="text-pink">Pro</span>
-              </span>
-            </Link>
-            <div className="flex items-center gap-3">
-              <Link href="/find" className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-accent">
-                Find
-              </Link>
-              <Link href="/bookings" className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-accent">
-                Bookings
-              </Link>
-              <Link href="/become-saathi" className="hidden sm:inline text-sm font-medium text-ink-muted hover:text-accent">
-                {hasProfile ? "My profile" : "Become Saathi"}
-              </Link>
-              <span className="text-sm text-ink-muted hidden md:inline max-w-[120px] truncate">
-                {dbUser.name || dbUser.email}
-              </span>
-              <form
-                action={async () => {
-                  "use server";
-                  await signOut({ redirectTo: "/" });
-                }}
-              >
-                <button type="submit" className="px-3 py-1.5 text-sm font-medium text-ink-muted hover:text-ink">
-                  Logout
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
-          <div>
-            <p className="text-xs font-bold tracking-widest uppercase text-pink mb-1">Dashboard</p>
-            <h1 className="font-display text-3xl font-bold text-ink">
-              Hey{dbUser.name ? `, ${dbUser.name.split(" ")[0]}` : ""} 👋
-            </h1>
-            <p className="text-ink-muted mt-1 text-sm">
-              Browse free · membership unlocks booking & chat
-              {dbUser.publicId && (
-                <span className="font-mono text-xs"> · {dbUser.publicId}</span>
-              )}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {active ? (
-              <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-100">
-                ✓ Plan active
-              </span>
-            ) : pay === "PENDING" ? (
-              <Link href="/pay" className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-100">
-                Payment pending →
-              </Link>
-            ) : (
-              <Link href="/pricing" className="btn-brand px-4 py-2 rounded-full text-sm">
-                Unlock plan
-              </Link>
-            )}
-          </div>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-4 mb-10">
-          <Link
-            href="/find"
-            className="rounded-2xl border border-border bg-white p-6 shadow-card hover:shadow-soft transition group"
-          >
-            <p className="text-xs font-bold uppercase tracking-widest text-pink">Need a Saathi</p>
-            <h2 className="mt-2 font-display text-xl font-bold text-ink group-hover:text-accent">
-              Find & book partners
-            </h2>
-            <p className="mt-2 text-sm text-ink-muted">
-              Explore profiles below. Plan needed only when you book or message.
-            </p>
-            <span className="mt-4 inline-block text-sm font-semibold text-accent">Browse Find →</span>
-          </Link>
-          <Link
-            href="/become-saathi"
-            className="rounded-2xl p-6 bg-brand-gradient text-white shadow-glow hover:opacity-95 transition"
-          >
-            <p className="text-xs font-bold uppercase tracking-widest text-white/80">Wanna be a Saathi</p>
-            <h2 className="mt-2 font-display text-xl font-bold">
-              {hasProfile ? "Edit your provider profile" : "Create provider profile"}
-            </h2>
-            <p className="mt-2 text-sm text-white/90">
-              Same account. Save profile anytime — go live when plan is active.
-            </p>
-            <span className="mt-4 inline-block text-sm font-semibold">
-              {hasProfile ? "Open profile →" : "Start profile →"}
+    <div className="space-y-6 pb-2">
+      {/* Greeting */}
+      <section className="pt-1">
+        <p className="text-sm text-ink-muted">Welcome back</p>
+        <h1 className="font-display text-2xl font-bold text-ink tracking-tight">
+          Hey, {firstName}
+        </h1>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {active ? (
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-100">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Plan active
             </span>
+          ) : pay === "PENDING" ? (
+            <Link
+              href="/pay"
+              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-100"
+            >
+              Payment pending →
+            </Link>
+          ) : (
+            <Link
+              href="/pricing"
+              className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold text-white bg-brand-gradient shadow-sm"
+            >
+              Unlock plan
+            </Link>
+          )}
+          {dbUser.publicId && (
+            <span className="text-[11px] font-mono text-ink-muted">{dbUser.publicId}</span>
+          )}
+        </div>
+      </section>
+
+      {/* Quick actions */}
+      <section className="grid grid-cols-3 gap-2.5">
+        <Link
+          href="/find"
+          className="rounded-2xl bg-white border border-border p-3 shadow-card active:scale-[0.98] transition text-center"
+        >
+          <span className="text-2xl" aria-hidden>
+            🔍
+          </span>
+          <p className="mt-1.5 text-xs font-bold text-ink">Find</p>
+        </Link>
+        <Link
+          href="/bookings"
+          className="rounded-2xl bg-white border border-border p-3 shadow-card active:scale-[0.98] transition text-center"
+        >
+          <span className="text-2xl" aria-hidden>
+            📅
+          </span>
+          <p className="mt-1.5 text-xs font-bold text-ink">Bookings</p>
+        </Link>
+        <Link
+          href={hasProfile ? "/become-saathi" : "/become-saathi"}
+          className="rounded-2xl bg-brand-gradient p-3 shadow-glow active:scale-[0.98] transition text-center text-white"
+        >
+          <span className="text-2xl" aria-hidden>
+            ✨
+          </span>
+          <p className="mt-1.5 text-xs font-bold">{hasProfile ? "Profile" : "Earn"}</p>
+        </Link>
+      </section>
+
+      {/* Services — horizontal */}
+      <section>
+        <div className="flex items-center justify-between mb-2.5 px-0.5">
+          <h2 className="text-sm font-bold text-ink">Services</h2>
+          <Link href="/find" className="text-xs font-semibold text-violet-600">
+            See all
           </Link>
         </div>
-
-        <section className="mb-10">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-xl font-bold text-ink">All services</h2>
-            <Link href="/find" className="text-sm font-semibold text-accent">See all →</Link>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="-mx-1 overflow-x-auto scrollbar-none">
+          <div className="flex gap-2 px-1 pb-1 min-w-min">
             {SERVICES.map((s) => (
               <Link
                 key={s.title}
                 href={`/find?service=${encodeURIComponent(s.title)}`}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-white p-4 shadow-card hover:shadow-soft transition"
+                className="shrink-0 w-[4.75rem] rounded-2xl bg-white border border-border py-3 px-1 text-center shadow-sm active:bg-violet-50"
               >
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center text-lg`}>
-                  {s.emoji}
-                </div>
-                <p className="mt-3 font-semibold text-ink text-sm group-hover:text-accent">{s.title}</p>
+                <span className="text-xl leading-none">{s.emoji}</span>
+                <p className="mt-1.5 text-[10px] font-semibold text-ink leading-tight line-clamp-2">
+                  {s.title}
+                </p>
               </Link>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="mb-10">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-xl font-bold text-ink">Featured Saathis</h2>
-            <Link href="/find" className="text-sm font-semibold text-accent">View more →</Link>
-          </div>
+      {/* Featured Saathis */}
+      <section>
+        <div className="flex items-center justify-between mb-2.5 px-0.5">
+          <h2 className="text-sm font-bold text-ink">Featured Saathis</h2>
+          <Link href="/find" className="text-xs font-semibold text-violet-600">
+            View more
+          </Link>
+        </div>
 
-          {featured.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-border p-10 text-center shadow-card">
-              <p className="font-display font-bold text-ink">Profiles coming soon</p>
-              <p className="text-sm text-ink-muted mt-2">
-                Be the first provider — set up your Saathi profile.
-              </p>
-              <Link href="/become-saathi" className="btn-brand inline-block mt-5 px-6 py-2.5 rounded-full text-sm">
-                Wanna be a Saathi
-              </Link>
-            </div>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {featured.map((s) => (
-                <article
-                  key={s.id}
-                  className="bg-white rounded-2xl border border-border overflow-hidden shadow-card hover:shadow-soft transition flex flex-col"
-                >
-                  <Link href={`/saathi/${s.id}`} className="block aspect-[4/3] bg-gradient-to-br from-violet-100 to-pink-100 relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={avatar(s.name, s.image)}
-                      alt={s.name}
-                      className="w-full h-full object-cover"
-                    />
-                    {s.verified && (
-                      <span className="absolute top-2 right-2 bg-brand-gradient text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        ✓ Verified
-                      </span>
-                    )}
-                  </Link>
-                  <div className="p-4 flex flex-col flex-1">
-                    <div className="flex justify-between gap-2">
-                      <div>
-                        <Link href={`/saathi/${s.id}`} className="font-display font-bold text-ink hover:text-accent">
-                          {s.name}
-                        </Link>
-                        <p className="text-xs text-ink-muted">{s.city}</p>
-                      </div>
-                      <p className="text-sm font-bold text-gold">★ {s.rating}</p>
-                    </div>
-                    <p className="mt-2 text-xs text-ink-muted line-clamp-2 flex-1">{s.bio}</p>
-                    <div className="mt-3 flex items-center justify-between pt-3 border-t border-border">
-                      <span className="font-display font-bold text-brand-gradient">₹{s.rate}<span className="text-xs text-ink-muted font-normal">/hr</span></span>
-                      <Link
-                        href={active ? `/book/${s.id}` : `/pricing?next=/book/${s.id}`}
-                        className="btn-brand px-3 py-1.5 text-xs rounded-full"
-                      >
-                        {active ? "Book" : "Unlock to book"}
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {!active && (
-          <section className="mb-10 rounded-2xl bg-brand-gradient text-white p-6 sm:p-8 shadow-glow flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="font-display text-xl font-bold">Ready to book or go live?</h2>
-              <p className="mt-1 text-sm text-white/90">
-                Membership unlocks booking, chat, and live Saathi listing. Browse stays free.
-              </p>
-            </div>
+        {featured.length === 0 ? (
+          <div className="rounded-2xl bg-white border border-border p-6 text-center shadow-card">
+            <p className="font-semibold text-ink text-sm">Profiles coming soon</p>
+            <p className="text-xs text-ink-muted mt-1">Be the first to create a Saathi profile.</p>
             <Link
-              href="/pricing"
-              className="shrink-0 px-6 py-3 bg-white text-accent font-bold rounded-full text-center text-sm"
+              href="/become-saathi"
+              className="inline-block mt-4 text-xs font-bold text-white bg-brand-gradient px-4 py-2 rounded-full"
             >
-              View plans
+              Start profile
             </Link>
-          </section>
-        )}
-
-        <section className="bg-white rounded-2xl border border-border p-6 shadow-card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display text-lg font-bold text-ink">Recent bookings</h3>
-            <Link href="/bookings" className="text-sm font-medium text-accent">All →</Link>
           </div>
-          {dbUser.bookingsAsClient.length === 0 ? (
-            <p className="text-sm text-ink-muted text-center py-6">
-              No bookings yet.{" "}
-              <Link href="/find" className="text-accent font-semibold">
-                Find a Saathi
-              </Link>
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {dbUser.bookingsAsClient.map((b) => (
-                <div
-                  key={b.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 py-3 border-b border-border last:border-0"
-                >
-                  <div>
-                    <p className="font-medium text-ink">{b.saathiName}</p>
-                    <p className="text-sm text-ink-muted">
-                      {b.service} · {b.date} · {b.time}
+        ) : (
+          <div className="space-y-3">
+            {featured.map((s) => (
+              <article
+                key={s.id}
+                className="flex gap-3 rounded-2xl bg-white border border-border p-3 shadow-card"
+              >
+                <Link href={`/saathi/${s.id}`} className="shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={avatar(s.name, s.image)}
+                    alt=""
+                    className="w-16 h-16 rounded-xl object-cover bg-violet-100"
+                  />
+                </Link>
+                <div className="min-w-0 flex-1 flex flex-col">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/saathi/${s.id}`}
+                        className="font-bold text-ink text-sm truncate block hover:text-violet-700"
+                      >
+                        {s.name}
+                        {s.verified ? " ✓" : ""}
+                      </Link>
+                      <p className="text-[11px] text-ink-muted truncate">
+                        {s.city} · ★ {s.rating}
+                      </p>
+                    </div>
+                    <p className="text-sm font-bold text-violet-700 shrink-0">
+                      ₹{s.rate}
+                      <span className="text-[10px] font-medium text-ink-muted">/hr</span>
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Link href={`/chat/${b.id}`} className="text-sm text-accent font-medium">
-                      Chat
+                  {s.bio ? (
+                    <p className="mt-1 text-[11px] text-ink-muted line-clamp-1">{s.bio}</p>
+                  ) : null}
+                  <div className="mt-auto pt-2">
+                    <Link
+                      href={active ? `/book/${s.id}` : `/pricing?next=/book/${s.id}`}
+                      className="inline-flex text-[11px] font-bold px-3 py-1.5 rounded-full text-white bg-brand-gradient"
+                    >
+                      {active ? "Book now" : "Unlock to book"}
                     </Link>
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800">
-                      {b.status}
-                    </span>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Recent bookings */}
+      <section className="rounded-2xl bg-white border border-border p-4 shadow-card">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold text-ink">Recent bookings</h2>
+          <Link href="/bookings" className="text-xs font-semibold text-violet-600">
+            All
+          </Link>
+        </div>
+        {dbUser.bookingsAsClient.length === 0 ? (
+          <p className="text-xs text-ink-muted text-center py-4">
+            No bookings yet.{" "}
+            <Link href="/find" className="font-semibold text-violet-600">
+              Find a Saathi
+            </Link>
+          </p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {dbUser.bookingsAsClient.map((b) => (
+              <li key={b.id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-ink truncate">{b.saathiName}</p>
+                  <p className="text-[11px] text-ink-muted truncate">
+                    {b.service} · {b.date} · {b.time}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link href={`/chat/${b.id}`} className="text-[11px] font-semibold text-violet-600">
+                    Chat
+                  </Link>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800">
+                    {b.status}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {!active && pay !== "PENDING" && (
+        <section className="rounded-2xl bg-brand-gradient p-4 text-white shadow-glow">
+          <p className="font-bold text-sm">Ready to book or go live?</p>
+          <p className="text-xs text-white/90 mt-1">
+            Membership unlocks booking, chat, and live listing. Browse stays free.
+          </p>
+          <Link
+            href="/pricing"
+            className="mt-3 inline-flex text-xs font-bold px-4 py-2 rounded-full bg-white text-violet-700"
+          >
+            View plans
+          </Link>
         </section>
-      </main>
+      )}
     </div>
   );
 }
