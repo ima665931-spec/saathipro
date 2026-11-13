@@ -1,10 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SaathiPro">
   <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="55%" stop-color="#a21caf"/>
       <stop offset="100%" stop-color="#db2777"/>
     </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#g)"/>
-  <text x="256" y="310" text-anchor="middle" font-family="system-ui,Segoe UI,sans-serif" font-size="260" font-weight="700" fill="#fff">S</text>
+  <!-- App tile -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="112" fill="url(#shine)"/>
+  <!-- Soft halo -->
+  <circle cx="256" cy="248" r="168" fill="#fff" opacity="0.08"/>
+  <!-- Two companions (stylized people) -->
+  <g fill="#ffffff">
+    <!-- Left person -->
+    <circle cx="200" cy="200" r="42"/>
+    <path d="M128 340c0-48 32-78 72-78s72 30 72 78v8H128v-8z"/>
+    <!-- Right person -->
+    <circle cx="312" cy="188" r="36"/>
+    <path d="M248 340c0-44 28-72 64-72s64 28 64 72v8H248v-8z"/>
+  </g>
+  <!-- Heart bridge between them -->
+  <path fill="#fce7f3" d="M256 292c-6-14-24-14-30 2-4 12 6 24 30 42 24-18 34-30 30-42-6-16-24-16-30-2z"/>
+  <!-- Subtle bottom label mark -->
+  <circle cx="256" cy="420" r="10" fill="#fff" opacity="0.55"/>
 </svg>
