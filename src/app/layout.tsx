@@ -3,6 +3,7 @@ import { DM_Sans, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "@/components/SessionProvider";
 import InstallPrompt from "@/components/InstallPrompt";
+import StandaloneRedirect from "@/components/StandaloneRedirect";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
@@ -73,6 +74,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-cream text-ink font-sans">
         <SessionProvider>
+          <StandaloneRedirect />
           {children}
           <InstallPrompt />
         </SessionProvider>
