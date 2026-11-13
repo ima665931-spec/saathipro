@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import BrandLogo from "@/components/BrandLogo";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -38,7 +39,6 @@ export default function InstallPrompt() {
 
     window.addEventListener("beforeinstallprompt", onBip);
 
-    // iOS: no beforeinstallprompt — show soft tip once per session
     const isIOS =
       /iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -75,9 +75,7 @@ export default function InstallPrompt() {
   return (
     <div className="fixed bottom-4 left-4 right-4 z-[60] mx-auto max-w-md">
       <div className="rounded-2xl border border-border bg-white shadow-soft p-4 flex gap-3 items-start">
-        <div className="w-11 h-11 rounded-xl bg-brand-gradient text-white flex items-center justify-center font-display font-bold shrink-0">
-          S
-        </div>
+        <BrandLogo size="lg" />
         <div className="flex-1 min-w-0">
           <p className="font-display font-bold text-ink text-sm">Install SaathiPro</p>
           <p className="text-xs text-ink-muted mt-0.5 leading-relaxed">
