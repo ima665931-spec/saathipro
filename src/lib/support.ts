@@ -1,12 +1,20 @@
 /** Soft launch support contacts */
 export const SUPPORT = {
-  whatsapp: "918112276561", // country code, no +
-  whatsappDisplay: "+91 81122 76561",
+  /** Telegram username without @ */
+  telegram: "SaathiProSupport",
+  telegramDisplay: "@SaathiProSupport",
   email: "saathiprosupport@gmail.com",
   region: "Delhi NCR (soft launch)",
 };
 
+/** Open Telegram chat with optional prefilled text */
+export function telegramUrl(text?: string) {
+  const base = `https://t.me/${SUPPORT.telegram}`;
+  if (!text) return base;
+  return `${base}?text=${encodeURIComponent(text)}`;
+}
+
+/** @deprecated use telegramUrl — kept so old imports don't break */
 export function whatsappUrl(text?: string) {
-  const msg = encodeURIComponent(text || "Hi SaathiPro support");
-  return `https://wa.me/${SUPPORT.whatsapp}?text=${msg}`;
+  return telegramUrl(text || "Hi SaathiPro support");
 }
