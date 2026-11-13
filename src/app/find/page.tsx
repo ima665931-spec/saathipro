@@ -52,6 +52,7 @@ function FindInner() {
   const [citiesFromDb, setCitiesFromDb] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const cityOptions = Array.from(
     new Set(["All Cities", ...CITY_LIST, ...citiesFromDb])
@@ -117,293 +118,250 @@ function FindInner() {
   const bookHref = (id: string) =>
     loggedIn ? `/book/${id}` : `/login?callbackUrl=${encodeURIComponent(`/book/${id}`)}`;
 
-  return (
-    <div className="min-h-screen bg-brand-soft">
-      <BrandHeader active="find" />
+  const serviceChips = ["All", ...SERVICE_CATALOG.map((s) => (typeof s === "string" ? s : s.title || s.name || String(s)))];
+  // SERVICE_CATALOG may be string[] or objects — normalize
+  const chipLabels: string[] = Array.isArray(SERVICE_CATALOG)
+    ? ["All", ...SERVICE_CATALOG.map((s: unknown) => (typeof s === "string" ? s : (s as { title?: string }).title || ""))].filter(Boolean)
+    : ["All"];
 
-      {status === "unauthenticated" && (
-        <div className="bg-white border-b border-border">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <p className="text-sm text-ink-muted">
-              <strong className="text-ink">Browse free.</strong> To book a Saathi:{" "}
-              <span className="text-ink">new user → Get started</span> ·{" "}
-              <span className="text-ink">already have account → Sign in</span>
-            </p>
-            <div className="flex gap-2 shrink-0">
-              <Link
-                href="/login?callbackUrl=/find"
-                className="px-4 py-2 text-sm font-semibold text-ink-muted border border-border rounded-full hover:border-accent/40"
+  return (
+    <div className="pb-2">
+      {/* Desktop marketing header only */}
+      <div className="hidden md:block -mx-4 mb-4">
+        <BrandHeader active="find" />
+      </div>
+
+      {/* Search */}
+      <div className="flex gap-2 items-center">
+        <div className="flex-1 relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted text-sm">🔍</span>
+          <input
+            type="search"
+            placeholder="Name, city, service…"
+            value={searchDraft}
+            onChange={(e) => setSearchDraft(e.target.value)}
+            className="w-full pl-9 pr-3 py-2.5 rounded-2xl border border-border bg-white text-sm text-ink focus:outline-none focus:ring-2 focus:ring-violet-300 shadow-sm"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((v) => !v)}
+          className={`shrink-0 h-11 px-3 rounded-2xl border text-xs font-bold ${
+            filtersOpen || hasFilters
+              ? "border-violet-300 bg-violet-50 text-violet-700"
+              : "border-border bg-white text-ink-muted"
+          }`}
+        >
+          Filters{hasFilters ? " •" : ""}
+        </button>
+      </div>
+
+      {/* Service chips */}
+      <div className="mt-3 -mx-1 overflow-x-auto">
+        <div className="flex gap-2 px-1 pb-1 min-w-min">
+          {chipLabels.map((svc) => {
+            const active = selectedService === svc || (svc === "All" && selectedService === "All");
+            return (
+              <button
+                key={svc}
+                type="button"
+                onClick={() => setSelectedService(svc)}
+                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                  active
+                    ? "bg-brand-gradient text-white border-transparent"
+                    : "bg-white text-ink-muted border-border"
+                }`}
               >
-                Sign in
-              </Link>
-              <Link href="/register" className="btn-brand px-4 py-2 text-sm rounded-full">
-                Get started — free
-              </Link>
-            </div>
+                {svc}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Filter panel */}
+      {filtersOpen && (
+        <div className="mt-3 rounded-2xl border border-border bg-white p-3 space-y-3 shadow-card">
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-[11px] font-semibold text-ink-muted block">
+              City
+              <select
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value)}
+                className="mt-1 w-full px-2 py-2 rounded-xl border border-border text-sm bg-white"
+              >
+                {cityOptions.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-[11px] font-semibold text-ink-muted block">
+              Sort
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortId)}
+                className="mt-1 w-full px-2 py-2 rounded-xl border border-border text-sm bg-white"
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-[11px] font-semibold text-ink-muted block">
+              Min ₹/hr
+              <input
+                type="number"
+                inputMode="numeric"
+                value={minRate}
+                onChange={(e) => setMinRate(e.target.value)}
+                placeholder="0"
+                className="mt-1 w-full px-2 py-2 rounded-xl border border-border text-sm"
+              />
+            </label>
+            <label className="text-[11px] font-semibold text-ink-muted block">
+              Max ₹/hr
+              <input
+                type="number"
+                inputMode="numeric"
+                value={maxRate}
+                onChange={(e) => setMaxRate(e.target.value)}
+                placeholder="Any"
+                className="mt-1 w-full px-2 py-2 rounded-xl border border-border text-sm"
+              />
+            </label>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={verifiedOnly}
+              onChange={(e) => setVerifiedOnly(e.target.checked)}
+              className="rounded border-border"
+            />
+            Verified only
+          </label>
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-xs font-semibold text-violet-600"
+            >
+              Clear all filters
+            </button>
+          )}
         </div>
       )}
 
-      <section className="border-b border-border bg-white/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">Browse</p>
-          <h1 className="font-display text-4xl sm:text-5xl font-bold text-ink tracking-tight">
-            Find a <span className="text-brand-gradient">Saathi</span>
-          </h1>
-          <p className="mt-3 text-ink-muted text-lg max-w-xl">
-            Filter by city, service & budget — verified companions across India.
-          </p>
+      {/* Count */}
+      <p className="mt-3 text-xs text-ink-muted">
+        {loading ? "Searching…" : `${total} Saathi${total === 1 ? "" : "s"}`}
+        {selectedService !== "All" ? ` · ${selectedService}` : ""}
+        {selectedCity !== "All Cities" ? ` · ${selectedCity}` : ""}
+      </p>
 
-          <div className="mt-8 flex flex-col lg:flex-row gap-3">
-            <input
-              type="text"
-              placeholder="Search name, city or service…"
-              value={searchDraft}
-              onChange={(e) => setSearchDraft(e.target.value)}
-              className="flex-1 px-5 py-3.5 rounded-xl border border-border bg-white focus:outline-none focus:ring-2 focus:ring-accent/40 text-ink shadow-card"
-            />
-            <select
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              className="px-5 py-3.5 rounded-xl border border-border bg-white focus:outline-none focus:ring-2 focus:ring-accent/40 text-ink min-w-[160px]"
-            >
-              {cityOptions.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortId)}
-              className="px-5 py-3.5 rounded-xl border border-border bg-white focus:outline-none focus:ring-2 focus:ring-accent/40 text-ink min-w-[160px]"
-            >
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+      {/* List */}
+      <div className="mt-3 space-y-3">
+        {loading && list.length === 0 ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-24 rounded-2xl bg-white border border-border animate-pulse" />
+            ))}
           </div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <label className="inline-flex items-center gap-2 text-sm text-ink-muted cursor-pointer">
-              <input
-                type="checkbox"
-                checked={verifiedOnly}
-                onChange={(e) => setVerifiedOnly(e.target.checked)}
-                className="accent-pink w-4 h-4"
-              />
-              Verified only
-            </label>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-ink-muted">₹</span>
-              <input
-                type="number"
-                min={0}
-                placeholder="Min"
-                value={minRate}
-                onChange={(e) => setMinRate(e.target.value.replace(/\D/g, ""))}
-                className="w-20 px-2 py-1.5 rounded-lg border border-border bg-white text-ink"
-              />
-              <span className="text-ink-muted">–</span>
-              <input
-                type="number"
-                min={0}
-                placeholder="Max"
-                value={maxRate}
-                onChange={(e) => setMaxRate(e.target.value.replace(/\D/g, ""))}
-                className="w-20 px-2 py-1.5 rounded-lg border border-border bg-white text-ink"
-              />
-              <span className="text-ink-muted">/hr</span>
-            </div>
+        ) : list.length === 0 ? (
+          <div className="rounded-2xl bg-white border border-border p-8 text-center shadow-card">
+            <p className="font-semibold text-ink text-sm">No matches</p>
+            <p className="text-xs text-ink-muted mt-1">Try another city or clear filters.</p>
             {hasFilters && (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="text-sm font-medium text-accent underline"
+                className="mt-3 text-xs font-bold text-violet-600"
               >
-                Clear all
+                Clear filters
               </button>
             )}
           </div>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedService("All")}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                selectedService === "All"
-                  ? "btn-brand shadow-soft"
-                  : "bg-white text-ink-muted border border-border hover:border-accent/40 hover:text-accent"
-              }`}
-            >
-              All
-            </button>
-            {SERVICE_CATALOG.map((svc) => (
-              <button
-                key={svc.id}
-                type="button"
-                onClick={() => setSelectedService(svc.label)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                  selectedService === svc.label
-                    ? "btn-brand shadow-soft"
-                    : "bg-white text-ink-muted border border-border hover:border-accent/40 hover:text-accent"
-                }`}
-              >
-                <span className="mr-1">{svc.emoji}</span>
-                {svc.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {["Delhi", "Mumbai", "Bangalore", "Pune", "Hyderabad", "Noida", "Gurgaon"].map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setSelectedCity(selectedCity === c ? "All Cities" : c)}
-                className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
-                  selectedCity === c
-                    ? "border-accent text-accent bg-pink-soft"
-                    : "border-border text-ink-muted hover:border-accent/40"
-                }`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <p className="text-sm text-ink-muted mb-6">
-          {loading ? (
-            "Loading…"
-          ) : (
-            <>
-              <span className="font-bold text-accent">{total}</span> available
-              {selectedCity !== "All Cities" && (
-                <> in <strong className="text-ink">{selectedCity}</strong></>
-              )}
-              {selectedService !== "All" && (
-                <> · <strong className="text-ink">{selectedService}</strong></>
-              )}
-            </>
-          )}
-        </p>
-
-        {list.length === 0 && !loading ? (
-          <div className="text-center py-20">
-            <h3 className="font-display text-xl font-bold text-ink">No matches</h3>
-            <p className="text-ink-muted mt-2 max-w-md mx-auto">
-              Try another city or service.
-            </p>
-            <button type="button" onClick={clearFilters} className="btn-brand mt-6 px-6 py-2.5 rounded-full">
-              Clear filters
-            </button>
-          </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {list.map((saathi) => (
-              <article
-                key={saathi.id}
-                className="bg-white rounded-2xl border border-border overflow-hidden shadow-card hover:shadow-soft transition flex flex-col"
-              >
-                <Link href={`/saathi/${saathi.id}`} className="block">
-                  <div className="aspect-[4/3] bg-gradient-to-br from-violet-100 to-pink-100 relative overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={avatarUrl(saathi.name, saathi.image)}
-                      alt={saathi.name}
-                      className="w-full h-full object-cover"
-                    />
-                    {saathi.verified && (
-                      <span className="absolute top-3 right-3 bg-brand-gradient text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-sm">
-                        ✓ Verified
-                      </span>
-                    )}
+          list.map((saathi) => (
+            <article
+              key={saathi.id}
+              className="flex gap-3 rounded-2xl bg-white border border-border p-3 shadow-card"
+            >
+              <Link href={`/saathi/${saathi.id}`} className="shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={avatarUrl(saathi.name, saathi.image)}
+                  alt=""
+                  className="w-16 h-16 rounded-xl object-cover bg-violet-100"
+                />
+              </Link>
+              <div className="min-w-0 flex-1 flex flex-col">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/saathi/${saathi.id}`}
+                      className="font-bold text-sm text-ink truncate block hover:text-violet-700"
+                    >
+                      {saathi.name}
+                      {saathi.verified ? " ✓" : ""}
+                    </Link>
+                    <p className="text-[11px] text-ink-muted truncate">
+                      {saathi.city} · ★ {saathi.rating}
+                      {saathi.reviews ? ` (${saathi.reviews})` : ""}
+                    </p>
                   </div>
-                </Link>
-                <div className="p-5 flex flex-col flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <Link href={`/saathi/${saathi.id}`}>
-                        <h3 className="font-display font-bold text-lg text-ink hover:text-accent">
-                          {saathi.name}
-                        </h3>
-                      </Link>
-                      <p className="text-sm text-ink-muted">{saathi.city}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      {saathi.reviews > 0 ? (
-                        <>
-                          <div className="text-sm font-bold text-gold">★ {saathi.rating}</div>
-                          <p className="text-xs text-ink-muted">{saathi.reviews} reviews</p>
-                        </>
-                      ) : (
-                        <>
-                          <div className="text-sm font-semibold text-ink-muted">New</div>
-                          <p className="text-xs text-ink-muted">No reviews yet</p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <p className="mt-3 text-sm text-ink-muted line-clamp-2 flex-1">{saathi.bio}</p>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
+                  <p className="text-sm font-bold text-violet-700 shrink-0">
+                    ₹{saathi.rate}
+                    <span className="text-[10px] font-medium text-ink-muted">/hr</span>
+                  </p>
+                </div>
+                {saathi.services?.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
                     {saathi.services.slice(0, 3).map((svc) => (
                       <button
                         key={svc}
                         type="button"
                         onClick={() => setSelectedService(svc)}
-                        className="text-[11px] bg-pink-soft text-pink px-2 py-0.5 rounded-full font-medium hover:opacity-80"
+                        className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 font-medium"
                       >
                         {svc}
                       </button>
                     ))}
                   </div>
-                  <div className="mt-5 flex items-center justify-between pt-4 border-t border-border">
-                    <div>
-                      <span className="font-display text-xl font-bold text-brand-gradient">
-                        ₹{saathi.rate}
-                      </span>
-                      <span className="text-sm text-ink-muted">/hr</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Link
-                        href={`/saathi/${saathi.id}`}
-                        className="px-3 py-2 text-sm font-medium text-ink-muted border border-border rounded-full hover:border-accent/40"
-                      >
-                        Profile
-                      </Link>
-                      <Link href={bookHref(saathi.id)} className="btn-brand px-4 py-2 text-sm rounded-full">
-                        {loggedIn ? "Book" : "Sign in to book"}
-                      </Link>
-                    </div>
-                  </div>
+                )}
+                <div className="mt-auto pt-2 flex gap-2">
+                  <Link
+                    href={`/saathi/${saathi.id}`}
+                    className="text-[11px] font-semibold px-3 py-1.5 rounded-full border border-border text-ink-muted"
+                  >
+                    Profile
+                  </Link>
+                  <Link
+                    href={bookHref(saathi.id)}
+                    className="text-[11px] font-bold px-3 py-1.5 rounded-full text-white bg-brand-gradient"
+                  >
+                    {loggedIn ? "Book" : "Sign in"}
+                  </Link>
                 </div>
-              </article>
-            ))}
-          </div>
+              </div>
+            </article>
+          ))
         )}
-      </section>
+      </div>
 
-      <section className="border-t border-border bg-brand-gradient text-white py-14">
-        <div className="max-w-2xl mx-auto px-4 text-center">
-          <h2 className="font-display text-2xl font-bold">Wanna be a Saathi?</h2>
-          <p className="mt-2 text-white/85">Same account · set rates · go live after plan</p>
-          <Link
-            href={loggedIn ? "/become-saathi" : "/register?type=provider"}
-            className="inline-block mt-6 px-8 py-3 bg-white text-accent font-bold rounded-full hover:bg-pink-soft transition"
-          >
-            {loggedIn ? "Create profile" : "Get started as provider"}
+      {loggedIn && (
+        <p className="mt-6 text-center text-xs text-ink-muted">
+          Want to earn?{" "}
+          <Link href="/become-saathi" className="font-semibold text-violet-600">
+            Create Saathi profile
           </Link>
-        </div>
-      </section>
-
-      <footer className="py-8 text-center text-sm text-ink-muted">
-        © 2026 Saathi<span className="text-pink font-semibold">Pro</span>
-      </footer>
+        </p>
+      )}
     </div>
   );
 }
@@ -412,9 +370,7 @@ export default function FindPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-brand-soft text-sm text-ink-muted">
-          Loading…
-        </div>
+        <div className="py-16 text-center text-sm text-ink-muted">Loading…</div>
       }
     >
       <FindInner />
