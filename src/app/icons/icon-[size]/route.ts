@@ -3,8 +3,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 /** Minimal solid PNG (violet) — valid for PWA install prompts */
-function solidPng(size: number): Buffer {
-  // Precomputed tiny PNGs are awkward; build uncompressed truecolor RGBA
+function solidPng(size: number): Uint8Array {
   const { deflateSync } = require("zlib") as typeof import("zlib");
 
   const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -37,7 +36,10 @@ function solidPng(size: number): Buffer {
 
   const stride = 1 + size * 4;
   const raw = Buffer.alloc(stride * size);
-  const R = 124, G = 58, B = 237, A = 255;
+  const R = 124,
+    G = 58,
+    B = 237,
+    A = 255;
   for (let y = 0; y < size; y++) {
     const row = y * stride;
     raw[row] = 0;
@@ -50,12 +52,13 @@ function solidPng(size: number): Buffer {
     }
   }
   const idat = deflateSync(raw);
-  return Buffer.concat([
+  const png = Buffer.concat([
     signature,
     chunk("IHDR", ihdr),
     chunk("IDAT", idat),
     chunk("IEND", Buffer.alloc(0)),
   ]);
+  return new Uint8Array(png);
 }
 
 export async function GET(
