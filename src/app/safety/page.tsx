@@ -1,7 +1,7 @@
 import Link from "next/link";
 import BrandHeader from "@/components/BrandHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { SUPPORT, whatsappUrl } from "@/lib/support";
+import { SUPPORT, telegramUrl } from "@/lib/support";
 import { BOOKING_RULES } from "@/lib/booking-rules";
 
 export default function SafetyPage() {
@@ -71,12 +71,12 @@ export default function SafetyPage() {
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
               <a
-                href={whatsappUrl("Safety report: ")}
+                href={telegramUrl("Safety report: ")}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-brand px-5 py-2.5 rounded-full text-sm"
               >
-                WhatsApp support
+                Telegram support
               </a>
               <a
                 href={`mailto:${SUPPORT.email}?subject=Safety%20report`}
