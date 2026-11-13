@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import BrandLogo from "@/components/BrandLogo";
 
 function RegisterForm() {
   const router = useRouter();
@@ -80,7 +81,6 @@ function RegisterForm() {
         /* */
       }
 
-      // Let auth cookie settle, then hard navigate so session is available
       await new Promise((r) => setTimeout(r, 400));
       const dest = intent === "provider" ? "/become-saathi" : "/dashboard";
       window.location.href = dest;
@@ -94,9 +94,7 @@ function RegisterForm() {
     <div className="w-full max-w-md">
       <div className="text-center mb-8">
         <Link href="/" className="inline-flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-brand-gradient flex items-center justify-center text-white font-display font-bold text-sm shadow-glow">
-            S
-          </div>
+          <BrandLogo size="lg" />
           <span className="font-display text-xl font-bold text-ink">
             Saathi<span className="text-pink">Pro</span>
           </span>
