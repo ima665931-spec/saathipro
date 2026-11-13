@@ -1,5 +1,5 @@
 import { sendBookingConfirmationEmail } from "@/lib/email";
-import { SUPPORT, whatsappUrl } from "@/lib/support";
+import { SUPPORT, telegramUrl } from "@/lib/support";
 
 const APP_URL = (
   process.env.AUTH_URL ||
@@ -96,7 +96,7 @@ function saathiHtml(p: BookingNotify) {
           <tr><td style="color:#6b7280;padding:6px 0">Amount</td><td style="font-weight:600">₹${p.amount}</td></tr>
         </table>
         <p><a href="${APP_URL}/bookings">Open bookings</a> · <a href="${APP_URL}/chat/${p.bookingId}">Open chat</a></p>
-        <p style="font-size:12px;color:#9ca3af">Support: ${SUPPORT.email} · WhatsApp ${SUPPORT.whatsappDisplay}</p>
+        <p style="font-size:12px;color:#9ca3af">Support: ${SUPPORT.email} · Telegram ${SUPPORT.telegramDisplay}</p>
       </div>
     </div>`;
 }
@@ -107,7 +107,6 @@ function saathiHtml(p: BookingNotify) {
  */
 export async function notifyBookingCreated(p: BookingNotify): Promise<void> {
   try {
-    // Client confirmation (existing template)
     await sendBookingConfirmationEmail({
       to: p.clientEmail,
       clientName: p.clientName,
@@ -120,7 +119,6 @@ export async function notifyBookingCreated(p: BookingNotify): Promise<void> {
       city: p.city,
     });
 
-    // Saathi alert
     if (p.saathiEmail) {
       await sendResend({
         to: p.saathiEmail,
@@ -129,7 +127,6 @@ export async function notifyBookingCreated(p: BookingNotify): Promise<void> {
       });
     }
 
-    // Ops telegram (optional)
     const lines = [
       "SaathiPro · New booking",
       `ID: ${p.bookingId}`,
@@ -139,26 +136,35 @@ export async function notifyBookingCreated(p: BookingNotify): Promise<void> {
     ];
     await telegramOps(lines.join("\n"));
 
-    // Log WA deep links (no paid WA API required — ops can forward)
     if (p.saathiPhone) {
-      const wa = whatsappUrl(
+      const tg = telegramUrl(
         `SaathiPro booking\n${p.date} ${p.time}\n${p.service}\nClient: ${p.clientName || "Member"}\nChat: ${APP_URL}/chat/${p.bookingId}`
       );
-      console.log("[notify] Saathi WhatsApp deep link", wa);
+      console.log("[notify] Saathi Telegram deep link", tg);
     }
   } catch (e) {
     console.error("[notify] booking notify failed", e);
   }
 }
 
-/** Public helper for client UI if needed later */
+/** Share booking via Telegram */
+export function bookingTelegramShare(p: {
+  saathiName: string;
+  date: string;
+  time: string;
+  service: string;
+}) {
+  return telegramUrl(
+    `My SaathiPro booking with ${p.saathiName}\n${p.service}\n${p.date} · ${p.time}\n${APP_URL}/bookings`
+  );
+}
+
+/** @deprecated */
 export function bookingWhatsAppShare(p: {
   saathiName: string;
   date: string;
   time: string;
   service: string;
 }) {
-  return whatsappUrl(
-    `My SaathiPro booking with ${p.saathiName}\n${p.service}\n${p.date} · ${p.time}\n${APP_URL}/bookings`
-  );
+  return bookingTelegramShare(p);
 }
