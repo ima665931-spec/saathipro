@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 
 type NavKey = "home" | "find" | "bookings" | "earn" | "plan";
 
@@ -47,12 +48,11 @@ const items: {
 
 function NavIcon({ name, active }: { name: NavKey; active: boolean }) {
   const stroke = active ? "#7c3aed" : "#9ca3af";
-  const fill = active ? "#7c3aed" : "none";
   const common = {
     width: 24,
     height: 24,
     viewBox: "0 0 24 24",
-    fill: "none",
+    fill: "none" as const,
     stroke,
     strokeWidth: active ? 2.25 : 1.75,
     strokeLinecap: "round" as const,
@@ -120,16 +120,32 @@ function NavIcon({ name, active }: { name: NavKey; active: boolean }) {
   }
 }
 
-/**
- * Flutter-style Material 3 NavigationBar:
- * floating surface, pill indicator behind selected icon, label under icon.
- */
 export default function AppBottomNav() {
   const pathname = usePathname() || "/";
+  const router = useRouter();
   const { status } = useSession();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  // Clear optimistic highlight when URL catches up
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
+
+  // Prefetch all tab routes once authenticated
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    items.forEach((item) => {
+      try {
+        router.prefetch(item.href);
+      } catch {
+        /* ignore */
+      }
+    });
+  }, [status, router]);
 
   const hide =
-    status !== "authenticated" ||
+    status === "unauthenticated" ||
     pathname === "/" ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
@@ -139,7 +155,33 @@ export default function AppBottomNav() {
     pathname === "/privacy" ||
     pathname === "/safety";
 
-  if (hide) return null;
+  // Keep bar visible while session is loading if we are already on a product page
+  const onProduct =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/find") ||
+    pathname.startsWith("/bookings") ||
+    pathname.startsWith("/become-saathi") ||
+    pathname.startsWith("/pricing") ||
+    pathname.startsWith("/pay") ||
+    pathname.startsWith("/saathi") ||
+    pathname.startsWith("/book") ||
+    pathname.startsWith("/chat");
+
+  const show = !hide || (status === "loading" && onProduct);
+
+  const go = useCallback(
+    (href: string) => (e: React.MouseEvent) => {
+      e.preventDefault();
+      if (href === pathname || (pendingHref === href && isPending)) return;
+      setPendingHref(href);
+      startTransition(() => {
+        router.push(href);
+      });
+    },
+    [pathname, pendingHref, isPending, router]
+  );
+
+  if (!show) return null;
 
   return (
     <nav
@@ -149,33 +191,34 @@ export default function AppBottomNav() {
     >
       <div className="pointer-events-auto mx-auto max-w-md px-3 pb-1">
         <div
-          className="flex items-center justify-between rounded-[28px] bg-white px-1.5 py-1.5 shadow-[0_8px_30px_rgba(15,23,42,0.12)] ring-1 ring-black/5"
+          className="flex items-center justify-between rounded-[28px] bg-white px-1.5 py-1.5 ring-1 ring-black/5"
           style={{
-            /* Flutter Material elevation-ish */
             boxShadow:
               "0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(124,58,237,0.12), 0 2px 6px rgba(0,0,0,0.06)",
           }}
         >
           {items.map((item) => {
-            const active = item.match(pathname);
+            const active =
+              pendingHref != null
+                ? pendingHref === item.href
+                : item.match(pathname);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className="relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 transition-transform active:scale-95"
+                prefetch
+                onClick={go(item.href)}
+                className="relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 select-none touch-manipulation"
               >
-                {/* Material 3 indicator pill */}
                 <span
-                  className={`flex h-8 w-[56px] items-center justify-center rounded-full transition-all duration-200 ${
-                    active
-                      ? "bg-violet-100 scale-100"
-                      : "bg-transparent scale-95"
+                  className={`flex h-8 w-[56px] items-center justify-center rounded-full transition-colors duration-150 ${
+                    active ? "bg-violet-100" : "bg-transparent"
                   }`}
                 >
-                  <NavIcon name={item.key} active={active} />
+                  <NavIcon name={item.key} active={!!active} />
                 </span>
                 <span
-                  className={`text-[11px] leading-none tracking-wide transition-colors ${
+                  className={`text-[11px] leading-none tracking-wide ${
                     active
                       ? "font-bold text-violet-700"
                       : "font-medium text-gray-400"
