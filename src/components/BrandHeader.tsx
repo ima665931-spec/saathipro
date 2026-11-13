@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import BrandLogo from "@/components/BrandLogo";
 
 type Props = {
   active?: "home" | "find" | "bookings" | "dashboard" | "become" | "admin";
@@ -91,15 +92,7 @@ export default function BrandHeader({ active, right, dark }: Props) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16">
           <Link href={loggedIn ? "/dashboard" : "/"} className="flex items-center gap-2.5">
-            <div
-              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-display font-bold text-sm ${
-                dark
-                  ? "bg-white/20 text-white"
-                  : "bg-brand-gradient text-white shadow-glow"
-              }`}
-            >
-              S
-            </div>
+            <BrandLogo size="md" className={dark ? "ring-1 ring-white/30" : ""} />
             <span
               className={`font-display text-lg font-bold tracking-tight ${
                 dark ? "text-white" : "text-ink"
