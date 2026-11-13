@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState, useTransition } from "react";
 
 type NavKey = "home" | "find" | "bookings" | "earn" | "plan";
@@ -120,21 +119,18 @@ function NavIcon({ name, active }: { name: NavKey; active: boolean }) {
   }
 }
 
+/** Mounted only inside AppShell on product routes */
 export default function AppBottomNav() {
   const pathname = usePathname() || "/";
   const router = useRouter();
-  const { status } = useSession();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Clear optimistic highlight when URL catches up
   useEffect(() => {
     setPendingHref(null);
   }, [pathname]);
 
-  // Prefetch all tab routes once authenticated
   useEffect(() => {
-    if (status !== "authenticated") return;
     items.forEach((item) => {
       try {
         router.prefetch(item.href);
@@ -142,32 +138,7 @@ export default function AppBottomNav() {
         /* ignore */
       }
     });
-  }, [status, router]);
-
-  const hide =
-    status === "unauthenticated" ||
-    pathname === "/" ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/register") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/agent") ||
-    pathname === "/terms" ||
-    pathname === "/privacy" ||
-    pathname === "/safety";
-
-  // Keep bar visible while session is loading if we are already on a product page
-  const onProduct =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/find") ||
-    pathname.startsWith("/bookings") ||
-    pathname.startsWith("/become-saathi") ||
-    pathname.startsWith("/pricing") ||
-    pathname.startsWith("/pay") ||
-    pathname.startsWith("/saathi") ||
-    pathname.startsWith("/book") ||
-    pathname.startsWith("/chat");
-
-  const show = !hide || (status === "loading" && onProduct);
+  }, [router]);
 
   const go = useCallback(
     (href: string) => (e: React.MouseEvent) => {
@@ -180,8 +151,6 @@ export default function AppBottomNav() {
     },
     [pathname, pendingHref, isPending, router]
   );
-
-  if (!show) return null;
 
   return (
     <nav
@@ -199,9 +168,7 @@ export default function AppBottomNav() {
         >
           {items.map((item) => {
             const active =
-              pendingHref != null
-                ? pendingHref === item.href
-                : item.match(pathname);
+              pendingHref != null ? pendingHref === item.href : item.match(pathname);
             return (
               <Link
                 key={item.href}
@@ -219,9 +186,7 @@ export default function AppBottomNav() {
                 </span>
                 <span
                   className={`text-[11px] leading-none tracking-wide ${
-                    active
-                      ? "font-bold text-violet-700"
-                      : "font-medium text-gray-400"
+                    active ? "font-bold text-violet-700" : "font-medium text-gray-400"
                   }`}
                 >
                   {item.label}
