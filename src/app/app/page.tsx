@@ -5,13 +5,14 @@ import { isAgentRole } from "@/lib/account-type";
 
 /**
  * PWA / installed-app entry (manifest start_url).
- * Never shows marketing site — only auth or home inside the product.
+ * Member product only — never dumps users into admin panel.
+ * Admin is a separate browser tool at /admin.
  */
 export default async function AppEntryPage() {
   const session = await auth();
 
   if (!session?.user?.email) {
-    redirect("/login?callbackUrl=/app");
+    redirect("/login?callbackUrl=/dashboard");
   }
 
   const user = await prisma.user.findFirst({
@@ -23,13 +24,12 @@ export default async function AppEntryPage() {
     redirect("/login?error=banned");
   }
 
-  if (user.role === "ADMIN") {
-    redirect("/admin");
-  }
-
+  // Agents use agent hub — not member dashboard
   if (isAgentRole(user.role)) {
     redirect("/agent");
   }
 
+  // ADMIN + USER + SAATHI all land on member dashboard from the app icon.
+  // Ops admin panel: open /admin intentionally in a browser, not from APK.
   redirect("/dashboard");
 }
