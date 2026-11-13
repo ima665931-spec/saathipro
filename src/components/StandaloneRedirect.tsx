@@ -14,9 +14,10 @@ function isStandalone() {
 }
 
 /**
- * Installed PWA / APK:
- * - never marketing site
- * - never admin ops panel (that is browser-only)
+ * Installed PWA / APK only:
+ * - Block pure marketing home
+ * - Block admin ops panel
+ * Do NOT touch product tabs (dashboard, find, bookings, pricing, become-saathi).
  */
 export default function StandaloneRedirect() {
   const router = useRouter();
@@ -24,20 +25,16 @@ export default function StandaloneRedirect() {
 
   useEffect(() => {
     if (!isStandalone()) return;
+    if (!pathname) return;
 
-    const marketing =
-      pathname === "/" ||
-      pathname === "/pricing" ||
-      pathname === "/safety" ||
-      pathname === "/terms" ||
-      pathname === "/privacy";
-
-    if (marketing) {
+    // Marketing-only pages — NOT product routes used by bottom nav
+    if (pathname === "/") {
       router.replace("/app");
       return;
     }
 
-    // Admin is ops-only — APK users must stay in member product
+    // Legal pages can stay; optional soft bounce only for home was needed
+    // Admin is ops-only
     if (pathname === "/admin" || pathname.startsWith("/admin/")) {
       router.replace("/dashboard");
     }
