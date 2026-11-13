@@ -11,11 +11,28 @@ type Props = {
   dark?: boolean;
 };
 
+function isProductPath(pathname: string) {
+  return (
+    pathname.startsWith("/dashboard") ||
+    pathname === "/app" ||
+    pathname.startsWith("/find") ||
+    pathname.startsWith("/bookings") ||
+    pathname.startsWith("/become-saathi") ||
+    pathname.startsWith("/pricing") ||
+    pathname.startsWith("/pay") ||
+    pathname.startsWith("/saathi") ||
+    pathname.startsWith("/book") ||
+    pathname.startsWith("/chat") ||
+    pathname.startsWith("/onboarding")
+  );
+}
+
 export default function BrandHeader({ active, right, dark }: Props) {
   const { data: session, status } = useSession();
-  const pathname = usePathname();
+  const pathname = usePathname() || "/";
   const loading = status === "loading";
   const loggedIn = status === "authenticated" && !!session?.user;
+  const product = isProductPath(pathname);
 
   const loginHref = `/login?callbackUrl=${encodeURIComponent(pathname || "/dashboard")}`;
 
@@ -60,8 +77,7 @@ export default function BrandHeader({ active, right, dark }: Props) {
     <>
       <Link
         href={loginHref}
-        className={`text-sm font-semibold px-2 ${
-          dark ? "text-white/90" : "text-ink-muted hover:text-ink"
+        className={`text-sm font-semibold px-2 ${\n          dark ? "text-white/90" : "text-ink-muted hover:text-ink"
         }`}
         title="Already have an account"
       >
@@ -84,6 +100,9 @@ export default function BrandHeader({ active, right, dark }: Props) {
   return (
     <header
       className={`sticky top-0 z-50 border-b shadow-sm ${
+        /* Mobile product screens use AppTopBar — avoid double headers */
+        product ? "hidden md:block" : ""
+      } ${
         dark
           ? "bg-brand-gradient border-transparent text-white"
           : "bg-white/90 backdrop-blur border-border"
