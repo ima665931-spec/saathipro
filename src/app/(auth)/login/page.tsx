@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import BrandLogo from "@/components/BrandLogo";
 
 function LoginForm() {
   const router = useRouter();
@@ -129,9 +130,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-brand-gradient flex items-center justify-center text-white font-display font-bold text-sm shadow-glow">
-              S
-            </div>
+            <BrandLogo size="lg" />
             <span className="font-display text-xl font-bold text-ink">
               Saathi<span className="text-pink">Pro</span>
             </span>
