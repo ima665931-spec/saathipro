@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { pickUpi, bumpUpiUsage } from "@/lib/upi-pool";
 import { getPlan, isValidPlanId, hasActivePlan, type PlanId } from "@/lib/plans";
 import { isValidUtr12, normalizeUtr12 } from "@/lib/ids";
-import { isRazorpayConfigured, getRazorpayKeyId } from "@/lib/razorpay";
 import {
   ensureSessionUser,
   ensureSessionUserWithPayments,
@@ -41,7 +40,6 @@ export async function GET(req: Request) {
     const creditBalance = user.creditBalance || 0;
     const maxCredit = Math.min(creditBalance, plan.price);
     const amountDue = Math.max(0, plan.price - maxCredit);
-    const razorpayEnabled = isRazorpayConfigured();
 
     const base = {
       publicId,
@@ -54,8 +52,6 @@ export async function GET(req: Request) {
       amountDue,
       selectedPlan: plan,
       lastUtr: lastPending?.utr || null,
-      razorpayEnabled,
-      razorpayKeyId: razorpayEnabled ? getRazorpayKeyId() : null,
       payments: user.payments.map((p) => ({
         id: p.id,
         amount: p.amount,
@@ -95,7 +91,7 @@ export async function GET(req: Request) {
         userId: user.id,
         status: "ASSIGNED",
         plan: planId,
-        OR: [{ method: null }, { method: "UPI" }, { method: { not: "RAZORPAY" } }],
+        OR: [{ method: null }, { method: "UPI" }],
         createdAt: { gte: since },
       },
       orderBy: { createdAt: "desc" },
@@ -129,8 +125,8 @@ export async function GET(req: Request) {
       assignmentId: assignment?.id || null,
       active: false,
       error:
-        !assignment && !razorpayEnabled
-          ? "No UPI available in pool. Add UPIs in admin or set Razorpay keys."
+        !assignment
+          ? "No UPI available in pool. Add UPIs in admin panel."
           : undefined,
     });
   } catch (err) {
