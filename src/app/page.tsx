@@ -22,7 +22,7 @@ const faqs = [
   },
   {
     q: "How much does membership cost?",
-    a: "Weekly ₹299 · Monthly ₹499 · Half-year ₹999 · Yearly ₹1499. Pay via Razorpay (UPI / cards). Browse is free; plan unlocks booking & chat.",
+    a: "Weekly ₹299 · Monthly ₹499 · Half-year ₹999 · Yearly ₹1499. Pay via UPI (manual verification). Browse is free; plan unlocks booking & chat.",
   },
   {
     q: "How do I book?",
@@ -34,7 +34,7 @@ const faqs = [
   },
   {
     q: "Is it safe?",
-    a: "Read our Safety page. Public places preferred, report issues on WhatsApp support. Professional boundaries only.",
+    a: "Read our Safety page. Public places preferred, report issues on Telegram support (@SaathiProSupport). Professional boundaries only.",
   },
 ];
 
@@ -51,8 +51,9 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-brand-gradient flex items-center justify-center text-white font-display font-bold text-sm shadow-glow">
-                S
+              <div className="w-9 h-9 rounded-xl bg-brand-gradient flex items-center justify-center text-white font-display font-bold text-sm shadow-glow overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/icons/icon.svg" alt="" className="w-full h-full object-cover" />
               </div>
               <span className="font-display text-lg font-bold text-ink tracking-tight">
                 Saathi<span className="text-pink">Pro</span>
@@ -110,7 +111,7 @@ export default function Home() {
               {[
                 { value: "₹299+", label: "From weekly" },
                 { value: "NCR", label: "Soft launch" },
-                { value: "Support", label: "WhatsApp" },
+                { value: "Telegram", label: "Support" },
               ].map((stat) => (
                 <div key={stat.label} className="bg-white/80 backdrop-blur rounded-2xl border border-border p-4 shadow-card">
                   <div className="font-display text-lg font-bold text-brand-gradient">{stat.value}</div>
@@ -198,7 +199,7 @@ export default function Home() {
       <section className="py-14 bg-white border-t border-border text-center">
         <div className="max-w-xl mx-auto px-4">
           <h2 className="font-display text-2xl font-bold text-ink">Ready for soft launch?</h2>
-          <p className="mt-2 text-ink-muted">Delhi NCR · plans from ₹299 · Razorpay</p>
+          <p className="mt-2 text-ink-muted">Delhi NCR · plans from ₹299 · UPI</p>
           <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/register" className="btn-brand px-8 py-3.5 rounded-full shadow-glow">Get started</Link>
             <Link href="/safety" className="px-8 py-3.5 border-2 border-accent/40 text-accent font-semibold rounded-full hover:bg-pink-soft/50 transition">Safety rules</Link>
