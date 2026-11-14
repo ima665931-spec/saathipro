@@ -1,9 +1,5 @@
 import type { NextAuthConfig } from "next-auth";
 
-/**
- * Edge-safe Auth.js config (no Prisma / bcrypt).
- * Used by middleware. Full providers + adapter live in auth.ts.
- */
 export const authConfig = {
   trustHost: true,
   pages: {
@@ -28,6 +24,7 @@ export const authConfig = {
         "/bookings",
         "/pay",
         "/become-saathi",
+        "/invite",
         "/agent",
         "/book",
         "/chat",
