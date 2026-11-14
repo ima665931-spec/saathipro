@@ -13,6 +13,8 @@ export const config = {
     "/pay/:path*",
     "/become-saathi",
     "/become-saathi/:path*",
+    "/invite",
+    "/invite/:path*",
     "/agent",
     "/agent/:path*",
     "/book",
