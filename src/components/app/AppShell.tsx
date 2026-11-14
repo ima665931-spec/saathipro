@@ -11,6 +11,7 @@ function isProductPath(pathname: string) {
     pathname.startsWith("/find") ||
     pathname.startsWith("/bookings") ||
     pathname.startsWith("/become-saathi") ||
+    pathname.startsWith("/invite") ||
     pathname.startsWith("/pricing") ||
     pathname.startsWith("/pay") ||
     pathname.startsWith("/saathi") ||
@@ -20,10 +21,6 @@ function isProductPath(pathname: string) {
   );
 }
 
-/**
- * Mobile app chrome for member product routes.
- * Marketing / auth / admin / agent render children only.
- */
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
   const product = isProductPath(pathname);
