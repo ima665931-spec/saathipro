@@ -141,164 +141,171 @@ export default function BecomeSaathiPage() {
 
   if (status === "loading" || status === "unauthenticated") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-brand-soft text-ink-muted text-sm">
-        {status === "unauthenticated" ? "Redirecting to register…" : "Loading…"}
+      <div className="py-16 text-center text-sm text-ink-muted">
+        {status === "unauthenticated" ? "Redirecting…" : "Loading…"}
       </div>
     );
   }
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-brand-soft px-4">
-        <div className="bg-white rounded-2xl border border-border shadow-soft p-10 text-center max-w-md">
-          <div className="w-14 h-14 rounded-full bg-brand-gradient text-white flex items-center justify-center mx-auto text-xl">
-            ✓
-          </div>
-          <h1 className="mt-4 font-display text-2xl font-bold text-ink">Profile saved</h1>
-          <p className="mt-2 text-ink-muted text-sm">
-            {needsPay
-              ? "Next: choose a plan to go live on Find."
-              : "Your listing can go live. Redirecting…"}
-          </p>
-        </div>
+      <div className="py-16 text-center px-4">
+        <p className="text-3xl mb-2">✓</p>
+        <p className="font-bold text-ink">Profile saved</p>
+        <p className="text-xs text-ink-muted mt-1">
+          {needsPay ? "Next: unlock a plan to go live." : "Taking you home…"}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-brand-soft">
-      <BrandHeader active="become" />
-      <main className="max-w-2xl mx-auto px-4 py-10 space-y-8">
-        <div>
-          <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">
-            For professionals
-          </p>
-          <h1 className="font-display text-3xl font-bold text-ink">Become a Saathi</h1>
-          <p className="mt-2 text-ink-muted mb-2 text-sm">
-            Logged in as <strong className="text-ink">{session?.user?.email}</strong>
-          </p>
-          <p className="text-ink-muted text-sm">
-            Save profile anytime. Active plan makes you live on Find. Same account can also book
-            Saathis.
-          </p>
-        </div>
+    <div className="pb-2">
+      <div className="hidden md:block -mx-4 mb-4">
+        <BrandHeader active="become" />
+      </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white rounded-2xl border border-border shadow-card p-6 space-y-5"
-        >
-          {error && (
-            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-xl">{error}</div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-ink mb-2">Photo</label>
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-100 to-pink-100 overflow-hidden flex items-center justify-center">
-                {photo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photo} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xs text-ink-muted">None</span>
-                )}
-              </div>
+      <section className="mb-4">
+        <p className="text-xs font-bold tracking-widest uppercase text-pink">Earn</p>
+        <h1 className="font-display text-2xl font-bold text-ink mt-1">Saathi profile</h1>
+        <p className="mt-1.5 text-xs text-ink-muted leading-relaxed">
+          Set services & rates. Go live after membership is active.
+        </p>
+      </section>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Photo */}
+        <div className="rounded-2xl bg-white border border-border p-4 shadow-card">
+          <p className="text-xs font-bold text-ink mb-2">Photo</p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="w-16 h-16 rounded-xl bg-violet-50 border border-dashed border-violet-200 overflow-hidden flex items-center justify-center text-2xl"
+            >
+              {photo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photo} alt="" className="w-full h-full object-cover" />
+              ) : (
+                "📷"
+              )}
+            </button>
+            <div className="min-w-0 flex-1">
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="px-4 py-2 text-sm border border-border rounded-full"
+                className="text-xs font-bold text-violet-700"
               >
-                {photo ? "Change" : "Upload"}
+                {photo ? "Change photo" : "Upload photo"}
               </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onPhotoChange}
-              />
+              <p className="text-[10px] text-ink-muted mt-0.5">JPG/PNG · auto-compressed</p>
             </div>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPhotoChange} />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-ink mb-1">City</label>
+        </div>
+
+        <div className="rounded-2xl bg-white border border-border p-4 shadow-card space-y-3">
+          <label className="block text-xs font-bold text-ink">
+            City
             <select
               value={city}
               onChange={(e) => setCity(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50"
+              className="mt-1 w-full px-3 py-2.5 rounded-xl border border-border text-sm bg-cream/40"
             >
-              <option value="">Select</option>
+              <option value="">Select city</option>
               {CITY_LIST.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
               ))}
             </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-ink mb-1">Phone</label>
+          </label>
+
+          <label className="block text-xs font-bold text-ink">
+            Phone (optional)
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50"
+              placeholder="10-digit mobile"
+              className="mt-1 w-full px-3 py-2.5 rounded-xl border border-border text-sm bg-cream/40"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-ink mb-2">Services</label>
-            <div className="flex flex-wrap gap-2">
-              {SERVICE_CATALOG.map((svc) => (
-                <button
-                  key={svc.id}
-                  type="button"
-                  onClick={() => toggleService(svc.label)}
-                  className={`px-3 py-1.5 rounded-full text-sm ${
-                    services.includes(svc.label)
-                      ? "btn-brand"
-                      : "bg-white border border-border text-ink-muted"
-                  }`}
-                >
-                  {svc.emoji} {svc.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-ink mb-1">Hourly rate ₹</label>
+          </label>
+
+          <label className="block text-xs font-bold text-ink">
+            Hourly rate (₹)
             <input
               type="number"
               min={500}
               max={5000}
               value={hourlyRate}
               onChange={(e) => setHourlyRate(Number(e.target.value))}
-              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50"
+              className="mt-1 w-full px-3 py-2.5 rounded-xl border border-border text-sm bg-cream/40"
             />
+          </label>
+        </div>
+
+        <div className="rounded-2xl bg-white border border-border p-4 shadow-card">
+          <p className="text-xs font-bold text-ink mb-2">Services</p>
+          <div className="flex flex-wrap gap-2">
+            {SERVICE_CATALOG.map((svc) => {
+              const on = services.includes(svc.label);
+              return (
+                <button
+                  key={svc.id}
+                  type="button"
+                  onClick={() => toggleService(svc.label)}
+                  className={`px-2.5 py-1.5 rounded-full text-[11px] font-semibold border ${
+                    on
+                      ? "bg-brand-gradient text-white border-transparent"
+                      : "bg-white text-ink-muted border-border"
+                  }`}
+                >
+                  {svc.emoji} {svc.label}
+                </button>
+              );
+            })}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-ink mb-1">About you</label>
+        </div>
+
+        <div className="rounded-2xl bg-white border border-border p-4 shadow-card">
+          <label className="block text-xs font-bold text-ink">
+            About you
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={4}
               required
-              className="w-full px-4 py-3 border border-border rounded-xl bg-cream/50"
+              className="mt-1 w-full px-3 py-2.5 rounded-xl border border-border text-sm bg-cream/40"
               placeholder="Min 20 characters — what you offer…"
             />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 btn-brand rounded-xl disabled:opacity-50"
-          >
-            {loading ? "Saving…" : "Save Saathi profile"}
-          </button>
-          <p className="text-center text-xs text-ink-muted">
-            <Link href="/dashboard" className="text-accent font-medium">
-              ← Back to dashboard
-            </Link>
-          </p>
-        </form>
+          </label>
+          <p className="text-[10px] text-ink-muted mt-1">{bio.trim().length}/20 min</p>
+        </div>
 
+        {error && (
+          <div className="p-3 rounded-xl bg-red-50 text-red-700 text-xs">{error}</div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-3.5 rounded-2xl text-sm font-bold text-white bg-brand-gradient disabled:opacity-50 shadow-glow"
+        >
+          {loading ? "Saving…" : "Save Saathi profile"}
+        </button>
+
+        <p className="text-center text-[11px] text-ink-muted">
+          <Link href="/dashboard" className="font-semibold text-violet-600">
+            ← Home
+          </Link>
+        </p>
+      </form>
+
+      <div className="mt-6">
         <AvailabilityManager />
-      </main>
+      </div>
     </div>
   );
 }
