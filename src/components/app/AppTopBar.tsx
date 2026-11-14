@@ -12,7 +12,8 @@ const TITLES: { test: (p: string) => boolean; title: string; back?: string }[] =
   { test: (p) => p.startsWith("/bookings"), title: "Bookings" },
   { test: (p) => p.startsWith("/book"), title: "Book", back: "/find" },
   { test: (p) => p.startsWith("/chat"), title: "Chat", back: "/bookings" },
-  { test: (p) => p.startsWith("/become-saathi"), title: "Earn" },
+  { test: (p) => p.startsWith("/become-saathi"), title: "Offer services", back: "/dashboard" },
+  { test: (p) => p.startsWith("/invite"), title: "Invite & earn" },
   { test: (p) => p.startsWith("/pricing"), title: "Your plan" },
   { test: (p) => p.startsWith("/pay"), title: "Payment", back: "/pricing" },
   { test: (p) => p.startsWith("/onboarding"), title: "Setup" },
@@ -59,12 +60,11 @@ export default function AppTopBar() {
           <h1 className="text-[17px] font-bold text-ink truncate tracking-tight">{title}</h1>
         </div>
 
-        <div className="relative group">
+        <div className="relative">
           <button
             type="button"
             className="w-10 h-10 rounded-full bg-brand-gradient text-white text-sm font-bold flex items-center justify-center shadow-sm"
             aria-label="Account"
-            id="app-account-btn"
             onClick={() => {
               const el = document.getElementById("app-account-menu");
               if (el) el.classList.toggle("hidden");
@@ -77,25 +77,19 @@ export default function AppTopBar() {
             className="hidden absolute right-0 mt-2 w-44 rounded-2xl bg-white shadow-lg ring-1 ring-black/5 py-2 z-50"
           >
             <p className="px-3 py-1 text-xs text-ink-muted truncate">{session?.user?.email}</p>
-            <Link
-              href="/dashboard"
-              className="block px-3 py-2 text-sm font-medium text-ink hover:bg-violet-50"
-              onClick={() => document.getElementById("app-account-menu")?.classList.add("hidden")}
-            >
+            <Link href="/dashboard" className="block px-3 py-2 text-sm font-medium text-ink hover:bg-violet-50" onClick={() => document.getElementById("app-account-menu")?.classList.add("hidden")}>
               Home
             </Link>
-            <Link
-              href="/pricing"
-              className="block px-3 py-2 text-sm font-medium text-ink hover:bg-violet-50"
-              onClick={() => document.getElementById("app-account-menu")?.classList.add("hidden")}
-            >
+            <Link href="/invite" className="block px-3 py-2 text-sm font-medium text-ink hover:bg-violet-50" onClick={() => document.getElementById("app-account-menu")?.classList.add("hidden")}>
+              Invite & earn
+            </Link>
+            <Link href="/become-saathi" className="block px-3 py-2 text-sm font-medium text-ink hover:bg-violet-50" onClick={() => document.getElementById("app-account-menu")?.classList.add("hidden")}>
+              Offer services
+            </Link>
+            <Link href="/pricing" className="block px-3 py-2 text-sm font-medium text-ink hover:bg-violet-50" onClick={() => document.getElementById("app-account-menu")?.classList.add("hidden")}>
               Plan
             </Link>
-            <button
-              type="button"
-              className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-              onClick={() => signOut({ callbackUrl: "/login" })}
-            >
+            <button type="button" className="w-full text-left px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50" onClick={() => signOut({ callbackUrl: "/login" })}>
               Log out
             </button>
           </div>
