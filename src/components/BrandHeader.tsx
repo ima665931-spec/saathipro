@@ -43,8 +43,8 @@ export default function BrandHeader({ active, right, dark }: Props) {
         active === key
           ? "text-sm font-semibold text-accent"
           : dark
-          ? "text-sm font-medium text-white/80 hover:text-white transition"
-          : "text-sm font-medium text-ink-muted hover:text-accent transition"
+            ? "text-sm font-medium text-white/80 hover:text-white transition"
+            : "text-sm font-medium text-ink-muted hover:text-accent transition"
       }
     >
       {label}
@@ -128,7 +128,7 @@ export default function BrandHeader({ active, right, dark }: Props) {
               }
             >
               Saathi
-              <span className={dark ? "text-white/90" : "text-pink">Pro</span>
+              <span className={dark ? "text-white/90" : "text-pink"}>Pro</span>
             </span>
           </Link>
 
