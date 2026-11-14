@@ -39,36 +39,40 @@ export default function BrandHeader({ active, right, dark }: Props) {
   const link = (href: string, key: string, label: string) => (
     <Link
       href={href}
-      className={`text-sm font-medium transition ${
+      className={
         active === key
-          ? "text-accent font-semibold"
+          ? "text-sm font-semibold text-accent"
           : dark
-          ? "text-white/80 hover:text-white"
-          : "text-ink-muted hover:text-accent"
-      }`}
+          ? "text-sm font-medium text-white/80 hover:text-white transition"
+          : "text-sm font-medium text-ink-muted hover:text-accent transition"
+      }
     >
       {label}
     </Link>
   );
 
   const defaultRight = loading ? (
-    <span className={`text-sm ${dark ? "text-white/60" : "text-ink-muted"}`}>…</span>
+    <span className={dark ? "text-sm text-white/60" : "text-sm text-ink-muted"}>…</span>
   ) : loggedIn ? (
     <>
       <Link
         href="/dashboard"
-        className={`text-sm font-semibold px-2 hidden sm:inline ${
-          dark ? "text-white/90" : "text-ink-muted hover:text-ink"
-        }`}
+        className={
+          dark
+            ? "text-sm font-semibold px-2 hidden sm:inline text-white/90"
+            : "text-sm font-semibold px-2 hidden sm:inline text-ink-muted hover:text-ink"
+        }
       >
         {session.user?.name?.split(" ")[0] || "Account"}
       </Link>
       <button
         type="button"
         onClick={() => signOut({ callbackUrl: "/" })}
-        className={`text-sm font-medium px-2 ${
-          dark ? "text-white/80" : "text-ink-muted hover:text-ink"
-        }`}
+        className={
+          dark
+            ? "text-sm font-medium px-2 text-white/80"
+            : "text-sm font-medium px-2 text-ink-muted hover:text-ink"
+        }
       >
         Logout
       </button>
@@ -77,8 +81,11 @@ export default function BrandHeader({ active, right, dark }: Props) {
     <>
       <Link
         href={loginHref}
-        className={`text-sm font-semibold px-2 ${\n          dark ? "text-white/90" : "text-ink-muted hover:text-ink"
-        }`}
+        className={
+          dark
+            ? "text-sm font-semibold px-2 text-white/90"
+            : "text-sm font-semibold px-2 text-ink-muted hover:text-ink"
+        }
         title="Already have an account"
       >
         Sign in
@@ -97,28 +104,31 @@ export default function BrandHeader({ active, right, dark }: Props) {
     </>
   );
 
+  const headerClass = [
+    "sticky top-0 z-50 border-b shadow-sm",
+    product ? "hidden md:block" : "",
+    dark
+      ? "bg-brand-gradient border-transparent text-white"
+      : "bg-white/90 backdrop-blur border-border",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <header
-      className={`sticky top-0 z-50 border-b shadow-sm ${
-        /* Mobile product screens use AppTopBar — avoid double headers */
-        product ? "hidden md:block" : ""
-      } ${
-        dark
-          ? "bg-brand-gradient border-transparent text-white"
-          : "bg-white/90 backdrop-blur border-border"
-      }`}
-    >
+    <header className={headerClass}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16">
           <Link href={loggedIn ? "/dashboard" : "/"} className="flex items-center gap-2.5">
             <BrandLogo size="md" className={dark ? "ring-1 ring-white/30" : ""} />
             <span
-              className={`font-display text-lg font-bold tracking-tight ${
-                dark ? "text-white" : "text-ink"
-              }`}
+              className={
+                dark
+                  ? "font-display text-lg font-bold tracking-tight text-white"
+                  : "font-display text-lg font-bold tracking-tight text-ink"
+              }
             >
               Saathi
-              <span className={dark ? "text-white/90" : "text-pink"}>Pro</span>
+              <span className={dark ? "text-white/90" : "text-pink">Pro</span>
             </span>
           </Link>
 
