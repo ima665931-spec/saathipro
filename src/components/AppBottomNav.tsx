@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
 
-type NavKey = "home" | "find" | "bookings" | "earn" | "plan";
+type NavKey = "home" | "find" | "bookings" | "invite" | "plan";
 
 const items: {
   href: string;
@@ -32,10 +32,10 @@ const items: {
       p.startsWith("/bookings") || p.startsWith("/chat") || p.startsWith("/book"),
   },
   {
-    href: "/become-saathi",
-    label: "Earn",
-    key: "earn",
-    match: (p) => p.startsWith("/become-saathi"),
+    href: "/invite",
+    label: "Invite",
+    key: "invite",
+    match: (p) => p.startsWith("/invite"),
   },
   {
     href: "/pricing",
@@ -90,13 +90,14 @@ function NavIcon({ name, active }: { name: NavKey; active: boolean }) {
           <path d="M8 3v4M16 3v4M4 10h16" />
         </svg>
       );
-    case "earn":
+    case "invite":
       return (
         <svg {...common}>
           <path
-            d="M12 3v18M16.5 7.5c0-1.5-1.8-2.5-4.5-2.5S7.5 6 7.5 7.8c0 1.7 1.4 2.4 4.5 3.2s4.5 1.7 4.5 3.5c0 2-1.9 3-4.5 3s-4.5-1-4.5-2.8"
-            fill={active ? "rgba(124,58,237,0.08)" : "none"}
+            d="M16 11a3 3 0 1 0-3-3M8 14a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"
+            fill={active ? "rgba(124,58,237,0.12)" : "none"}
           />
+          <path d="M4 20v-1a4 4 0 0 1 4-4h2M15 14h2a4 4 0 0 1 3.5 2" />
         </svg>
       );
     case "plan":
@@ -119,7 +120,6 @@ function NavIcon({ name, active }: { name: NavKey; active: boolean }) {
   }
 }
 
-/** Mounted only inside AppShell on product routes */
 export default function AppBottomNav() {
   const pathname = usePathname() || "/";
   const router = useRouter();
