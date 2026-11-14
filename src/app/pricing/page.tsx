@@ -11,92 +11,89 @@ function PricingInner() {
   const next = searchParams.get("next") || "";
 
   return (
-    <div className="min-h-screen bg-brand-soft">
-      <BrandHeader />
+    <div className="pb-2">
+      <div className="hidden md:block -mx-4 mb-4">
+        <BrandHeader />
+      </div>
 
-      <main className="max-w-5xl mx-auto px-4 py-12">
-        <div className="text-center max-w-xl mx-auto mb-12">
-          <p className="text-xs font-bold tracking-widest uppercase text-pink mb-2">Membership</p>
-          <h1 className="font-display text-4xl font-bold text-ink">
-            Unlock <span className="text-brand-gradient">booking & chat</span>
-          </h1>
-          <p className="mt-3 text-ink-muted text-sm">
-            Browse profiles free. Plan is required to book a Saathi, send messages, or go live as a provider.
-            Same account works for both.
-          </p>
-          {next && (
-            <p className="mt-2 text-xs text-accent font-medium">
-              After payment you can continue where you left off.
-            </p>
-          )}
-        </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {PLANS.map((p) => {
-            const highlight = p.id === "YEARLY" || p.id === "MONTHLY";
-            const payHref = next
-              ? `/pay?plan=${p.id}&next=${encodeURIComponent(next)}`
-              : `/pay?plan=${p.id}`;
-            return (
-              <div
-                key={p.id}
-                className={`relative rounded-2xl border bg-white p-6 shadow-card flex flex-col ${
-                  p.id === "YEARLY"
-                    ? "border-pink ring-2 ring-pink/30 shadow-glow"
-                    : "border-border"
-                }`}
-              >
-                {p.badge && (
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-[11px] font-bold bg-brand-gradient text-white whitespace-nowrap">
-                    {p.badge}
-                  </span>
-                )}
-                <h2 className="font-display text-lg font-bold text-ink">{p.name}</h2>
-                <p className="text-xs text-ink-muted mt-1">{p.tagline}</p>
-                <p className="mt-4">
-                  <span className="font-display text-3xl font-bold text-brand-gradient">₹{p.price}</span>
-                </p>
-                {p.saveLabel && (
-                  <p className="text-xs font-semibold text-pink mt-1">{p.saveLabel}</p>
-                )}
-                <ul className="mt-4 space-y-1.5 text-xs text-ink-muted flex-1">
-                  <li>· Book any Saathi</li>
-                  <li>· In-app chat on bookings</li>
-                  <li>· Go live as provider</li>
-                  <li>· {p.days} days access</li>
-                </ul>
-                <Link
-                  href={payHref}
-                  className={`mt-6 block text-center py-3 rounded-full text-sm font-bold transition ${
-                    highlight
-                      ? "btn-brand shadow-soft"
-                      : "border-2 border-accent/40 text-accent hover:bg-pink-soft/50"
-                  }`}
-                >
-                  Select {p.name}
-                </Link>
-              </div>
-            );
-          })}
-        </div>
-
-        <p className="mt-10 text-center text-xs text-ink-muted max-w-md mx-auto">
-          Razorpay unlocks instantly. You can find Saathis and become a Saathi with the same Gmail.
+      <section className="mb-4">
+        <p className="text-xs font-bold tracking-widest uppercase text-pink">Membership</p>
+        <h1 className="font-display text-2xl font-bold text-ink mt-1">
+          Unlock booking & chat
+        </h1>
+        <p className="mt-1.5 text-xs text-ink-muted leading-relaxed">
+          Browse free. Plan needed to book, message, or go live as a Saathi.
         </p>
-      </main>
+        {next && (
+          <p className="mt-2 text-[11px] font-semibold text-violet-600">
+            After payment you can continue where you left off.
+          </p>
+        )}
+      </section>
+
+      <div className="space-y-3">
+        {PLANS.map((p) => {
+          const payHref = next
+            ? `/pay?plan=${p.id}&next=${encodeURIComponent(next)}`
+            : `/pay?plan=${p.id}`;
+          const best = p.id === "YEARLY";
+          const popular = p.id === "MONTHLY";
+          return (
+            <div
+              key={p.id}
+              className={`relative rounded-2xl border bg-white p-4 shadow-card flex gap-3 items-center ${
+                best
+                  ? "border-pink ring-2 ring-pink/25"
+                  : popular
+                  ? "border-violet-200"
+                  : "border-border"
+              }`}
+            >
+              {p.badge && (
+                <span className="absolute -top-2 left-4 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-brand-gradient text-white">
+                  {p.badge}
+                </span>
+              )}
+              <div className="min-w-0 flex-1 pt-1">
+                <h2 className="font-bold text-ink text-sm">{p.name}</h2>
+                <p className="text-[11px] text-ink-muted">{p.tagline}</p>
+                {p.saveLabel && (
+                  <p className="text-[10px] font-semibold text-emerald-700 mt-0.5">{p.saveLabel}</p>
+                )}
+                <p className="mt-1.5">
+                  <span className="font-display text-xl font-bold text-brand-gradient">₹{p.price}</span>
+                  <span className="text-[10px] text-ink-muted ml-1">{p.days} days</span>
+                </p>
+              </div>
+              <Link
+                href={payHref}
+                className="shrink-0 text-[11px] font-bold px-3.5 py-2 rounded-full text-white bg-brand-gradient active:scale-95"
+              >
+                Choose
+              </Link>
+            </div>
+          );
+        })}
+      </div>
+
+      <ul className="mt-5 space-y-1.5 text-[11px] text-ink-muted px-1">
+        <li>· Manual UPI pay · admin verifies usually within a few hours</li>
+        <li>· Same plan for seekers and Saathi providers</li>
+        <li>· Extend anytime — unused days stack on renewal</li>
+      </ul>
+
+      <p className="mt-4 text-center">
+        <Link href="/pay" className="text-xs font-semibold text-violet-600">
+          Already paid? Open payment status →
+        </Link>
+      </p>
     </div>
   );
 }
 
 export default function PricingPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-brand-soft text-sm text-ink-muted">
-          Loading…
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="py-16 text-center text-sm text-ink-muted">Loading…</div>}>
       <PricingInner />
     </Suspense>
   );
