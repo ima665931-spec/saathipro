@@ -13,19 +13,22 @@
   --gold: #f59e0b;
   --border: #e9e0f5;
   --card: #ffffff;
+  --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-display: "Playfair Display", Georgia, serif;
 }
 
 body {
   background: var(--cream);
   color: var(--ink);
+  font-family: var(--font-sans);
 }
 
 .font-display {
-  font-family: var(--font-display), Georgia, serif;
+  font-family: var(--font-display);
 }
 
 .font-sans {
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .btn-brand {
