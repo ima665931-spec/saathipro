@@ -1,4 +1,4 @@
-/** Agent commissions & invite types */
+/** Agent commissions & member invite rewards */
 
 export const DEFAULT_COMMISSION_PCT = 50;
 
@@ -6,7 +6,7 @@ export const DEFAULT_COMMISSION_PCT = 50;
 export const AGENT_KYC_BONUS = 49;
 
 /** Normal user: ₹ credit when friend buys a plan */
-export const USER_REFERRAL_CREDIT = 49;
+export const USER_REFERRAL_CREDIT = 99;
 
 /** Parent agent gets this % of sub-agent commission earnings */
 export const SUB_AGENT_SHARE_PCT = 10;
@@ -15,7 +15,7 @@ export const SUB_AGENT_SHARE_PCT = 10;
 export const MILESTONE_REFS = 3;
 export const MILESTONE_BONUS = 69;
 
-export const MIN_CASHOUT = 100;
+export const MIN_CASHOUT = 99;
 
 export type InviteType = "agent" | "seeker" | "provider";
 
@@ -32,10 +32,11 @@ export function subAgentShare(commissionEarned: number): number {
 }
 
 export function generateReferralCode(name?: string | null): string {
-  const base = (name || "AGT")
-    .replace(/[^a-zA-Z]/g, "")
-    .slice(0, 5)
-    .toUpperCase() || "AGT";
+  const base =
+    (name || "SP")
+      .replace(/[^a-zA-Z]/g, "")
+      .slice(0, 5)
+      .toUpperCase() || "SP";
   const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
   return `${base}${suffix}`;
 }
@@ -51,6 +52,7 @@ export function buildInviteLinks(origin: string, code: string) {
     provider: `${base}/register?ref=${code}&type=provider`,
     agent: `${base}/agent?ref=${code}&type=agent`,
     registerAgent: `${base}/register?ref=${code}&type=agent`,
+    share: `${base}/register?ref=${code}`,
   };
 }
 
